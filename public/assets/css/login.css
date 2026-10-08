@@ -1,0 +1,333 @@
+/* ==========================================================
+   ASSETSYS LOGIN PAGE
+   ========================================================== */
+
+body {
+
+    background: #f8fafc;
+
+    font-family: "Futura", "Futura PT", "Century Gothic", Arial, sans-serif;
+
+}
+
+.login-container {
+
+    min-height: 100vh;
+
+}
+
+.login-card {
+
+    overflow: hidden;
+
+    border-radius: 20px;
+
+    background: #fff;
+
+}
+
+/* ==========================================================
+   LEFT PANEL
+   ========================================================== */
+
+.login-left {
+
+    background: linear-gradient(135deg, #007472, #005957);
+
+    color: #fff;
+
+    display: flex;
+
+    justify-content: center;
+
+    align-items: center;
+
+    padding: 60px;
+
+    min-height: 650px;
+
+}
+
+.login-left-content {
+
+    text-align: center;
+
+    max-width: 420px;
+
+}
+
+.login-logo {
+
+    width: 520px;
+
+    max-width: 92%;
+
+    height: auto;
+
+    display: block;
+
+    margin: 0 auto 5px !important;
+
+}
+
+.login-left p {
+
+    font-size: 16px;
+
+    line-height: 1.8;
+
+    opacity: .92;
+
+}
+
+/* ==========================================================
+   RIGHT PANEL
+   ========================================================== */
+
+.login-form-wrapper {
+
+    padding: 70px 60px;
+
+}
+
+.login-form-wrapper h3 {
+
+    font-size: 34px;
+
+    font-weight: 700;
+
+    color: #0B1F1E;
+
+    margin-bottom: 10px;
+
+}
+
+.login-form-wrapper p {
+
+    margin-bottom: 35px;
+
+}
+
+/* ==========================================================
+   LOGIN BRANDING SPACING
+   ========================================================== */
+
+.login-left-content .helpdesk-title {
+
+    position: relative !important;
+
+    margin-top: 0 !important;
+
+    margin-bottom: 35px !important;
+
+    font-size: 20px !important;
+
+    font-weight: 700 !important;
+
+}
+
+/* ==========================================================
+   INPUTS
+   ========================================================== */
+
+.input-group {
+
+    margin-bottom: 10px;
+
+}
+
+.input-group-text {
+
+    background: #fff;
+
+    border-right: none;
+
+}
+
+.input-group .form-control {
+
+    border-left: none;
+
+}
+
+.input-group .form-control:focus {
+
+    box-shadow: none;
+
+}
+
+.input-group:focus-within {
+
+    border-radius: 10px;
+
+    box-shadow: 0 0 0 .15rem rgba(37, 99, 235, .15);
+
+}
+
+.input-group:focus-within .form-control,
+
+.input-group:focus-within .input-group-text {
+
+    border-color: #007472;
+
+}
+
+/* ==========================================================
+   PASSWORD BUTTON
+   ========================================================== */
+
+#togglePassword {
+
+    border: 1px solid #dee2e6;
+
+    border-left: none;
+
+    background: #fff;
+
+    color: #6c757d;
+
+    width: 48px;
+
+}
+
+#togglePassword:hover {
+
+    background: #f8fafc;
+
+    color: #007472;
+
+}
+
+#togglePassword:focus {
+
+    box-shadow: none;
+
+}
+
+/* ==========================================================
+   LOGIN BUTTON
+   ========================================================== */
+
+#loginBtn {
+
+    height: 50px;
+
+    font-size: 16px;
+
+    font-weight: 600;
+
+}
+
+#loginBtn:disabled {
+
+    opacity: .8;
+
+    cursor: not-allowed;
+
+}
+
+/* ==========================================================
+   FORGOT PASSWORD
+   ========================================================== */
+
+.forgot-link {
+
+    color: #007472;
+
+    font-weight: 600;
+
+}
+
+.forgot-link:hover {
+
+    color: #005957;
+
+}
+
+/* ==========================================================
+   CHECKBOX
+   ========================================================== */
+
+.form-check-input:checked {
+
+    background-color: #007472;
+
+    border-color: #007472;
+
+}
+
+/* ==========================================================
+   LOGIN ANIMATION
+   ========================================================== */
+
+.login-card {
+
+    animation: fadeIn .5s ease;
+
+}
+
+@keyframes fadeIn {
+
+    from {
+
+        opacity: 0;
+
+        transform: translateY(25px);
+
+    }
+
+    to {
+
+        opacity: 1;
+
+        transform: translateY(0);
+
+    }
+
+}
+
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
+
+@media (max-width: 991.98px) {
+
+    .login-left {
+
+        min-height: 320px;
+
+        padding: 40px 30px;
+
+    }
+
+    .login-form-wrapper {
+
+        padding: 50px 35px;
+
+    }
+
+}
+
+@media (max-width: 575.98px) {
+
+    .login-left {
+
+        min-height: 280px;
+
+        padding: 35px 20px;
+
+    }
+
+    .login-form-wrapper {
+
+        padding: 40px 25px;
+
+    }
+
+    .login-form-wrapper h3 {
+
+        font-size: 28px;
+
+    }
+
+}

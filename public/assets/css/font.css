@@ -1,0 +1,46 @@
+/* =========================================================
+   Company Asset Management System
+   Brand Typography
+   ========================================================= */
+
+:root {
+    --font-brand: "Futura", "Century Gothic", "Trebuchet MS", Arial, sans-serif;
+    --font-body: "Futura", "Century Gothic", "Trebuchet MS", Arial, sans-serif;
+}
+
+html,
+body {
+    font-family: var(--font-body);
+}
+
+button,
+input,
+select,
+textarea,
+.form-control,
+.form-select {
+    font-family: var(--font-body);
+}
+
+.navbar,
+.navbar-brand,
+.nav-link,
+.dropdown-menu,
+.btn {
+    font-family: var(--font-brand);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-brand);
+    font-weight: 600;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    letter-spacing: -0.2px;
+}

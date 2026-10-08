@@ -1,0 +1,75 @@
+/* --------------------------------------------------------------------------
+   AssetSys UI — Primary Action
+   -------------------------------------------------------------------------- */
+
+.btn-primary {
+    --bs-btn-color: #ffffff;
+    --bs-btn-bg: #007472;
+    --bs-btn-border-color: #007472;
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #005f5d;
+    --bs-btn-hover-border-color: #005f5d;
+    --bs-btn-focus-shadow-rgb: 0, 116, 114;
+    --bs-btn-active-color: #ffffff;
+    --bs-btn-active-bg: #005653;
+    --bs-btn-active-border-color: #005653;
+    --bs-btn-disabled-color: #ffffff;
+    --bs-btn-disabled-bg: #007472;
+    --bs-btn-disabled-border-color: #007472;
+}
+
+/* --------------------------------------------------------------------------
+   AssetSys UI — Primary Outline Action
+   -------------------------------------------------------------------------- */
+
+.btn-outline-primary {
+    --bs-btn-color: #007472;
+    --bs-btn-border-color: #007472;
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #007472;
+    --bs-btn-hover-border-color: #007472;
+    --bs-btn-focus-shadow-rgb: 0, 116, 114;
+    --bs-btn-active-color: #ffffff;
+    --bs-btn-active-bg: #005957;
+    --bs-btn-active-border-color: #005957;
+}
+
+/* --------------------------------------------------------------------------
+   AssetSys UI — Form Controls
+   -------------------------------------------------------------------------- */
+
+.form-check-input:checked {
+    background-color: #007472;
+    border-color: #007472;
+}
+
+.form-check-input:focus {
+    border-color: #007472;
+    box-shadow: 0 0 0 0.25rem rgba(0, 116, 114, 0.25);
+}
+
+.form-check-input:checked:focus {
+    background-color: #007472;
+    border-color: #007472;
+}
+
+/* --------------------------------------------------------------------------
+   AssetSys UI — Account Status
+   -------------------------------------------------------------------------- */
+
+.badge.text-bg-success {
+    background-color: #007472 !important;
+    color: #ffffff !important;
+}
+
+/* --------------------------------------------------------------------------
+   AssetSys UI — SweetAlert2
+   -------------------------------------------------------------------------- */
+
+.swal2-styled.swal2-confirm {
+    background-color: #007472 !important;
+}
+
+.swal2-styled.swal2-confirm:focus {
+    box-shadow: 0 0 0 3px rgba(0, 116, 114, 0.25) !important;
+}

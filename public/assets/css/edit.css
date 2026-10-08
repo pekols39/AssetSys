@@ -1,0 +1,37 @@
+.asset-edit-page {
+    font-family: "Futura", "Century Gothic", "Trebuchet MS", Arial, sans-serif;
+}
+
+.asset-edit-page .card {
+    border-radius: 0.65rem;
+}
+
+.asset-edit-page .card-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.asset-edit-page .form-label {
+    font-weight: 600;
+}
+
+.asset-edit-page .form-control:focus,
+.asset-edit-page .form-select:focus {
+    border-color: #007472;
+    box-shadow: 0 0 0 0.2rem rgba(0, 116, 114, 0.15);
+}
+
+.asset-edit-page .text-teal {
+    color: #007472 !important;
+}
+
+.asset-edit-page .btn-primary {
+    background-color: #007472;
+    border-color: #007472;
+}
+
+.asset-edit-page .btn-primary:hover,
+.asset-edit-page .btn-primary:focus {
+    background-color: #005957;
+    border-color: #005957;
+}

@@ -1,0 +1,26 @@
+/* Asset Inventory Report */
+
+.report-filter-card .form-label {
+    font-weight: 600;
+}
+
+.card .table th {
+    white-space: nowrap;
+}
+
+.card .table thead th {
+    color: var(--bs-secondary-color);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.card .table tfoot th {
+    border-top: 2px solid var(--bs-border-color);
+    background-color: var(--bs-tertiary-bg);
+}
+
+@media (max-width: 767.98px) {
+    .card .table {
+        font-size: 0.875rem;
+    }
+}

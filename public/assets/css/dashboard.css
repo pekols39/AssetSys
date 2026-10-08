@@ -1,0 +1,171 @@
+.dashboard-page {
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.dashboard-stat-card {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: #ffffff;
+    border: 1px solid #e8eeee;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.dashboard-stat-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 48px;
+    border-radius: 0.7rem;
+    color: #007472;
+    background: rgba(0, 116, 114, 0.09);
+    font-size: 1.05rem;
+}
+
+.dashboard-stat-content {
+    min-width: 0;
+}
+
+.dashboard-stat-label {
+    margin-bottom: 0.25rem;
+    color: #6c757d;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.dashboard-stat-value {
+    color: #212529;
+    font-size: 1.45rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.dashboard-stat-value-money {
+    font-size: 1.2rem;
+}
+
+.dashboard-chart-card {
+    height: 100%;
+    padding: 1.25rem;
+    background: #ffffff;
+    border: 1px solid #e8eeee;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.dashboard-chart-header {
+    margin-bottom: 1rem;
+}
+
+.dashboard-chart-header h5 {
+    color: #212529;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.dashboard-chart-container {
+    position: relative;
+    height: 320px;
+    min-height: 0;
+}
+
+.dashboard-section-heading {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.dashboard-section-heading h2 {
+    margin-bottom: 0.25rem;
+    color: #212529;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.dashboard-section-heading p {
+    margin-bottom: 0;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* Upcoming Maintenance Table */
+.dashboard-maintenance-card {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.dashboard-maintenance-card .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.dashboard-maintenance-table {
+    width: 100%;
+    min-width: 620px;
+    font-size: 0.875rem;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.dashboard-maintenance-table thead th {
+    padding: 0.85rem 0.75rem;
+    background-color: #f5f8f8;
+    color: #526161;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    border-bottom: 1px solid #e5ebeb;
+}
+
+.dashboard-maintenance-table tbody td {
+    padding: 0.9rem 0.75rem;
+    color: #374151;
+    vertical-align: middle;
+    border-bottom: 1px solid #edf0f0;
+}
+
+.dashboard-maintenance-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.dashboard-maintenance-table tbody tr:hover {
+    background-color: #f8fbfb;
+}
+
+.dashboard-maintenance-table td:nth-child(3),
+.dashboard-maintenance-table td:nth-child(4) {
+    white-space: nowrap;
+}
+
+.dashboard-maintenance-table .badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.4rem 0.55rem;
+}
+
+@media (max-width: 575.98px) {
+
+    .dashboard-chart-container {
+        height: 280px;
+    }
+
+    .dashboard-stat-card {
+        padding: 1rem;
+    }
+
+    .dashboard-stat-value {
+        font-size: 1.3rem;
+    }
+
+    .dashboard-stat-value-money {
+        font-size: 1.05rem;
+    }
+
+}

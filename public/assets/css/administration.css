@@ -1,0 +1,91 @@
+.administration-page {
+    padding-bottom: 2rem;
+}
+
+.admin-stat-card,
+.admin-status-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+}
+
+.admin-stat-card {
+    min-height: 125px;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.admin-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #007472;
+    background: rgba(0, 116, 114, 0.10);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.admin-stat-label {
+    color: #6b7280;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.admin-stat-value {
+    color: #1f2937;
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+.admin-section-heading {
+    margin: 2rem 0 1rem;
+}
+
+.admin-section-heading h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.admin-section-heading p {
+    color: #6b7280;
+    margin-bottom: 0;
+    font-size: 0.9rem;
+}
+
+.admin-status-card {
+    padding: 1.15rem;
+}
+
+.admin-status-label {
+    color: #6b7280;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+}
+
+.admin-status-value {
+    font-weight: 600;
+}
+
+.admin-status-value i {
+    margin-right: 0.25rem;
+}
+
+@media (max-width: 767.98px) {
+
+    .admin-stat-card {
+        min-height: 110px;
+    }
+
+    .admin-stat-value {
+        font-size: 1.5rem;
+    }
+
+}

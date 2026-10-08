@@ -1,0 +1,396 @@
+.asset-view-page {
+    font-family: "Futura", "Century Gothic", "Trebuchet MS", Arial, sans-serif;
+}
+
+.asset-view-page .card {
+    border-radius: 0.65rem;
+}
+
+.asset-view-page .card-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.asset-view-page .card-header h5 {
+    font-weight: 600;
+}
+
+.asset-icon {
+    width: 54px;
+    height: 54px;
+    flex: 0 0 54px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.65rem;
+    color: #ffffff;
+    background-color: #007472;
+    font-size: 1.25rem;
+}
+
+.asset-code-large {
+    color: #007472;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.asset-name {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.text-teal {
+    color: #007472 !important;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-row:first-child {
+    padding-top: 0;
+}
+
+.detail-row:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.detail-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+    flex: 0 0 42%;
+}
+
+.detail-value {
+    color: #212529;
+    font-weight: 500;
+    text-align: right;
+    word-break: break-word;
+}
+
+.detail-money {
+    color: #007472;
+    font-weight: 600;
+}
+
+.asset-description {
+    line-height: 1.7;
+    color: #343a40;
+}
+
+.asset-status {
+    display: inline-block;
+    padding: 0.35rem 0.65rem;
+    border-radius: 0.375rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.asset-status.status-available {
+    color: #ffffff !important;
+    background-color: #198754 !important;
+}
+
+.asset-status.status-assigned {
+    color: #ffffff !important;
+    background-color: #007472 !important;
+}
+
+.asset-status.status-maintenance {
+    color: #212529 !important;
+    background-color: #ffc107 !important;
+}
+
+.asset-status.status-repair {
+    color: #ffffff !important;
+    background-color: #fd7e14 !important;
+}
+
+.asset-status.status-lost {
+    color: #ffffff !important;
+    background-color: #dc3545 !important;
+}
+
+.asset-status.status-damaged {
+    color: #ffffff !important;
+    background-color: #b02a37 !important;
+}
+
+.asset-status.status-disposal {
+    color: #212529 !important;
+    background-color: #adb5bd !important;
+}
+
+.asset-status.status-retired {
+    color: #ffffff !important;
+    background-color: #6c757d !important;
+}
+
+.asset-status.status-disposed {
+    color: #ffffff !important;
+    background-color: #343a40 !important;
+}
+
+.asset-status.status-default {
+    color: #ffffff !important;
+    background-color: #6c757d !important;
+}
+
+/* Maintenance Modal */
+#maintenanceModal .modal-dialog {
+    max-width: 900px;
+}
+
+#maintenanceModal .modal-content {
+    max-height: 90vh;
+}
+
+#maintenanceModal .modal-body {
+    overflow-y: auto;
+    max-height: calc(90vh - 150px);
+}
+
+#maintenanceModal .modal-header,
+#maintenanceModal .modal-footer {
+    flex-shrink: 0;
+}
+
+#repairModal .modal-dialog {
+    max-width: 900px;
+}
+
+#repairModal .modal-content {
+    max-height: 90vh;
+}
+
+#repairModal .modal-body {
+    overflow-y: auto;
+    max-height: calc(90vh - 150px);
+}
+
+#repairModal .modal-header,
+#repairModal .modal-footer {
+    flex-shrink: 0;
+}
+
+#warrantyClaim.form-check-input:checked {
+    background-color: #007472;
+    border-color: #007472;
+}
+
+#warrantyClaim.form-check-input:focus {
+    border-color: #007472;
+    box-shadow: 0 0 0 0.25rem rgba(0, 116, 114, 0.25);
+}
+
+.edit-maintenance-button {
+    color: #007472;
+    border: 1px solid #007472;
+    background-color: transparent;
+}
+
+.edit-maintenance-button:hover,
+.edit-maintenance-button:focus,
+.edit-maintenance-button:active {
+    color: #fff;
+    background-color: #007472;
+    border-color: #007472;
+}
+
+.repair-edit-button {
+    color: #007472;
+    border-color: #007472;
+}
+
+.repair-edit-button:hover,
+.repair-edit-button:focus,
+.repair-edit-button:active {
+    color: #fff;
+    background-color: #007472;
+    border-color: #007472;
+}
+
+#photoUploadModal .form-check-input:checked {
+    background-color: #007472;
+    border-color: #007472;
+}
+
+#photoUploadModal .form-check-input:focus {
+    border-color: #007472;
+    box-shadow: 0 0 0 0.25rem rgba(0, 116, 114, 0.25);
+}
+
+.asset-section-icon {
+    color: #007472 !important;
+}
+
+.set-primary-photo-button {
+    color: #007472;
+    border: 1px solid #007472;
+    background-color: transparent;
+}
+
+.set-primary-photo-button:hover {
+    color: #ffffff;
+    background-color: #007472;
+    border-color: #007472;
+}
+
+.set-primary-photo-button:focus {
+    color: #ffffff;
+    background-color: #007472;
+    border-color: #007472;
+    box-shadow: 0 0 0 0.25rem rgba(0, 116, 114, 0.25);
+}
+
+.delete-photo-button {
+    color: #dc3545;
+    border: 1px solid #dc3545;
+    background-color: transparent;
+}
+
+.delete-photo-button:hover {
+    color: #ffffff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.delete-photo-button:focus {
+    color: #ffffff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+
+.delete-document-button {
+    color: #dc3545;
+    border: 1px solid #dc3545;
+    background-color: transparent;
+}
+
+.delete-document-button:hover {
+    color: #ffffff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.delete-document-button:focus {
+    color: #ffffff;
+    background-color: #dc3545;
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+
+.download-document-button {
+    color: #007472;
+    border: 1px solid #007472;
+    background-color: transparent;
+}
+
+.download-document-button:hover {
+    color: #ffffff;
+    background-color: #007472;
+    border-color: #007472;
+}
+
+.download-document-button:focus {
+    color: #ffffff;
+    background-color: #007472;
+    border-color: #007472;
+    box-shadow: 0 0 0 0.25rem rgba(0, 116, 114, 0.25);
+}
+
+.preview-document-button {
+    color: #007472;
+    border: 1px solid #007472;
+    background-color: transparent;
+}
+
+.preview-document-button:hover {
+    color: #ffffff;
+    background-color: #007472;
+    border-color: #007472;
+}
+
+.preview-document-button:focus {
+    color: #ffffff;
+    background-color: #007472;
+    border-color: #007472;
+    box-shadow: 0 0 0 0.25rem rgba(0, 116, 114, 0.25);
+}
+
+/* =========================================================
+   Disposal
+   ========================================================= */
+
+.disposal-approve-button,
+.disposal-complete-button {
+    background-color: #007472;
+    border-color: #007472;
+    color: #fff;
+}
+
+.disposal-approve-button:hover,
+.disposal-complete-button:hover {
+    background-color: #005f5d;
+    border-color: #005f5d;
+    color: #fff;
+}
+
+.disposal-cancel-button {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+}
+
+.disposal-cancel-button:hover {
+    background-color: #bb2d3b;
+    border-color: #b02a37;
+    color: #fff;
+}
+
+#disposalModal .modal-dialog {
+    max-width: 900px;
+}
+
+#disposalModal .modal-content {
+    max-height: 90vh;
+}
+
+#disposalModal .modal-body {
+    overflow-y: auto;
+    max-height: calc(90vh - 150px);
+}
+
+#disposalModal .modal-header,
+#disposalModal .modal-footer {
+    flex-shrink: 0;
+}
+
+@media (max-width: 576px) {
+    .detail-row {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .detail-label {
+        flex-basis: auto;
+    }
+
+    .detail-value {
+        text-align: left;
+    }
+
+    .asset-name {
+        font-size: 1.25rem;
+    }
+}

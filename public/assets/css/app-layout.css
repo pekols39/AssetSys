@@ -1,0 +1,477 @@
+/* ==========================================================
+   ASSETSYS APPLICATION LAYOUT
+   ========================================================== */
+
+:root {
+    --assetsys-teal: #007472;
+    --assetsys-teal-dark: #005957;
+    --assetsys-sidebar: #ffffff;
+    --assetsys-sidebar-border: #e8eeee;
+    --assetsys-page: #f5f7f8;
+    --assetsys-text: #212529;
+    --assetsys-muted: #6c757d;
+}
+
+/* ==========================================================
+   APPLICATION PAGE
+   ========================================================== */
+
+body {
+    background: var(--assetsys-page);
+}
+
+.app-main {
+    min-height: 100vh;
+    margin-left: 250px;
+    padding: 1.5rem;
+    background: var(--assetsys-page);
+}
+
+.app-main .container-fluid {
+    padding: 0;
+    font-family:
+        "Futura",
+        "Century Gothic",
+        "Trebuchet MS",
+        Arial,
+        sans-serif;
+}
+
+.app-main h1,
+.app-main h2,
+.app-main h3,
+.app-main h4,
+.app-main h5,
+.app-main h6 {
+    font-family:
+        "Futura",
+        "Century Gothic",
+        "Trebuchet MS",
+        Arial,
+        sans-serif;
+}
+
+/* ==========================================================
+   SIDEBAR
+   ========================================================== */
+
+.app-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+
+    width: 250px;
+
+    display: flex;
+    flex-direction: column;
+
+    background: var(--assetsys-sidebar);
+    border-right: 1px solid var(--assetsys-sidebar-border);
+
+    z-index: 1040;
+
+    font-family:
+        "Futura",
+        "Century Gothic",
+        "Trebuchet MS",
+        Arial,
+        sans-serif;
+}
+
+/* ==========================================================
+   SIDEBAR BRAND
+   ========================================================== */
+
+.app-sidebar-brand {
+    height: 72px;
+
+    display: flex;
+    align-items: center;
+
+    padding: 0 1.25rem;
+
+    border-bottom: 1px solid var(--assetsys-sidebar-border);
+}
+
+.app-sidebar-brand-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    color: var(--assetsys-teal);
+    text-decoration: none;
+}
+
+.app-sidebar-brand-link:hover {
+    color: var(--assetsys-teal-dark);
+}
+
+.app-sidebar-brand-icon {
+    width: 38px;
+    height: 38px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 0.65rem;
+
+    color: #ffffff;
+    background: var(--assetsys-teal);
+
+    font-size: 1rem;
+}
+
+.app-sidebar-brand-text {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+}
+
+/* ==========================================================
+   SIDEBAR SECTIONS
+   ========================================================== */
+
+.app-sidebar-section {
+    padding: 1.25rem 0.85rem 0;
+}
+
+.app-sidebar-section-title {
+    padding: 0 0.75rem 0.55rem;
+
+    color: #9aa5a5;
+
+    font-size: 0.68rem;
+    font-weight: 700;
+
+    letter-spacing: 0.08em;
+}
+
+/* ==========================================================
+   SIDEBAR NAVIGATION
+   ========================================================== */
+
+.app-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.app-sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+
+    min-height: 44px;
+
+    padding: 0.65rem 0.75rem;
+
+    border-radius: 0.55rem;
+
+    color: #596666;
+    text-decoration: none;
+
+    font-size: 0.9rem;
+    font-weight: 500;
+
+    transition:
+        background-color 0.15s ease,
+        color 0.15s ease;
+}
+
+.app-sidebar-link:hover {
+    color: var(--assetsys-teal);
+    background: rgba(0, 116, 114, 0.06);
+}
+
+.app-sidebar-link.active {
+    color: #ffffff;
+    background: var(--assetsys-teal);
+    font-weight: 600;
+}
+
+.app-sidebar-link.active:hover {
+    color: #ffffff;
+    background: var(--assetsys-teal-dark);
+}
+
+.app-sidebar-link.disabled {
+    color: #a8b0b0;
+    cursor: default;
+    pointer-events: none;
+}
+
+.app-sidebar-link-icon {
+    width: 20px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 20px;
+
+    font-size: 0.95rem;
+}
+
+.app-sidebar-link-text {
+    white-space: nowrap;
+}
+
+/* ==========================================================
+   SIDEBAR SPACER
+   ========================================================== */
+
+.app-sidebar-spacer {
+    flex: 1;
+    min-height: 1rem;
+}
+
+/* ==========================================================
+   SIDEBAR USER
+   ========================================================== */
+
+.app-sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+
+    margin: 0 0.85rem;
+    padding: 0.85rem;
+
+    border-top: 1px solid var(--assetsys-sidebar-border);
+}
+
+.app-sidebar-user-avatar {
+    width: 36px;
+    height: 36px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex: 0 0 36px;
+
+    border-radius: 50%;
+
+    color: var(--assetsys-teal);
+    background: rgba(0, 116, 114, 0.09);
+
+    font-size: 0.85rem;
+}
+
+.app-sidebar-user-info {
+    min-width: 0;
+}
+
+.app-sidebar-user-name {
+    overflow: hidden;
+
+    color: var(--assetsys-text);
+
+    font-size: 0.85rem;
+    font-weight: 600;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.app-sidebar-user-role {
+    overflow: hidden;
+
+    margin-top: 0.1rem;
+
+    color: var(--assetsys-muted);
+
+    font-size: 0.72rem;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ==========================================================
+   SIDEBAR LOGOUT
+   ========================================================== */
+
+.app-sidebar-footer {
+    padding: 0.75rem 0.85rem 1rem;
+}
+
+.app-sidebar-logout {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    padding: 0.65rem 0.75rem;
+
+    border-radius: 0.55rem;
+
+    color: #dc3545;
+    text-decoration: none;
+
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.app-sidebar-logout:hover {
+    color: #b02a37;
+    background: rgba(220, 53, 69, 0.07);
+}
+
+/* ==========================================================
+   REMOVE OLD TOP NAVIGATION
+   ========================================================== */
+
+.app-navbar {
+    display: none !important;
+}
+
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
+
+.app-mobile-header {
+    display: none;
+}
+
+.app-sidebar-overlay {
+    display: none;
+}
+
+.app-sidebar-close {
+    display: none;
+}
+
+@media (max-width: 991.98px) {
+
+    .app-mobile-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0 1rem;
+        background: #ffffff;
+        border-bottom: 1px solid var(--assetsys-sidebar-border);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        z-index: 1030;
+    }
+
+    .app-mobile-menu-button {
+        width: 40px;
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 0.55rem;
+        color: #ffffff;
+        background: var(--assetsys-teal);
+        font-size: 1rem;
+        cursor: pointer;
+    }
+
+    .app-mobile-menu-button:hover {
+        background: var(--assetsys-teal-dark);
+    }
+
+    .app-mobile-menu-button:focus {
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(0, 116, 114, 0.2);
+    }
+
+    .app-mobile-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        color: var(--assetsys-teal);
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    .app-mobile-brand:hover {
+        color: var(--assetsys-teal-dark);
+    }
+
+    .app-mobile-brand-icon {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.5rem;
+        color: #ffffff;
+        background: var(--assetsys-teal);
+        font-size: 0.85rem;
+    }
+
+    .app-mobile-brand-text {
+        font-size: 1rem;
+    }
+
+    .app-sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+        box-shadow: 4px 0 18px rgba(0, 0, 0, 0.12);
+    }
+
+    .app-sidebar.show {
+        transform: translateX(0);
+    }
+
+    .app-sidebar-close {
+        position: absolute;
+        top: 1rem;
+        right: 0.9rem;
+        width: 36px;
+        height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 0.5rem;
+        color: #596666;
+        background: transparent;
+        font-size: 1rem;
+        cursor: pointer;
+    }
+
+    .app-sidebar-close:hover {
+        color: var(--assetsys-teal);
+        background: rgba(0, 116, 114, 0.06);
+    }
+
+    .app-sidebar-brand {
+        padding-right: 3.5rem;
+    }
+
+    .app-sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        display: block;
+        background: rgba(0, 0, 0, 0.35);
+        opacity: 0;
+        visibility: hidden;
+        transition:
+            opacity 0.2s ease,
+            visibility 0.2s ease;
+        z-index: 1035;
+    }
+
+    .app-sidebar-overlay.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .app-main {
+        margin-left: 0;
+        padding: 76px 1rem 1rem;
+    }
+
+    body.sidebar-open {
+        overflow: hidden;
+    }
+}

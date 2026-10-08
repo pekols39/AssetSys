@@ -1,0 +1,57 @@
+# --------------------------------------------------------------------------
+# AssetSys - Git Ignore
+# --------------------------------------------------------------------------
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Composer dependencies
+/vendor/
+
+# Runtime storage
+/storage/
+
+# Runtime logs
+*.log
+
+# Database dumps / backups
+*.sql
+*.sql.gz
+*.bak
+*.backup
+
+# Generated reports / exports
+*.pdf
+*.xlsx
+*.xls
+*.csv
+
+# Local IDE / editor files
+.vscode/
+.idea/
+*.code-workspace
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# PHP / application cache
+/cache/
+/tmp/
+
+# PHPUnit / test artifacts
+.phpunit.result.cache
+coverage/
+
+# Local development files
+docker-compose.override.yml
