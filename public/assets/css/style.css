@@ -73,3 +73,29 @@
 .swal2-styled.swal2-confirm:focus {
     box-shadow: 0 0 0 3px rgba(0, 116, 114, 0.25) !important;
 }
+
+/* Material Categories - Actions */
+.category-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.category-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    min-width: 68px;
+}
+
+.category-actions .btn-danger,
+.category-actions .btn-outline-danger {
+    min-width: 105px;
+}
+
+.category-actions .btn i {
+    margin-right: 0.35rem;
+}

@@ -74,6 +74,51 @@ $isAdministrationSettings = str_ends_with(
                     </span>
                     <span class="app-sidebar-link-text">Assets</span>
                 </a>
+
+                <a href="<?= e(base_url('/public/materials/categories.php')) ?>" class="app-sidebar-link <?= str_contains(
+                      $currentPath,
+                      '/materials/categories.php'
+                  ) ? 'active' : '' ?>">
+                    <span class="app-sidebar-link-icon">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </span>
+                    <span class="app-sidebar-link-text">
+                        Material Categories
+                    </span>
+                </a>
+
+                <a href="<?= base_url('/public/materials/index.php') ?>" class="app-sidebar-link <?= (
+                      str_contains($currentPath, '/materials/index.php') ||
+                      str_contains($currentPath, '/materials/create.php') ||
+                      str_contains($currentPath, '/materials/edit.php')
+                  ) ? 'active' : '' ?>">
+                    <i class="fas fa-boxes"></i>
+                    <span>Materials</span>
+                </a>
+
+                <a href="<?= base_url('/public/materials/stock.php') ?>"
+                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock.php') ? 'active' : '' ?>">
+                    <i class="fas fa-warehouse"></i>
+                    <span>Stock</span>
+                </a>
+
+                <a href="<?= base_url('/public/materials/stock_in.php') ?>"
+                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock_in.php') ? 'active' : '' ?>">
+                    <i class="fas fa-arrow-down"></i>
+                    <span>Stock In</span>
+                </a>
+
+                <a href="<?= base_url('/public/materials/stock_out.php') ?>"
+                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock_out.php') ? 'active' : '' ?>">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>Stock Out</span>
+                </a>
+
+                <a href="<?= base_url('/public/materials/stock_return.php') ?>"
+                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock_return.php') ? 'active' : '' ?>">
+                    <i class="fas fa-undo"></i>
+                    <span>Stock Returns</span>
+                </a>
             </nav>
         </div>
 
@@ -99,6 +144,51 @@ $isAdministrationSettings = str_ends_with(
                         <i class="fa-solid fa-boxes-stacked"></i>
                     </span>
                     <span class="app-sidebar-link-text">Department Assets</span>
+                </a>
+
+                <a href="<?= e(base_url('/public/materials/categories.php')) ?>" class="app-sidebar-link <?= str_contains(
+                      $currentPath,
+                      '/materials/categories.php'
+                  ) ? 'active' : '' ?>">
+                    <span class="app-sidebar-link-icon">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </span>
+                    <span class="app-sidebar-link-text">
+                        Material Categories
+                    </span>
+                </a>
+
+                <a href="<?= base_url('/public/materials/index.php') ?>" class="app-sidebar-link <?= (
+                      str_contains($currentPath, '/materials/index.php') ||
+                      str_contains($currentPath, '/materials/create.php') ||
+                      str_contains($currentPath, '/materials/edit.php')
+                  ) ? 'active' : '' ?>">
+                    <i class="fas fa-boxes"></i>
+                    <span>Materials</span>
+                </a>
+
+                <a href="<?= base_url('/public/materials/stock.php') ?>"
+                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock.php') ? 'active' : '' ?>">
+                    <i class="fas fa-warehouse"></i>
+                    <span>Stock</span>
+                </a>
+
+                <a href="<?= base_url('/public/materials/stock_in.php') ?>"
+                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock_in.php') ? 'active' : '' ?>">
+                    <i class="fas fa-arrow-down"></i>
+                    <span>Stock In</span>
+                </a>
+
+                <a href="<?= base_url('/public/materials/stock_out.php') ?>"
+                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock_out.php') ? 'active' : '' ?>">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>Stock Out</span>
+                </a>
+
+                <a href="<?= base_url('/public/materials/stock_return.php') ?>"
+                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock_return.php') ? 'active' : '' ?>">
+                    <i class="fas fa-undo"></i>
+                    <span>Stock Returns</span>
                 </a>
 
             </nav>
