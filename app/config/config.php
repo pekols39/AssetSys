@@ -13,6 +13,8 @@ if (!isset($_ENV['APP_NAME'])) {
     $dotenv->safeLoad();
 }
 
+date_default_timezone_set('Asia/Manila');
+
 define('APP_NAME', $_ENV['APP_NAME'] ?? 'Company Asset Management System');
 define('APP_ENV', $_ENV['APP_ENV'] ?? 'local');
 define('APP_DEBUG', filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN));
@@ -37,4 +39,20 @@ define(
 define(
     'UPLOAD_MAX_SIZE',
     (int) ($_ENV['UPLOAD_MAX_SIZE'] ?? 10485760)
+);
+
+define('MAIL_HOST', trim($_ENV['MAIL_HOST'] ?? ''));
+define('MAIL_PORT', (int) ($_ENV['MAIL_PORT'] ?? 587));
+define('MAIL_ENCRYPTION', strtolower(trim($_ENV['MAIL_ENCRYPTION'] ?? 'tls')));
+define('MAIL_USERNAME', trim($_ENV['MAIL_USERNAME'] ?? ''));
+define('MAIL_PASSWORD', $_ENV['MAIL_PASSWORD'] ?? '');
+define('MAIL_FROM_ADDRESS', trim($_ENV['MAIL_FROM_ADDRESS'] ?? ''));
+define(
+    'MAIL_FROM_NAME',
+    trim($_ENV['MAIL_FROM_NAME'] ?? APP_NAME)
+);
+
+define(
+    'PASSWORD_RESET_TTL_MINUTES',
+    max(5, min(60, (int) ($_ENV['PASSWORD_RESET_TTL_MINUTES'] ?? 30)))
 );

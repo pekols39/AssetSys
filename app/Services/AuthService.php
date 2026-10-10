@@ -164,6 +164,7 @@ class AuthService
             'position' => $user['position'] ?? null,
             'must_change_password' => (int) $user['must_change_password'],
             'password_changed_at' => $user['password_changed_at'],
+            'session_version' => (int) $user['session_version'],
         ];
 
         Auth::login($sessionUser);

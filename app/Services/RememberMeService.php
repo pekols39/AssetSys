@@ -124,38 +124,39 @@ class RememberMeService
 
         $stmt = $this->db->prepare(
             'SELECT
-            rt.id,
-            rt.user_id,
-            rt.selector,
-            rt.validator_hash,
-            rt.expires_at,
-            u.id AS user_id,
-            u.role_id,
-            u.department_id,
-            u.position
-            u.employee_number,
-            u.first_name,
-            u.middle_name,
-            u.last_name,
-            u.username,
-            u.email,
-            u.account_status,
-            u.must_change_password,
-            u.password_changed_at,
-            r.name AS role_name,
-            d.name AS department_name,
-         FROM remember_tokens rt
-         INNER JOIN users u
-             ON u.id = rt.user_id
-         INNER JOIN roles r
-             ON r.id = u.role_id
-         LEFT JOIN departments d
-             ON d.id = u.department_id
-         WHERE rt.selector = :selector
-           AND rt.expires_at > NOW()
-           AND u.is_active = 1
-           AND u.account_status = :account_status
-         LIMIT 1'
+                rt.id,
+                rt.user_id,
+                rt.selector,
+                rt.validator_hash,
+                rt.expires_at,
+                u.id AS user_id,
+                u.role_id,
+                u.department_id,
+                u.position,
+                u.employee_number,
+                u.first_name,
+                u.middle_name,
+                u.last_name,
+                u.username,
+                u.email,
+                u.account_status,
+                u.must_change_password,
+                u.password_changed_at,
+                u.session_version,
+                r.name AS role_name,
+                d.name AS department_name
+            FROM remember_tokens rt
+            INNER JOIN users u
+                ON u.id = rt.user_id
+            INNER JOIN roles r
+                ON r.id = u.role_id
+            LEFT JOIN departments d
+                ON d.id = u.department_id
+            WHERE rt.selector = :selector
+            AND rt.expires_at > NOW()
+            AND u.is_active = 1
+            AND u.account_status = :account_status
+            LIMIT 1'
         );
 
         $stmt->execute([
@@ -204,6 +205,7 @@ class RememberMeService
             'position' => $token['position'] ?? null,
             'must_change_password' => (int) $token['must_change_password'],
             'password_changed_at' => $token['password_changed_at'],
+            'session_version' => (int) $token['session_version'],
         ];
 
         $this->rotateToken(
@@ -216,36 +218,31 @@ class RememberMeService
         return true;
     }
 
+
     public function clearToken(): void
     {
-        if (!isset($_COOKIE[self::COOKIE_NAME])) {
-            return;
-        }
+        $cookieValue = $_COOKIE[self::COOKIE_NAME] ?? null;
 
-        $cookieValue = $_COOKIE[self::COOKIE_NAME];
+        if (is_string($cookieValue) && $cookieValue !== '') {
+            $parts = explode(':', $cookieValue, 2);
 
-        $parts = explode(':', $cookieValue, 2);
-
-        if (count($parts) !== 2) {
-            $this->expireCookie();
-            return;
-        }
-
-        [$selector] = $parts;
-
-        if ($selector !== '') {
-            $stmt = $this->db->prepare(
-                'DELETE FROM remember_tokens
+            if (count($parts) === 2 && $parts[0] !== '') {
+                $stmt = $this->db->prepare(
+                    'DELETE FROM remember_tokens
                  WHERE selector = :selector'
-            );
+                );
 
-            $stmt->execute([
-                'selector' => $selector,
-            ]);
+                $stmt->execute([
+                    'selector' => $parts[0],
+                ]);
+            }
         }
 
+        // Always expire the browser cookie, even if it is missing
+        // or malformed in the current PHP request.
         $this->expireCookie();
     }
+
 
     public function clearAllTokensForUser(int $userId): void
     {

@@ -7,24 +7,46 @@ use App\Helpers\Csrf;
 use App\Core\Auth;
 use App\Services\RememberMeService;
 
+require_once dirname(__DIR__) . '/app/bootstrap.php';
+
+/**
+ * Retrieve and clear a one-time SweetAlert2 message.
+ */
+$swalAlert = Session::get('swal_alert');
+Session::remove('swal_alert');
+
+if (!is_array($swalAlert)) {
+    $swalAlert = null;
+}
+
+/**
+ * Page configuration.
+ */
 $pageTitle = 'Login';
 $pageStylesheet = 'css/login.css';
 $pageScript = 'js/login.js';
 
+/**
+ * Load the guest layout header.
+ */
 require_once __DIR__ . '/includes/guest_header.php';
 
+/**
+ * Attempt Remember Me login before redirecting authenticated users.
+ */
 if (!Auth::check()) {
     $rememberMeService = new RememberMeService();
-
     $rememberMeService->attemptAutoLogin();
 }
 
+/**
+ * Redirect authenticated users to the dashboard.
+ */
 if (Auth::check()) {
-    header(
-        'Location: ' . APP_URL . '/public/dashboard/'
-    );
+    header('Location: ' . APP_URL . '/public/dashboard/');
     exit;
 }
+
 ?>
 
 <div class="login-container">
@@ -68,24 +90,25 @@ if (Auth::check()) {
 
                             <div class="login-form-wrapper">
 
-                                <h3>
-                                    Welcome Back
-                                </h3>
+                                <h3>Welcome Back</h3>
 
                                 <p class="text-muted">
                                     Sign in to continue.
                                 </p>
 
+                                <!-- SESSION EXPIRED MESSAGE -->
+
                                 <?php if (Session::has('session_expired')): ?>
 
-                                    <div class="alert alert-warning alert-dismissible fade show">
+                                    <div class="alert alert-warning alert-dismissible fade show" role="alert">
 
                                         <i class="fa-solid fa-clock me-2"></i>
 
                                         Your session has expired due to inactivity.
                                         Please sign in again.
 
-                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                            aria-label="Close"></button>
 
                                     </div>
 
@@ -93,22 +116,47 @@ if (Auth::check()) {
 
                                 <?php endif; ?>
 
+                                <!-- PASSWORD CHANGED MESSAGE -->
+
                                 <?php if (Session::has('password_changed_logout')): ?>
 
-                                    <div class="alert alert-info alert-dismissible fade show">
+                                    <div class="alert alert-info alert-dismissible fade show" role="alert">
 
                                         <i class="fa-solid fa-key me-2"></i>
 
                                         Your password has been changed.
                                         Please sign in again.
 
-                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                            aria-label="Close"></button>
 
                                     </div>
 
                                     <?php Session::remove('password_changed_logout'); ?>
 
                                 <?php endif; ?>
+
+                                <!-- LEGACY PASSWORD RESET SUCCESS MESSAGE -->
+
+                                <?php if (Session::has('password_reset_success')): ?>
+
+                                    <div class="alert alert-success alert-dismissible fade show" role="status">
+
+                                        <i class="fa-solid fa-circle-check me-2"></i>
+
+                                        Your password has been reset successfully.
+                                        Please sign in with your new password.
+
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                            aria-label="Close"></button>
+
+                                    </div>
+
+                                    <?php Session::remove('password_reset_success'); ?>
+
+                                <?php endif; ?>
+
+                                <!-- LOGIN FORM -->
 
                                 <form id="loginForm" method="POST" autocomplete="off">
 
@@ -162,7 +210,7 @@ if (Auth::check()) {
 
                                     </div>
 
-                                    <!-- REMEMBER / FORGOT -->
+                                    <!-- REMEMBER ME / FORGOT PASSWORD -->
 
                                     <div class="d-flex justify-content-between mb-4">
 
@@ -191,8 +239,8 @@ if (Auth::check()) {
                                             Sign In
                                         </span>
 
-                                        <span id="btnLoader"
-                                            class="spinner-border spinner-border-sm ms-2 d-none"></span>
+                                        <span id="btnLoader" class="spinner-border spinner-border-sm ms-2 d-none"
+                                            aria-hidden="true"></span>
 
                                     </button>
 
@@ -213,5 +261,34 @@ if (Auth::check()) {
     </div>
 
 </div>
+
+<!-- SWEETALERT2 ONE-TIME SESSION MESSAGE -->
+
+<?php if ($swalAlert !== null): ?>
+
+    <!-- Load SweetAlert2 before calling Swal.fire(). -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: <?= json_encode(
+                    $swalAlert['icon'] ?? 'info',
+                    JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+                ) ?>,
+                title: <?= json_encode(
+                    $swalAlert['title'] ?? 'Notice',
+                    JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+                ) ?>,
+                text: <?= json_encode(
+                    $swalAlert['text'] ?? '',
+                    JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+                ) ?>,
+                confirmButtonColor: '#007472'
+            });
+        }
+    </script>
+
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/includes/guest_footer.php'; ?>

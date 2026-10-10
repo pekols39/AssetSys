@@ -45,6 +45,26 @@ class AuthMiddleware
             exit;
         }
 
+        // Reject sessions created before a password reset or other
+        // event that increments the account's session version.
+        $sessionUser = \App\Core\Session::get('user', []);
+
+        $sessionVersion = is_array($sessionUser)
+            ? ($sessionUser['session_version'] ?? null)
+            : null;
+
+        if (
+            !is_numeric($sessionVersion)
+            || (int) $sessionVersion !== (int) ($user['session_version'] ?? -1)
+        ) {
+            Auth::logout();
+
+            header(
+                'Location: ' . APP_URL . '/public/login.php'
+            );
+            exit;
+        }
+
         $currentPath = parse_url(
             $_SERVER['REQUEST_URI'] ?? '',
             PHP_URL_PATH
