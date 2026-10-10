@@ -199,6 +199,22 @@ class AssetService
         );
     }
 
+    /**
+     * Get a filtered page of assets for the asset register.
+     */
+    public function getPage(
+        array $filters = [],
+        ?int $departmentId = null,
+        int $page = 1,
+        int $perPage = 25
+    ): array {
+        return $this->assetModel->getPage(
+            $filters,
+            $departmentId,
+            $page,
+            $perPage
+        );
+    }
 
     /**
      * Enforce asset ownership permissions in the service layer.

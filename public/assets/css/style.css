@@ -99,3 +99,105 @@
 .category-actions .btn i {
     margin-right: 0.35rem;
 }
+
+/* AssetSys pagination — teal-green theme */
+.pagination .page-link {
+    color: #007472;
+    background-color: #ffffff;
+    border-color: #dee2e6;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.pagination .page-link:hover {
+    color: #005b59;
+    background-color: #e6f4f3;
+    border-color: #007472;
+}
+
+.pagination .page-item.active .page-link {
+    color: #ffffff;
+    background-color: #007472;
+    border-color: #007472;
+    box-shadow: none;
+}
+
+.pagination .page-item.disabled .page-link {
+    color: #8a9696;
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+}
+
+.pagination .page-link:focus {
+    color: #005b59;
+    background-color: #e6f4f3;
+    box-shadow: 0 0 0 0.2rem rgba(0, 116, 114, 0.2);
+}
+
+/* Asset register filter panel */
+.asset-filter-panel {
+    padding: 1.25rem;
+    background: #f8fbfb;
+    border: 1px solid #e2ebeb;
+    border-radius: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.asset-filter-panel .form-label {
+    display: block;
+    margin-bottom: 0.45rem;
+    color: #344b4b;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.asset-filter-panel .form-control,
+.asset-filter-panel .form-select {
+    min-height: 42px;
+    border-color: #d8e3e3;
+    border-radius: 0.45rem;
+}
+
+.asset-filter-panel .form-control:focus,
+.asset-filter-panel .form-select:focus {
+    border-color: #007472;
+    box-shadow: 0 0 0 0.2rem rgba(0, 116, 114, 0.14);
+}
+
+.asset-filter-panel .btn-primary {
+    background-color: #007472;
+    border-color: #007472;
+}
+
+.asset-filter-panel .btn-primary:hover {
+    background-color: #005b59;
+    border-color: #005b59;
+}
+
+.asset-filter-panel .btn {
+    min-height: 42px;
+    white-space: nowrap;
+}
+
+/* Stock Movement History filter button */
+.movement-filter-btn {
+    background-color: #007472;
+    border-color: #007472;
+    color: #fff;
+}
+
+.movement-filter-btn:hover,
+.movement-filter-btn:focus {
+    background-color: #005b59;
+    border-color: #005b59;
+    color: #fff;
+}
+
+@media (max-width: 575.98px) {
+    .asset-filter-panel {
+        padding: 1rem;
+    }
+
+    .asset-filter-panel .btn {
+        flex: 1;
+    }
+}

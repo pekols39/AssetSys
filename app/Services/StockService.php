@@ -8,6 +8,7 @@ use App\Core\Auth;
 use App\Core\Database;
 use App\Models\Material;
 use App\Models\MaterialStock;
+use App\Models\StockMovement;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -20,6 +21,8 @@ class StockService
 
     private MaterialStock $stockModel;
 
+    private StockMovement $stockMovementModel;
+
     private AuthorizationService $authorization;
 
     public function __construct()
@@ -28,6 +31,7 @@ class StockService
 
         $this->materialModel = new Material();
         $this->stockModel = new MaterialStock();
+        $this->stockMovementModel = new StockMovement();
         $this->authorization = new AuthorizationService();
     }
 
@@ -246,6 +250,54 @@ class StockService
 
         return $this->stockModel->getByDepartment(
             $departmentId
+        );
+    }
+
+    /**
+     * Get paginated stock movement history for the current department.
+     */
+    public function getDepartmentMovementPage(
+        array $filters = [],
+        int $page = 1,
+        int $perPage = 10
+    ): array {
+        $departmentId = $this->authorization->departmentId();
+
+        if (!$departmentId) {
+            throw new RuntimeException(
+                'Your account is not assigned to a department.'
+            );
+        }
+
+        return $this->stockMovementModel->getPage(
+            (int) $departmentId,
+            $filters,
+            $page,
+            $perPage
+        );
+    }
+
+    /**
+     * Get paginated stock for the authenticated user's department.
+     */
+    public function getDepartmentStockPage(
+        array $filters = [],
+        int $page = 1,
+        int $perPage = 10
+    ): array {
+        $departmentId = $this->authorization->departmentId();
+
+        if ($departmentId === null) {
+            throw new RuntimeException(
+                'Your account must be assigned to a department.'
+            );
+        }
+
+        return $this->stockModel->getPage(
+            $departmentId,
+            $filters,
+            $page,
+            $perPage
         );
     }
 
