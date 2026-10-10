@@ -8,6 +8,7 @@ use App\Helpers\Csrf;
 use App\Middleware\AuthMiddleware;
 use App\Services\AuthorizationService;
 use App\Services\MaterialService;
+use App\Services\MaterialCategoryService;
 
 AuthMiddleware::handle();
 
@@ -31,9 +32,45 @@ if (
     );
 }
 
+
 $materialService = new MaterialService();
 
-$materials = $materialService->getAll();
+$filters = [
+    'search' => trim((string) ($_GET['search'] ?? '')),
+    'category_id' => (string) ($_GET['category_id'] ?? ''),
+    'status' => (string) ($_GET['status'] ?? ''),
+    'sort' => (string) ($_GET['sort'] ?? 'name'),
+    'direction' => (string) ($_GET['direction'] ?? 'asc'),
+];
+
+$page = filter_var(
+    $_GET['page'] ?? 1,
+    FILTER_VALIDATE_INT
+);
+$page = $page !== false ? max(1, $page) : 1;
+
+$perPage = filter_var(
+    $_GET['per_page'] ?? 10,
+    FILTER_VALIDATE_INT
+);
+$perPage = in_array($perPage, [10, 25, 50, 100], true)
+    ? $perPage
+    : 10;
+
+$categoryService = new MaterialCategoryService();
+$categories = $categoryService->getAll();
+
+$result = $materialService->getPage(
+    $filters,
+    $page,
+    $perPage
+);
+
+$materials = $result['items'];
+$totalMaterials = $result['total'];
+$page = $result['page'];
+$totalPages = $result['total_pages'];
+
 
 $pageTitle = 'Materials';
 
@@ -93,7 +130,7 @@ require_once dirname(__DIR__)
             <span class="text-muted small">
 
                 <?= e(
-                    (string) count($materials)
+                    (string) $totalMaterials
                 ) ?>
 
                 material(s)
@@ -105,7 +142,87 @@ require_once dirname(__DIR__)
     </div>
 
 
-    <div class="card-body p-0">
+    <div class="card-body">
+
+        <div class="asset-filter-panel">
+
+            <form method="GET" action="<?= e(base_url('/public/materials/index.php')) ?>">
+
+                <!-- Primary search row -->
+                <div class="row g-3 align-items-end">
+
+                    <div class="col-12 col-lg-6">
+                        <label for="material-search" class="form-label">
+                            Search materials
+                        </label>
+                        <input type="search" id="material-search" name="search" class="form-control"
+                            placeholder="Code, name, description..." value="<?= e($filters['search']) ?>">
+                    </div>
+
+                    <div class="col-6 col-lg-2">
+                        <label for="material-per-page" class="form-label">
+                            Rows per page
+                        </label>
+                        <select id="material-per-page" name="per_page" class="form-select">
+                            <?php foreach ([10, 25, 50, 100] as $size): ?>
+                                <option value="<?= $size ?>" <?= $perPage === $size ? 'selected' : '' ?>>
+                                    <?= $size ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-lg-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-1"></i> Search
+                        </button>
+
+                        <a href="<?= e(base_url('/public/materials/index.php')) ?>" class="btn btn-outline-secondary">
+                            Reset filters
+                        </a>
+                    </div>
+
+                </div>
+
+                <!-- Secondary filter row -->
+                <div class="row g-3 mt-1">
+
+                    <div class="col-12 col-sm-6 col-xl-4">
+                        <label for="material-category" class="form-label">
+                            Category
+                        </label>
+                        <select id="material-category" name="category_id" class="form-select">
+                            <option value="">All categories</option>
+
+                            <?php foreach ($categories as $category): ?>
+                                <option value="<?= (int) $category['id'] ?>" <?= (string) $filters['category_id'] ===
+                                       (string) $category['id'] ? 'selected' : '' ?>>
+                                    <?= e($category['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-sm-6 col-xl-4">
+                        <label for="material-status" class="form-label">
+                            Status
+                        </label>
+                        <select id="material-status" name="status" class="form-select">
+                            <option value="">All statuses</option>
+                            <option value="active" <?= $filters['status'] === 'active' ? 'selected' : '' ?>>
+                                Active
+                            </option>
+                            <option value="inactive" <?= $filters['status'] === 'inactive' ? 'selected' : '' ?>>
+                                Inactive
+                            </option>
+                        </select>
+                    </div>
+
+                </div>
+
+            </form>
+
+        </div>
 
         <?php if (empty($materials)): ?>
 
@@ -399,29 +516,6 @@ require_once dirname(__DIR__)
     </div>
 
 </div>
-
-<style>
-    .material-actions {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-
-    .material-actions .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        white-space: nowrap;
-    }
-
-    .material-actions .btn-outline-danger,
-    .material-actions .btn-outline-success {
-        min-width: 105px;
-    }
-</style>
-
 
 <form id="materialStatusForm" method="post" action="<?= e(
     base_url('/public/api/material_status.php')

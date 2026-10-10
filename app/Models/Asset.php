@@ -338,6 +338,197 @@ class Asset
         return $stmt->fetchAll();
     }
 
+
+    /**
+     * Get a searchable and paginated asset register.
+     */
+    public function getPage(
+        array $filters = [],
+        ?int $departmentId = null,
+        int $page = 1,
+        int $perPage = 25
+    ): array {
+        $allowedPageSizes = [10, 25, 50, 100];
+
+        if (!in_array($perPage, $allowedPageSizes, true)) {
+            $perPage = 25;
+        }
+
+        $page = max(1, $page);
+
+        $where = [];
+        $params = [];
+
+        if ($departmentId !== null) {
+            $where[] = 'a.department_id = :department_id';
+            $params['department_id'] = $departmentId;
+        }
+
+        $search = trim((string) ($filters['search'] ?? ''));
+
+        if ($search !== '') {
+            $where[] = '(
+                a.asset_code LIKE :search_code
+                OR a.asset_tag LIKE :search_tag
+                OR a.serial_number LIKE :search_serial
+                OR a.asset_name LIKE :search_name
+                OR c.name LIKE :search_category
+                OR s.name LIKE :search_status
+                OR ac.name LIKE :search_condition
+                OR l.name LIKE :search_location
+                OR assigned.first_name LIKE :search_first
+                OR assigned.last_name LIKE :search_last
+                OR assigned.employee_number LIKE :search_employee
+            )';
+
+            $term = '%' . $search . '%';
+
+            foreach ([
+                'search_code',
+                'search_tag',
+                'search_serial',
+                'search_name',
+                'search_category',
+                'search_status',
+                'search_condition',
+                'search_location',
+                'search_first',
+                'search_last',
+                'search_employee',
+            ] as $key) {
+                $params[$key] = $term;
+            }
+        }
+
+        $filterColumns = [
+            'category_id' => 'a.category_id',
+            'status_id' => 'a.status_id',
+            'condition_id' => 'a.condition_id',
+            'location_id' => 'a.location_id',
+        ];
+
+        foreach ($filterColumns as $key => $column) {
+            $value = $filters[$key] ?? '';
+
+            if (
+                $value !== ''
+                && filter_var($value, FILTER_VALIDATE_INT) !== false
+                && (int) $value > 0
+            ) {
+                $where[] = $column . ' = :' . $key;
+                $params[$key] = (int) $value;
+            }
+        }
+
+        $whereSql = $where === []
+            ? ''
+            : ' WHERE ' . implode(' AND ', $where);
+
+        $fromSql = '
+            FROM assets a
+            INNER JOIN asset_categories c
+                ON c.id = a.category_id
+            INNER JOIN asset_statuses s
+                ON s.id = a.status_id
+            LEFT JOIN asset_conditions ac
+                ON ac.id = a.condition_id
+            LEFT JOIN locations l
+                ON l.id = a.location_id
+            LEFT JOIN vendors v
+                ON v.id = a.supplier_id
+            LEFT JOIN users assigned
+                ON assigned.id = a.assigned_to_user_id
+        ';
+
+        $countStmt = $this->db->prepare(
+            'SELECT COUNT(*)
+             ' . $fromSql . $whereSql
+        );
+
+        $countStmt->execute($params);
+        $total = (int) $countStmt->fetchColumn();
+
+        $totalPages = max(
+            1,
+            (int) ceil($total / $perPage)
+        );
+
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+
+        $sortColumns = [
+            'asset_code' => 'a.asset_code',
+            'asset_name' => 'a.asset_name',
+            'category' => 'c.name',
+            'status' => 's.name',
+            'condition' => 'ac.name',
+            'location' => 'l.name',
+            'purchase_date' => 'a.purchase_date',
+            'purchase_cost' => 'a.purchase_cost',
+            'book_value' => 'a.current_book_value',
+            'created_at' => 'a.created_at',
+        ];
+
+        $sortKey = (string) ($filters['sort'] ?? 'created_at');
+        $sortColumn = $sortColumns[$sortKey] ?? 'a.created_at';
+
+        $direction = strtolower(
+            (string) ($filters['direction'] ?? 'desc')
+        ) === 'asc' ? 'ASC' : 'DESC';
+
+        $sql = '
+            SELECT
+                a.id,
+                a.asset_code,
+                a.asset_tag,
+                a.serial_number,
+                a.asset_name,
+                a.manufacturer,
+                a.model,
+                a.model_number,
+                a.purchase_date,
+                a.purchase_cost,
+                a.current_book_value,
+                a.department_id,
+                a.assigned_to_user_id,
+                c.name AS category_name,
+                s.name AS status_name,
+                ac.name AS condition_name,
+                l.name AS location_name,
+                v.name AS supplier_name,
+                assigned.first_name AS assigned_first_name,
+                assigned.last_name AS assigned_last_name
+            ' . $fromSql . $whereSql . '
+            ORDER BY ' . $sortColumn . ' ' . $direction . ',
+                     a.id DESC
+            LIMIT :limit OFFSET :offset
+        ';
+
+        $stmt = $this->db->prepare($sql);
+
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(
+                ':' . $key,
+                $value,
+                is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR
+            );
+        }
+
+        $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+
+        $stmt->execute();
+
+        return [
+            'items' => $stmt->fetchAll(),
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage,
+            'total_pages' => $totalPages,
+        ];
+    }
+
+
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(

@@ -119,6 +119,12 @@ $isAdministrationSettings = str_ends_with(
                     <i class="fas fa-undo"></i>
                     <span>Stock Returns</span>
                 </a>
+
+                <a href="<?= e(base_url('/public/materials/movements.php')) ?>"
+                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/movements.php') ? 'active' : '' ?>">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>Stock Movement History</span>
+                </a>
             </nav>
         </div>
 
@@ -189,6 +195,12 @@ $isAdministrationSettings = str_ends_with(
                     class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock_return.php') ? 'active' : '' ?>">
                     <i class="fas fa-undo"></i>
                     <span>Stock Returns</span>
+                </a>
+
+                <a href="<?= e(base_url('/public/materials/movements.php')) ?>"
+                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/movements.php') ? 'active' : '' ?>">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>Stock Movement History</span>
                 </a>
 
             </nav>

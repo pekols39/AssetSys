@@ -315,6 +315,20 @@ class MaterialService
 
         return $this->materialModel->getAll();
     }
+    /**
+     * Get a paginated list of materials.
+     */
+    public function getPage(
+        array $filters = [],
+        int $page = 1,
+        int $perPage = 10
+    ): array {
+        return $this->materialModel->getPage(
+            $filters,
+            $page,
+            $perPage
+        );
+    }
 
     public function getActive(): array
     {
