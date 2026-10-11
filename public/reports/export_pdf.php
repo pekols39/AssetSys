@@ -6,10 +6,37 @@ require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 
 use App\Middleware\AuthMiddleware;
 use App\Services\AssetReportService;
+use App\Core\Auth;
+use App\Services\AuthorizationService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
 AuthMiddleware::handle();
+
+$authorization = new AuthorizationService();
+$user = $authorization->currentUser();
+
+if ($user === null) {
+    Auth::logout();
+
+    header(
+        'Location: ' . base_url('/public/login.php')
+    );
+
+    exit;
+}
+
+if (($user['role_name'] ?? '') !== 'Asset Manager') {
+    http_response_code(403);
+    exit('Access denied. Asset reports are available to Asset Managers only.');
+}
+
+$departmentId = (int) ($user['department_id'] ?? 0);
+
+if ($departmentId <= 0) {
+    http_response_code(403);
+    exit('Access denied. Your account is not assigned to a department.');
+}
 
 $filters = [
     'search' => trim((string) ($_GET['search'] ?? '')),

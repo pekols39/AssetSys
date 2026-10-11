@@ -8,6 +8,7 @@ use App\Core\Database;
 use App\Models\Asset;
 use App\Models\DepreciationSchedule;
 use App\Services\AuthorizationService;
+use App\Exceptions\DepreciationPeriodNotDueException;
 use PDO;
 use RuntimeException;
 
@@ -331,6 +332,47 @@ class DepreciationService
     }
 
     /**
+     * Validate the account used to audit automated depreciation.
+     *
+     * Automated posting is restricted to an active Administrator
+     * and is callable only through the CLI entry point.
+     */
+    private function assertAutomationActor(
+        int $userId
+    ): void {
+        if ($userId <= 0) {
+            throw new RuntimeException(
+                'A valid automation posting user is required.'
+            );
+        }
+
+        $stmt = $this->db->prepare(
+            "
+        SELECT u.id
+        FROM users u
+        INNER JOIN roles r
+            ON r.id = u.role_id
+        WHERE u.id = :user_id
+          AND u.account_status = 'active'
+          AND u.is_active = 1
+          AND r.name = 'Administrator'
+          AND r.is_active = 1
+        LIMIT 1
+        "
+        );
+
+        $stmt->execute([
+            ':user_id' => $userId,
+        ]);
+
+        if ($stmt->fetchColumn() === false) {
+            throw new RuntimeException(
+                'The automation posting user must be an active Administrator.'
+            );
+        }
+    }
+
+    /**
      * Calculate annual straight-line depreciation.
      */
     private function calculateAnnualDepreciation(
@@ -408,6 +450,550 @@ class DepreciationService
     }
 
     /**
+     * Calculate the final date of a monthly depreciation period.
+     *
+     * The next period begins on the following day.
+     * Clamp the next month's date to that month's last day
+     * to avoid PHP's month-overflow behavior.
+     */
+    private function calculatePeriodEndDate(
+        \DateTimeImmutable $periodStartDate,
+        int $anchorDay
+    ): \DateTimeImmutable {
+        $nextMonth =
+            $periodStartDate->modify(
+                'first day of next month'
+            );
+
+        $dayOfMonth = min(
+            $anchorDay,
+            (int) $nextMonth->format('t')
+        );
+
+        $nextPeriodStartDate =
+            $nextMonth->setDate(
+                (int) $nextMonth->format('Y'),
+                (int) $nextMonth->format('n'),
+                $dayOfMonth
+            );
+
+        return $nextPeriodStartDate->modify('-1 day');
+    }
+
+    /**
+     * Preview the next depreciation period without changing records.
+     *
+     * This method performs SELECT queries only.
+     */
+    public function previewNextPeriod(
+        int $scheduleId,
+        ?\DateTimeImmutable $asOf = null
+    ): array {
+        if ($scheduleId <= 0) {
+            throw new RuntimeException(
+                'Invalid depreciation schedule.'
+            );
+        }
+
+        $schedule = $this->scheduleModel->findById(
+            $scheduleId
+        );
+
+        if (!$schedule) {
+            throw new RuntimeException(
+                'Depreciation schedule not found.'
+            );
+        }
+
+        if (
+            ($schedule['schedule_status'] ?? '')
+            !== 'active'
+        ) {
+            throw new RuntimeException(
+                'This depreciation schedule is not active.'
+            );
+        }
+
+        $startDate = (string) (
+            $schedule['start_date'] ?? ''
+        );
+
+        $this->validateDate(
+            $startDate,
+            'Depreciation schedule start date'
+        );
+
+        $latestEntry = $this->getLatestPostedEntry(
+            $scheduleId
+        );
+
+        if ($latestEntry) {
+            $periodStart = (
+                new \DateTimeImmutable(
+                    (string) $latestEntry['period_end']
+                )
+            )->modify('+1 day')->format('Y-m-d');
+        } else {
+            $periodStart = $startDate;
+        }
+
+        $this->validateDate(
+            $periodStart,
+            'Next depreciation period start'
+        );
+
+        $periodStartDate = new \DateTimeImmutable(
+            $periodStart
+        );
+
+        $scheduleAnchorDay = (int) (
+            new \DateTimeImmutable($startDate)
+        )->format('j');
+
+        $periodEndDate = $this->calculatePeriodEndDate(
+            $periodStartDate,
+            $scheduleAnchorDay
+        );
+
+        $eligibleOn = $periodEndDate->modify('+1 day');
+
+        $today = (
+        $asOf ?? new \DateTimeImmutable('today')
+        )->setTime(0, 0);
+
+        $preview = [
+            'schedule_id' => $scheduleId,
+            'period_start' => $periodStartDate->format('Y-m-d'),
+            'period_end' => $periodEndDate->format('Y-m-d'),
+            'eligible_on' => $eligibleOn->format('Y-m-d'),
+            'is_due' => $today >= $eligibleOn,
+        ];
+
+        if (!$preview['is_due']) {
+            return $preview;
+        }
+
+        /*
+         * Validate the calculation before declaring this schedule
+         * eligible for posting.
+         */
+        $method = strtolower(
+            trim((string) ($schedule['depreciation_method'] ?? ''))
+        );
+
+        if ($method !== 'straight_line') {
+            throw new RuntimeException(
+                'Unsupported depreciation method.'
+            );
+        }
+
+        $originalCost = $this->toMoney(
+            $schedule['original_cost'] ?? 0
+        );
+
+        $salvageValue = $this->toMoney(
+            $schedule['salvage_value'] ?? 0
+        );
+
+        $depreciableAmount = $this->toMoney(
+            $schedule['depreciable_amount'] ?? 0
+        );
+
+        $monthlyDepreciation = $this->toMoney(
+            $schedule['monthly_depreciation'] ?? 0
+        );
+
+        $usefulLifeYears = $this->toDecimal(
+            $schedule['useful_life_years'] ?? 0
+        );
+
+        $totalPeriods = (int) round(
+            $usefulLifeYears * 12
+        );
+
+        $accumulatedDepreciation = $this->toMoney(
+            $schedule['accumulated_depreciation'] ?? 0
+        );
+
+        $currentBookValue = $this->toMoney(
+            $schedule['current_book_value'] ?? $originalCost
+        );
+
+        if (
+            $originalCost < 0
+            || $salvageValue < 0
+            || $salvageValue > $originalCost
+            || $depreciableAmount < 0
+            || $totalPeriods <= 0
+        ) {
+            throw new RuntimeException(
+                'Depreciation schedule values are invalid.'
+            );
+        }
+
+        $remainingDepreciation = $this->toMoney(
+            $depreciableAmount - $accumulatedDepreciation
+        );
+
+        $remainingBookValue = $this->toMoney(
+            $currentBookValue - $salvageValue
+        );
+
+        if ($remainingDepreciation <= 0) {
+            throw new RuntimeException(
+                'This depreciation schedule has no remaining depreciation to post.'
+            );
+        }
+
+        if (
+            abs($remainingDepreciation - $remainingBookValue) > 0.005
+        ) {
+            throw new RuntimeException(
+                'Depreciation schedule values are inconsistent.'
+            );
+        }
+
+        if (
+            $this->findEntryByPeriod(
+                $scheduleId,
+                $preview['period_start'],
+                $preview['period_end']
+            )
+        ) {
+            throw new RuntimeException(
+                'Depreciation for this period has already been posted.'
+            );
+        }
+
+        $postedPeriodCount = $this->getPostedPeriodCount(
+            $scheduleId
+        );
+
+        $isFinalPeriod = (
+            $postedPeriodCount + 1
+        ) >= $totalPeriods;
+
+        $maximumDepreciation = min(
+            $remainingDepreciation,
+            $remainingBookValue
+        );
+
+        $depreciationAmount = $this->toMoney(
+            $isFinalPeriod
+            ? $maximumDepreciation
+            : min($monthlyDepreciation, $maximumDepreciation)
+        );
+
+        if ($depreciationAmount <= 0) {
+            throw new RuntimeException(
+                'Calculated depreciation amount is invalid.'
+            );
+        }
+
+        $bookValueAfter = $this->toMoney(
+            $currentBookValue - $depreciationAmount
+        );
+
+        $newAccumulatedDepreciation = $this->toMoney(
+            $accumulatedDepreciation + $depreciationAmount
+        );
+
+        return array_merge($preview, [
+            'depreciation_amount' => $depreciationAmount,
+            'book_value_after' => $bookValueAfter,
+            'expected_schedule_status' =>
+                $newAccumulatedDepreciation >= $depreciableAmount
+                ? 'completed'
+                : 'active',
+        ]);
+    }
+
+    /**
+     * Preview all due periods for a schedule without writing records.
+     *
+     * Simulates each posting in memory so the dry run matches
+     * the sequential catch-up behavior of the live scheduler.
+     */
+    public function previewDuePeriods(
+        int $scheduleId,
+        ?\DateTimeImmutable $asOf = null
+    ): array {
+        if ($scheduleId <= 0) {
+            throw new RuntimeException(
+                'Invalid depreciation schedule.'
+            );
+        }
+
+        $schedule = $this->scheduleModel->findById($scheduleId);
+
+        if (!$schedule) {
+            throw new RuntimeException(
+                'Depreciation schedule not found.'
+            );
+        }
+
+        if (($schedule['schedule_status'] ?? '') !== 'active') {
+            throw new RuntimeException(
+                'This depreciation schedule is not active.'
+            );
+        }
+
+        $startDate = (string) ($schedule['start_date'] ?? '');
+
+        $this->validateDate(
+            $startDate,
+            'Depreciation schedule start date'
+        );
+
+        $latestEntry = $this->getLatestPostedEntry($scheduleId);
+
+        $periodStart = $latestEntry
+            ? (
+                new \DateTimeImmutable(
+                    (string) $latestEntry['period_end']
+                )
+            )->modify('+1 day')->format('Y-m-d')
+            : $startDate;
+
+        $this->validateDate(
+            $periodStart,
+            'Next depreciation period start'
+        );
+
+        $anchorDay = (int) (
+            new \DateTimeImmutable($startDate)
+        )->format('j');
+
+        $today = (
+        $asOf ?? new \DateTimeImmutable('today')
+        )->setTime(0, 0);
+
+        $originalCost = $this->toMoney(
+            $schedule['original_cost'] ?? 0
+        );
+
+        $salvageValue = $this->toMoney(
+            $schedule['salvage_value'] ?? 0
+        );
+
+        $depreciableAmount = $this->toMoney(
+            $schedule['depreciable_amount'] ?? 0
+        );
+
+        $monthlyDepreciation = $this->toMoney(
+            $schedule['monthly_depreciation'] ?? 0
+        );
+
+        $usefulLifeYears = $this->toDecimal(
+            $schedule['useful_life_years'] ?? 0
+        );
+
+        $totalPeriods = (int) round(
+            $usefulLifeYears * 12
+        );
+
+        $accumulatedDepreciation = $this->toMoney(
+            $schedule['accumulated_depreciation'] ?? 0
+        );
+
+        $currentBookValue = $this->toMoney(
+            $schedule['current_book_value'] ?? $originalCost
+        );
+
+        if (
+            $originalCost < 0
+            || $salvageValue < 0
+            || $salvageValue > $originalCost
+            || $depreciableAmount < 0
+            || $usefulLifeYears <= 0
+            || $totalPeriods <= 0
+        ) {
+            throw new RuntimeException(
+                'Depreciation schedule values are invalid.'
+            );
+        }
+
+        $method = strtolower(
+            trim((string) ($schedule['depreciation_method'] ?? ''))
+        );
+
+        if ($method !== 'straight_line') {
+            throw new RuntimeException(
+                'Unsupported depreciation method.'
+            );
+        }
+
+        $postedPeriodCount = $this->getPostedPeriodCount(
+            $scheduleId
+        );
+
+        $periods = [];
+        $nextPeriod = null;
+        $completed = false;
+
+        /*
+         * Safety limit prevents a malformed schedule from causing
+         * an unbounded preview loop.
+         */
+        $maximumPreviewPeriods = 1200;
+
+        for (
+            $iteration = 0;
+            $iteration < $maximumPreviewPeriods;
+            $iteration++
+        ) {
+            $this->validateDate(
+                $periodStart,
+                'Depreciation period start'
+            );
+
+            $periodStartDate = new \DateTimeImmutable(
+                $periodStart
+            );
+
+            $periodEndDate = $this->calculatePeriodEndDate(
+                $periodStartDate,
+                $anchorDay
+            );
+
+            $periodEnd = $periodEndDate->format('Y-m-d');
+            $eligibleOn = $periodEndDate->modify('+1 day');
+
+            /*
+             * Stop at the first period that has not ended.
+             */
+            if ($today < $eligibleOn) {
+                $nextPeriod = [
+                    'period_start' => $periodStart,
+                    'period_end' => $periodEnd,
+                    'eligible_on' => $eligibleOn->format('Y-m-d'),
+                    'is_due' => false,
+                ];
+
+                break;
+            }
+
+            $remainingDepreciation = $this->toMoney(
+                $depreciableAmount - $accumulatedDepreciation
+            );
+
+            $remainingBookValue = $this->toMoney(
+                $currentBookValue - $salvageValue
+            );
+
+            if ($remainingDepreciation <= 0) {
+                throw new RuntimeException(
+                    'This depreciation schedule has no remaining depreciation to post.'
+                );
+            }
+
+            if (
+                abs(
+                    $remainingDepreciation - $remainingBookValue
+                ) > 0.005
+            ) {
+                throw new RuntimeException(
+                    'Depreciation schedule values are inconsistent.'
+                );
+            }
+
+            if (
+                $this->findEntryByPeriod(
+                    $scheduleId,
+                    $periodStart,
+                    $periodEnd
+                )
+            ) {
+                throw new RuntimeException(
+                    'Depreciation for this period has already been posted.'
+                );
+            }
+
+            $isFinalPeriod = (
+                $postedPeriodCount + 1
+            ) >= $totalPeriods;
+
+            $maximumDepreciation = min(
+                $remainingDepreciation,
+                $remainingBookValue
+            );
+
+            $depreciationAmount = $this->toMoney(
+                $isFinalPeriod
+                ? $maximumDepreciation
+                : min(
+                    $monthlyDepreciation,
+                    $maximumDepreciation
+                )
+            );
+
+            if ($depreciationAmount <= 0) {
+                throw new RuntimeException(
+                    'Calculated depreciation amount is invalid.'
+                );
+            }
+
+            $bookValueBefore = $currentBookValue;
+
+            $bookValueAfter = $this->toMoney(
+                $bookValueBefore - $depreciationAmount
+            );
+
+            $newAccumulatedDepreciation = $this->toMoney(
+                $accumulatedDepreciation + $depreciationAmount
+            );
+
+            $newStatus = (
+                $newAccumulatedDepreciation >= $depreciableAmount
+            ) ? 'completed' : 'active';
+
+            $periods[] = [
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'eligible_on' => $eligibleOn->format('Y-m-d'),
+                'depreciation_amount' => $depreciationAmount,
+                'book_value_before' => $bookValueBefore,
+                'book_value_after' => $bookValueAfter,
+                'accumulated_depreciation' => $newAccumulatedDepreciation,
+                'expected_schedule_status' => $newStatus,
+            ];
+
+            /*
+             * Advance only in memory. No database updates occur here.
+             */
+            $accumulatedDepreciation = $newAccumulatedDepreciation;
+            $currentBookValue = $bookValueAfter;
+            $postedPeriodCount++;
+
+            if ($newStatus === 'completed') {
+                $completed = true;
+                break;
+            }
+
+            $periodStart = $periodEndDate
+                ->modify('+1 day')
+                ->format('Y-m-d');
+        }
+
+        if (
+            !$completed
+            && $nextPeriod === null
+            && count($periods) >= $maximumPreviewPeriods
+        ) {
+            throw new RuntimeException(
+                'The preview reached its maximum period limit.'
+            );
+        }
+
+        return [
+            'schedule_id' => $scheduleId,
+            'periods' => $periods,
+            'next_period' => $nextPeriod,
+            'completed' => $completed,
+        ];
+    }
+
+    /**
      * Post the next depreciation period for an active schedule.
      *
      * The method automatically determines the next period based
@@ -415,7 +1001,8 @@ class DepreciationService
      */
     public function postNextEntry(
         int $scheduleId,
-        int $postedBy
+        int $postedBy,
+        bool $automated = false
     ): int {
         if ($scheduleId <= 0) {
             throw new RuntimeException(
@@ -429,370 +1016,42 @@ class DepreciationService
             );
         }
 
-        $schedule =
-            $this->scheduleModel->findById(
-                $scheduleId
-            );
-
-        if (!$schedule) {
-            throw new RuntimeException(
-                'Depreciation schedule not found.'
-            );
-        }
-
-        $assetId =
-            (int) (
-                $schedule['asset_id']
-                ?? 0
-            );
-
-        if ($assetId <= 0) {
-            throw new RuntimeException(
-                'Invalid asset associated with depreciation schedule.'
-            );
-        }
-
-        $asset =
-            $this->assetModel->findById(
-                $assetId
-            );
-
-        if (!$asset) {
-            throw new RuntimeException(
-                'Asset not found.'
-            );
-        }
-
-        $this->authorizeAssetAccess(
-            $asset
-        );
-
-        if (
-            (int) \App\Core\Auth::id()
-            !== $postedBy
-        ) {
-            throw new RuntimeException(
-                'Invalid posting user.'
-            );
-        }
-
-        if (
-            ($schedule['schedule_status'] ?? '')
-            !== 'active'
-        ) {
-            throw new RuntimeException(
-                'This depreciation schedule is not active.'
-            );
-        }
-
-        $depreciationMethod =
-            strtolower(
-                trim(
-                    (string) (
-                        $schedule['depreciation_method']
-                        ?? ''
-                    )
-                )
-            );
-
-        if (
-            $depreciationMethod
-            !== 'straight_line'
-        ) {
-            throw new RuntimeException(
-                'Unsupported depreciation method.'
-            );
-        }
-
-        $scheduleAssetId = $assetId;
-
-        $originalCost =
-            $this->toMoney(
-                $schedule['original_cost']
-                ?? 0
-            );
-
-        $salvageValue =
-            $this->toMoney(
-                $schedule['salvage_value']
-                ?? 0
-            );
-
-        $depreciableAmount =
-            $this->toMoney(
-                $schedule['depreciable_amount']
-                ?? 0
-            );
-
-        $monthlyDepreciation =
-            $this->toMoney(
-                $schedule['monthly_depreciation']
-                ?? 0
-            );
-
-        $usefulLifeYears =
-            $this->toDecimal(
-                $schedule['useful_life_years']
-                ?? 0
-            );
-
-        $totalPeriods =
-            (int) round(
-                $usefulLifeYears * 12
-            );
-
-        if ($totalPeriods <= 0) {
-            throw new RuntimeException(
-                'Useful life must result in at least one depreciation period.'
-            );
-        }
-
-        $accumulatedDepreciation =
-            $this->toMoney(
-                $schedule['accumulated_depreciation']
-                ?? 0
-            );
-
-        $currentBookValue =
-            $this->toMoney(
-                $schedule['current_book_value']
-                ?? $originalCost
-            );
-
-        if ($salvageValue > $originalCost) {
-            throw new RuntimeException(
-                'Salvage value cannot exceed original cost.'
-            );
-        }
-
-        if ($depreciableAmount < 0) {
-            throw new RuntimeException(
-                'Depreciable amount cannot be negative.'
-            );
-        }
-
-        /*
-         * If the schedule has already reached its
-         * depreciable limit, there is nothing left to post.
-         */
-        $remainingDepreciation =
-            $this->toMoney(
-                $depreciableAmount
-                - $accumulatedDepreciation
-            );
-
-        if ($remainingDepreciation <= 0) {
-            throw new RuntimeException(
-                'This depreciation schedule has no remaining depreciation to post.'
-            );
-        }
-
-        $postedPeriodCount =
-            $this->getPostedPeriodCount(
-                $scheduleId
-            );
-
-        /*
-         * Determine the next period.
-         */
-        $latestEntry = $this->getLatestPostedEntry(
-            $scheduleId
-        );
-
-        if ($latestEntry) {
-            $periodStart =
-                (
-                    new \DateTimeImmutable(
-                        (string) $latestEntry['period_end']
-                    )
-                )->modify('+1 day')
-                    ->format('Y-m-d');
-        } else {
-            $periodStart =
-                (string) $schedule['start_date'];
-        }
-
-        $this->validateDate(
-            $periodStart,
-            'Depreciation period start'
-        );
-
-        $periodStartDate =
-            new \DateTimeImmutable(
-                $periodStart
-            );
-
-        $periodEndDate =
-            $periodStartDate->modify(
-                '+1 month -1 day'
-            );
-
-        $periodEnd =
-            $periodEndDate->format(
-                'Y-m-d'
-            );
-
-        /*
-         * Explicit duplicate-period protection.
-         * The database UNIQUE constraint remains
-         * the final protection.
-         */
-        if (
-            $this->findEntryByPeriod(
-                $scheduleId,
-                $periodStart,
-                $periodEnd
-            )
-        ) {
-            throw new RuntimeException(
-                'Depreciation for this period has already been posted.'
-            );
-        }
-
-        /*
-         * Use the configured monthly amount for normal
-         * periods.
-         *
-         * The final scheduled period receives the exact
-         * remaining depreciable amount. This absorbs any
-         * rounding difference from the monthly amount.
-         */
-        $isFinalPeriod =
-            ($postedPeriodCount + 1)
-            >= $totalPeriods;
-
-        if ($isFinalPeriod) {
-            $depreciationAmount =
-                $remainingDepreciation;
-        } else {
-            $depreciationAmount =
-                $monthlyDepreciation;
-        }
-
-        $depreciationAmount =
-            $this->toMoney(
-                $depreciationAmount
-            );
-
-        if ($depreciationAmount <= 0) {
-            throw new RuntimeException(
-                'Calculated depreciation amount is zero.'
-            );
-        }
-
-        $bookValueBefore =
-            $this->toMoney(
-                $currentBookValue
-            );
-
-        $bookValueAfter =
-            $this->toMoney(
-                $bookValueBefore
-                - $depreciationAmount
-            );
-
-        /*
-         * Never allow the book value to fall below
-         * the salvage value.
-         */
-        if ($bookValueAfter < $salvageValue) {
-            $bookValueAfter =
-                $salvageValue;
-
-            $depreciationAmount =
-                $this->toMoney(
-                    $bookValueBefore
-                    - $bookValueAfter
+        if ($automated) {
+            if (PHP_SAPI !== 'cli') {
+                throw new RuntimeException(
+                    'Automated depreciation can only run from the command line.'
                 );
-        }
-
-        if ($depreciationAmount <= 0) {
-            throw new RuntimeException(
-                'Calculated depreciation amount is invalid.'
-            );
-        }
-
-        $newAccumulatedDepreciation =
-            $this->toMoney(
-                $accumulatedDepreciation
-                + $depreciationAmount
-            );
-
-        /*
-         * Never allow accumulated depreciation to
-         * exceed the depreciable amount.
-         */
-        if (
-            $newAccumulatedDepreciation
-            > $depreciableAmount
-        ) {
-            $newAccumulatedDepreciation =
-                $depreciableAmount;
-
-            $bookValueAfter =
-                $this->toMoney(
-                    $originalCost
-                    - $newAccumulatedDepreciation
-                );
-
-            if ($bookValueAfter < $salvageValue) {
-                $bookValueAfter =
-                    $salvageValue;
             }
 
-            $depreciationAmount =
-                $this->toMoney(
-                    $bookValueBefore
-                    - $bookValueAfter
-                );
+            $this->assertAutomationActor($postedBy);
         }
-
-        $newScheduleStatus =
-            (
-                $newAccumulatedDepreciation
-                >= $depreciableAmount
-            )
-            ? 'completed'
-            : 'active';
-
-        $postedAt =
-            date('Y-m-d H:i:s');
 
         $this->db->beginTransaction();
 
         try {
             /*
-             * Lock the schedule row so two requests
-             * cannot post the same next period
-             * simultaneously.
+             * Lock the schedule before reading its values
+             * or calculating the next depreciation entry.
              */
-            $lockStmt =
-                $this->db->prepare(
-                    "
-                    SELECT
-                        id,
-                        asset_id,
-                        accumulated_depreciation,
-                        current_book_value,
-                        schedule_status
-
-                    FROM depreciation_schedules
-
-                    WHERE id = :id
-
-                    FOR UPDATE
-                    "
-                );
+            $lockStmt = $this->db->prepare(
+                "
+                SELECT
+                    id,
+                    asset_id,
+                    accumulated_depreciation,
+                    current_book_value,
+                    schedule_status
+                FROM depreciation_schedules
+                WHERE id = :id
+                FOR UPDATE
+                "
+            );
 
             $lockStmt->execute([
-                ':id' =>
-                    $scheduleId,
+                ':id' => $scheduleId,
             ]);
 
-            $lockedSchedule =
-                $lockStmt->fetch(
-                    PDO::FETCH_ASSOC
-                );
+            $lockedSchedule = $lockStmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$lockedSchedule) {
                 throw new RuntimeException(
@@ -800,14 +1059,349 @@ class DepreciationService
                 );
             }
 
-            if (
-                ($lockedSchedule['schedule_status'] ?? '')
-                !== 'active'
-            ) {
+            if (($lockedSchedule['schedule_status'] ?? '') !== 'active') {
                 throw new RuntimeException(
                     'This depreciation schedule is no longer active.'
                 );
             }
+
+            /*
+             * Read the schedule only after acquiring the lock.
+             */
+            $schedule = $this->scheduleModel->findById($scheduleId);
+
+            if (!$schedule) {
+                throw new RuntimeException(
+                    'Depreciation schedule not found.'
+                );
+            }
+
+            $assetId =
+                (int) (
+                    $schedule['asset_id']
+                    ?? 0
+                );
+
+            if ($assetId <= 0) {
+                throw new RuntimeException(
+                    'Invalid asset associated with depreciation schedule.'
+                );
+            }
+
+            $asset =
+                $this->assetModel->findById(
+                    $assetId
+                );
+
+            if (!$asset) {
+                throw new RuntimeException(
+                    'Asset not found.'
+                );
+            }
+
+            if (!$automated) {
+                $this->authorizeAssetAccess(
+                    $asset
+                );
+
+                if (
+                    (int) \App\Core\Auth::id()
+                    !== $postedBy
+                ) {
+                    throw new RuntimeException(
+                        'Invalid posting user.'
+                    );
+                }
+            }
+
+            if (
+                ($schedule['schedule_status'] ?? '')
+                !== 'active'
+            ) {
+                throw new RuntimeException(
+                    'This depreciation schedule is not active.'
+                );
+            }
+
+            $depreciationMethod =
+                strtolower(
+                    trim(
+                        (string) (
+                            $schedule['depreciation_method']
+                            ?? ''
+                        )
+                    )
+                );
+
+            if (
+                $depreciationMethod
+                !== 'straight_line'
+            ) {
+                throw new RuntimeException(
+                    'Unsupported depreciation method.'
+                );
+            }
+
+            $scheduleAssetId = $assetId;
+
+            $originalCost =
+                $this->toMoney(
+                    $schedule['original_cost']
+                    ?? 0
+                );
+
+            $salvageValue =
+                $this->toMoney(
+                    $schedule['salvage_value']
+                    ?? 0
+                );
+
+            $depreciableAmount =
+                $this->toMoney(
+                    $schedule['depreciable_amount']
+                    ?? 0
+                );
+
+            $monthlyDepreciation =
+                $this->toMoney(
+                    $schedule['monthly_depreciation']
+                    ?? 0
+                );
+
+            $usefulLifeYears =
+                $this->toDecimal(
+                    $schedule['useful_life_years']
+                    ?? 0
+                );
+
+            $totalPeriods =
+                (int) round(
+                    $usefulLifeYears * 12
+                );
+
+            if ($totalPeriods <= 0) {
+                throw new RuntimeException(
+                    'Useful life must result in at least one depreciation period.'
+                );
+            }
+
+            $accumulatedDepreciation =
+                $this->toMoney(
+                    $schedule['accumulated_depreciation']
+                    ?? 0
+                );
+
+            $currentBookValue =
+                $this->toMoney(
+                    $schedule['current_book_value']
+                    ?? $originalCost
+                );
+
+            if ($salvageValue > $originalCost) {
+                throw new RuntimeException(
+                    'Salvage value cannot exceed original cost.'
+                );
+            }
+
+            if ($depreciableAmount < 0) {
+                throw new RuntimeException(
+                    'Depreciable amount cannot be negative.'
+                );
+            }
+
+            /*
+             * If the schedule has already reached its
+             * depreciable limit, there is nothing left to post.
+             */
+            $remainingDepreciation =
+                $this->toMoney(
+                    $depreciableAmount
+                    - $accumulatedDepreciation
+                );
+
+            if ($remainingDepreciation <= 0) {
+                throw new RuntimeException(
+                    'This depreciation schedule has no remaining depreciation to post.'
+                );
+            }
+
+            $postedPeriodCount =
+                $this->getPostedPeriodCount(
+                    $scheduleId
+                );
+
+            /*
+             * Determine the next period.
+             */
+            $latestEntry = $this->getLatestPostedEntry(
+                $scheduleId
+            );
+
+            if ($latestEntry) {
+                $periodStart =
+                    (
+                        new \DateTimeImmutable(
+                            (string) $latestEntry['period_end']
+                        )
+                    )->modify('+1 day')
+                        ->format('Y-m-d');
+            } else {
+                $periodStart =
+                    (string) $schedule['start_date'];
+            }
+
+            $this->validateDate(
+                $periodStart,
+                'Depreciation period start'
+            );
+
+            $periodStartDate =
+                new \DateTimeImmutable(
+                    $periodStart
+                );
+
+            $scheduleAnchorDay =
+                (int) (
+                    new \DateTimeImmutable(
+                        (string) $schedule['start_date']
+                    )
+                )->format('j');
+
+            $periodEndDate =
+                $this->calculatePeriodEndDate(
+                    $periodStartDate,
+                    $scheduleAnchorDay
+                );
+
+            $periodEnd =
+                $periodEndDate->format(
+                    'Y-m-d'
+                );
+
+            /*
+             * Do not post depreciation before the entire period has ended.
+             * The next period becomes eligible on the day after period_end.
+             */
+            $eligibleOn =
+                $periodEndDate->modify('+1 day');
+
+            $today =
+                new \DateTimeImmutable('today');
+
+            if ($today < $eligibleOn) {
+                throw new DepreciationPeriodNotDueException(
+                    'The next depreciation period is not due yet. '
+                    . 'It may be posted on or after '
+                    . $eligibleOn->format('Y-m-d')
+                    . '.'
+                );
+            }
+
+            /*
+             * Explicit duplicate-period protection.
+             * The database UNIQUE constraint remains
+             * the final protection.
+             */
+            if (
+                $this->findEntryByPeriod(
+                    $scheduleId,
+                    $periodStart,
+                    $periodEnd
+                )
+            ) {
+                throw new RuntimeException(
+                    'Depreciation for this period has already been posted.'
+                );
+            }
+
+            /*
+             * Use the configured monthly amount for normal
+             * periods.
+             *
+             * The final scheduled period receives the exact
+             * remaining depreciable amount. This absorbs any
+             * rounding difference from the monthly amount.
+             */
+
+            $isFinalPeriod =
+                ($postedPeriodCount + 1)
+                >= $totalPeriods;
+
+            /*
+             * Calculate depreciation without exceeding either
+             * the remaining depreciable amount or salvage value.
+             */
+            $bookValueBefore =
+                $this->toMoney(
+                    $currentBookValue
+                );
+
+            $remainingBookValue =
+                $this->toMoney(
+                    $bookValueBefore - $salvageValue
+                );
+
+            /*
+             * Ensure the schedule's remaining balances agree.
+             */
+            if (
+                abs(
+                    $remainingDepreciation
+                    - $remainingBookValue
+                ) > 0.005
+            ) {
+                throw new RuntimeException(
+                    'Depreciation schedule values are inconsistent. '
+                    . 'Please review the schedule before posting.'
+                );
+            }
+
+            $maximumDepreciation = min(
+                $remainingDepreciation,
+                $remainingBookValue
+            );
+
+            if ($isFinalPeriod) {
+                $depreciationAmount = $maximumDepreciation;
+            } else {
+                $depreciationAmount = min(
+                    $monthlyDepreciation,
+                    $maximumDepreciation
+                );
+            }
+
+            $depreciationAmount =
+                $this->toMoney(
+                    $depreciationAmount
+                );
+
+            if ($depreciationAmount <= 0) {
+                throw new RuntimeException(
+                    'Calculated depreciation amount is invalid.'
+                );
+            }
+
+            $bookValueAfter =
+                $this->toMoney(
+                    $bookValueBefore - $depreciationAmount
+                );
+
+            $newAccumulatedDepreciation =
+                $this->toMoney(
+                    $accumulatedDepreciation
+                    + $depreciationAmount
+                );
+
+            $newScheduleStatus =
+                (
+                    $newAccumulatedDepreciation
+                    >= $depreciableAmount
+                )
+                ? 'completed'
+                : 'active';
+
+            $postedAt =
+                date('Y-m-d H:i:s');
 
             /*
              * Insert the depreciation entry.

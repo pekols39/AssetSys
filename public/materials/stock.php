@@ -132,7 +132,7 @@ $paginationUrl = static function (int $targetPage) use (
             <div class="card-body">
                 <div class="d-flex align-items-center gap-3">
                     <div class="rounded-3 p-3 bg-light text-success">
-                        <i class="fa-solid fa-boxes-stacked fa-lg"></i>
+                        <i class="fa-solid fa-boxes-stacked fa-lg text-teal"></i>
                     </div>
 
                     <div>

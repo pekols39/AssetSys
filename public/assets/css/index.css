@@ -24,7 +24,7 @@
 /* Status colors */
 .asset-status.status-available {
     color: #ffffff !important;
-    background-color: #198754 !important;
+    background-color: #007472 !important;
 }
 
 .asset-status.status-assigned {

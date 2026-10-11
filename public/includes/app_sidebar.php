@@ -14,6 +14,16 @@ $isAssets = str_contains(
     '/assets/'
 );
 
+$isInventoryReport =
+    str_ends_with($currentPath, '/reports/index.php')
+    || str_ends_with($currentPath, '/reports/');
+
+$isDepreciationReport =
+    str_ends_with($currentPath, '/reports/depreciation.php');
+
+$isDepreciationSchedules =
+    str_ends_with($currentPath, '/reports/depreciation_schedules.php');
+
 $isAdministrationDashboard = str_ends_with(
     $currentPath,
     '/administration/index.php'
@@ -124,6 +134,44 @@ $isAdministrationSettings = str_ends_with(
                     class="app-sidebar-link <?= str_contains($currentPath, '/materials/movements.php') ? 'active' : '' ?>">
                     <i class="fa-solid fa-clock-rotate-left"></i>
                     <span>Stock Movement History</span>
+                </a>
+            </nav>
+        </div>
+
+        <div class="app-sidebar-section">
+            <div class="app-sidebar-section-title">
+                REPORTS
+            </div>
+
+            <nav class="app-sidebar-nav">
+                <a href="<?= e(base_url('/public/reports/')) ?>"
+                    class="app-sidebar-link <?= $isInventoryReport ? 'active' : '' ?>">
+                    <span class="app-sidebar-link-icon">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </span>
+                    <span class="app-sidebar-link-text">
+                        Asset Inventory Report
+                    </span>
+                </a>
+
+                <a href="<?= e(base_url('/public/reports/depreciation.php')) ?>"
+                    class="app-sidebar-link <?= $isDepreciationReport ? 'active' : '' ?>">
+                    <span class="app-sidebar-link-icon">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </span>
+                    <span class="app-sidebar-link-text">
+                        Depreciation Report
+                    </span>
+                </a>
+
+                <a href="<?= e(base_url('/public/reports/depreciation_schedules.php')) ?>"
+                    class="app-sidebar-link <?= $isDepreciationSchedules ? 'active' : '' ?>">
+                    <span class="app-sidebar-link-icon">
+                        <i class="fa-solid fa-calendar-check"></i>
+                    </span>
+                    <span class="app-sidebar-link-text">
+                        Schedule Monitoring
+                    </span>
                 </a>
             </nav>
         </div>

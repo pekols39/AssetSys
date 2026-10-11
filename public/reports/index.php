@@ -54,16 +54,98 @@ $statuses = $referenceDataService->getAssetStatuses();
 $conditions = $referenceDataService->getAssetConditions();
 $locations = $referenceDataService->getLocations();
 
-$assets = $reportService->getAssetInventory($filters);
+/*
+ * Read and validate the requested page.
+ */
+$requestedPage = filter_var(
+    $_GET['page'] ?? 1,
+    FILTER_VALIDATE_INT
+);
 
-$totalAssets = count($assets);
-$totalPurchaseCost = 0.0;
-$totalBookValue = 0.0;
-
-foreach ($assets as $asset) {
-    $totalPurchaseCost += (float) ($asset['purchase_cost'] ?? 0);
-    $totalBookValue += (float) ($asset['current_book_value'] ?? 0);
+if (
+    $requestedPage === false
+    || $requestedPage < 1
+) {
+    $requestedPage = 1;
 }
+
+$perPage = 10;
+
+/*
+ * Calculate summary totals across ALL matching assets.
+ */
+$summary = $reportService->getAssetInventorySummary(
+    $filters
+);
+
+$totalAssets = (int) (
+    $summary['total_assets'] ?? 0
+);
+
+$totalPurchaseCost = (float) (
+    $summary['total_purchase_cost'] ?? 0
+);
+
+$totalBookValue = (float) (
+    $summary['total_book_value'] ?? 0
+);
+
+/*
+ * Calculate pagination boundaries.
+ */
+$totalPages = max(
+    1,
+    (int) ceil($totalAssets / $perPage)
+);
+
+$page = min(
+    $requestedPage,
+    $totalPages
+);
+
+$offset = ($page - 1) * $perPage;
+
+/*
+ * Fetch only the assets for the current page.
+ */
+$assets = $reportService->getAssetInventory(
+    $filters,
+    $perPage,
+    $offset
+);
+
+$firstAsset = $totalAssets > 0
+    ? $offset + 1
+    : 0;
+
+$lastAsset = min(
+    $offset + $perPage,
+    $totalAssets
+);
+
+$pageStart = max(
+    1,
+    min($page - 2, $totalPages - 4)
+);
+
+$pageEnd = min(
+    $totalPages,
+    $pageStart + 4
+);
+
+/*
+ * Preserve search and dropdown filters in pagination links.
+ */
+$pageUrl = static fn(int $targetPage): string =>
+    base_url(
+        '/public/reports/?'
+        . http_build_query(
+            array_merge(
+                $filters,
+                ['page' => $targetPage]
+            )
+        )
+    );
 
 $pageTitle = 'Asset Inventory Report';
 $pageStylesheet = 'css/reports.css';
@@ -82,14 +164,6 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
             Review company assets, current status, locations, and book values.
         </p>
     </div>
-
-    <a
-        href="<?= e(base_url('/public/reports/')) ?>"
-        class="btn btn-outline-secondary"
-    >
-        <i class="fa-solid fa-rotate-left me-1"></i>
-        Reset Filters
-    </a>
 </div>
 
 <div class="row g-3 mb-4">
@@ -128,7 +202,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white py-3">
         <h2 class="h5 mb-0">
-            <i class="fa-solid fa-filter me-2"></i>
+            <i class="fa-solid fa-filter me-2 text-teal"></i>
             Report Filters
         </h2>
     </div>
@@ -239,7 +313,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     </div>
 
     <div class="card-body">
-        <?php if ($assets === []): ?>
+        <?php if ($totalAssets === 0): ?>
             <div class="text-center py-5">
                 <div class="text-muted fs-1 mb-3">
                     <i class="fa-solid fa-magnifying-glass"></i>
@@ -310,7 +384,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                     <tfoot>
                         <tr>
-                            <th colspan="6" class="text-end">Filtered Totals</th>
+                            <th colspan="6" class="text-end">Filtered Totals (all pages)</th>
                             <th class="text-end text-nowrap">
                                 ₱<?= e(number_format($totalPurchaseCost, 2)) ?>
                             </th>
@@ -321,6 +395,71 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     </tfoot>
                 </table>
             </div>
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mt-3">
+                <p class="text-muted small mb-0">
+                    Showing
+                    <?= e(number_format($firstAsset)) ?>–<?= e(number_format($lastAsset)) ?>
+                    of <?= e(number_format($totalAssets)) ?> assets
+                </p>
+
+                <nav aria-label="Asset inventory pagination">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                            <?php if ($page > 1): ?>
+                                <a class="page-link" href="<?= e($pageUrl(1)) ?>">First</a>
+                            <?php else: ?>
+                                <span class="page-link">First</span>
+                            <?php endif; ?>
+                        </li>
+
+                        <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                            <?php if ($page > 1): ?>
+                                <a class="page-link" href="<?= e($pageUrl($page - 1)) ?>">Previous</a>
+                            <?php else: ?>
+                                <span class="page-link">Previous</span>
+                            <?php endif; ?>
+                        </li>
+
+                        <?php for ($number = $pageStart; $number <= $pageEnd; $number++): ?>
+                            <li
+                                class="page-item <?= $number === $page ? 'active' : '' ?>"
+                                <?= $number === $page ? 'aria-current="page"' : '' ?>
+                            >
+                                <?php if ($number === $page): ?>
+                                    <span class="page-link">
+                                        <?= e((string) $number) ?>
+                                    </span>
+                                <?php else: ?>
+                                    <a
+                                        class="page-link"
+                                        href="<?= e($pageUrl($number)) ?>"
+                                    >
+                                        <?= e((string) $number) ?>
+                                    </a>
+                                <?php endif; ?>
+                            </li>
+                        <?php endfor; ?>
+
+                        <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
+                            <?php if ($page < $totalPages): ?>
+                                <a class="page-link" href="<?= e($pageUrl($page + 1)) ?>">Next</a>
+                            <?php else: ?>
+                                <span class="page-link">Next</span>
+                            <?php endif; ?>
+                        </li>
+
+                        <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
+                            <?php if ($page < $totalPages): ?>
+                                <a class="page-link" href="<?= e($pageUrl($totalPages)) ?>">Last</a>
+                            <?php else: ?>
+                                <span class="page-link">Last</span>
+                            <?php endif; ?>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+
         <?php endif; ?>
     </div>
 </div>
