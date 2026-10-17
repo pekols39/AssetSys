@@ -21,7 +21,7 @@ if ($user === null) {
     exit;
 }
 
-if (($user['role_name'] ?? '') !== 'Asset Manager') {
+if (!$authorization->canAccessAssetMaterialAreas()) {
     http_response_code(403);
     exit(
         'Access denied. Depreciation monitoring is available '

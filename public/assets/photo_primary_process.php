@@ -93,16 +93,27 @@ try {
 
         exit;
     }
-
-    $photoModel->setPrimary(
+    $updated = $photoModel->setPrimary(
         $photoId,
         $assetId
     );
+
+    if (!$updated) {
+        http_response_code(404);
+
+        echo json_encode([
+            'success' => false,
+            'message' => 'Photo not found for this asset.',
+        ]);
+
+        exit;
+    }
 
     echo json_encode([
         'success' => true,
         'message' => 'Primary photo updated successfully.',
     ]);
+
 } catch (\Throwable $e) {
     error_log(
         'Asset photo primary error: '

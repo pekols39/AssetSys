@@ -54,6 +54,12 @@ class AssetFileService
         $this->validateAsset($assetId);
         $this->validateUser($uploadedBy);
 
+        if (\App\Core\Auth::id() !== $uploadedBy) {
+            throw new RuntimeException(
+                'The uploader must match the authenticated user.'
+            );
+        }
+
         $upload = FileUpload::store(
             $file,
             'assets',
@@ -95,6 +101,12 @@ class AssetFileService
     ): int {
         $this->validateAsset($assetId);
         $this->validateUser($uploadedBy);
+
+        if (\App\Core\Auth::id() !== $uploadedBy) {
+            throw new RuntimeException(
+                'The uploader must match the authenticated user.'
+            );
+        }
 
         $documentType = trim($documentType);
 
@@ -288,10 +300,11 @@ class AssetFileService
 
         $stmt = $this->db->prepare(
             "SELECT id
-             FROM users
-             WHERE id = :id
-               AND account_status = 'active'
-             LIMIT 1"
+         FROM users
+         WHERE id = :id
+           AND account_status = 'active'
+           AND is_active = 1
+         LIMIT 1"
         );
 
         $stmt->execute([

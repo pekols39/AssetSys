@@ -9,10 +9,14 @@ $isDashboard = str_contains(
     '/dashboard/'
 );
 
-$isAssets = str_contains(
+$isDepartmentTransfers = str_contains(
     $currentPath,
-    '/assets/'
+    '/assets/department_transfer'
 );
+
+$isAssets =
+    str_contains($currentPath, '/assets/')
+    && !$isDepartmentTransfers;
 
 $isInventoryReport =
     str_ends_with($currentPath, '/reports/index.php')
@@ -62,7 +66,10 @@ $isAdministrationSettings = str_ends_with(
     </div>
 
 
-    <?php if ($roleName === 'Asset Manager'): ?>
+    <?php if (
+        isset($authorization)
+        && $authorization->canAccessAssetMaterialAreas()
+    ): ?>
 
         <div class="app-sidebar-section">
             <div class="app-sidebar-section-title">
@@ -83,6 +90,14 @@ $isAdministrationSettings = str_ends_with(
                         <i class="fa-solid fa-boxes-stacked"></i>
                     </span>
                     <span class="app-sidebar-link-text">Assets</span>
+                </a>
+
+                <a href="<?= e(base_url('/public/assets/department_transfers.php')) ?>"
+                    class="app-sidebar-link <?= $isDepartmentTransfers ? 'active' : '' ?>">
+                    <span class="app-sidebar-link-icon">
+                        <i class="fa-solid fa-building-circle-arrow-right"></i>
+                    </span>
+                    <span class="app-sidebar-link-text">Department Transfers</span>
                 </a>
 
                 <a href="<?= e(base_url('/public/materials/categories.php')) ?>" class="app-sidebar-link <?= str_contains(
@@ -106,6 +121,7 @@ $isAdministrationSettings = str_ends_with(
                     <span>Materials</span>
                 </a>
 
+                <!-- Stock navigation temporarily hidden for Fixed Asset Management.
                 <a href="<?= base_url('/public/materials/stock.php') ?>"
                     class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock.php') ? 'active' : '' ?>">
                     <i class="fas fa-warehouse"></i>
@@ -135,6 +151,7 @@ $isAdministrationSettings = str_ends_with(
                     <i class="fa-solid fa-clock-rotate-left"></i>
                     <span>Stock Movement History</span>
                 </a>
+                -->
             </nav>
         </div>
 
@@ -173,84 +190,6 @@ $isAdministrationSettings = str_ends_with(
                         Schedule Monitoring
                     </span>
                 </a>
-            </nav>
-        </div>
-
-    <?php elseif ($roleName === 'Asset Custodian'): ?>
-
-        <div class="app-sidebar-section">
-            <div class="app-sidebar-section-title">
-                DEPARTMENT ASSETS
-            </div>
-
-            <nav class="app-sidebar-nav">
-
-                <a href="<?= e(base_url('/public/dashboard/')) ?>"
-                    class="app-sidebar-link <?= $isDashboard ? 'active' : '' ?>">
-                    <span class="app-sidebar-link-icon">
-                        <i class="fa-solid fa-gauge-high"></i>
-                    </span>
-                    <span class="app-sidebar-link-text">Dashboard</span>
-                </a>
-
-                <a href="<?= e(base_url('/public/assets/')) ?>" class="app-sidebar-link <?= $isAssets ? 'active' : '' ?>">
-                    <span class="app-sidebar-link-icon">
-                        <i class="fa-solid fa-boxes-stacked"></i>
-                    </span>
-                    <span class="app-sidebar-link-text">Department Assets</span>
-                </a>
-
-                <a href="<?= e(base_url('/public/materials/categories.php')) ?>" class="app-sidebar-link <?= str_contains(
-                      $currentPath,
-                      '/materials/categories.php'
-                  ) ? 'active' : '' ?>">
-                    <span class="app-sidebar-link-icon">
-                        <i class="fa-solid fa-layer-group"></i>
-                    </span>
-                    <span class="app-sidebar-link-text">
-                        Material Categories
-                    </span>
-                </a>
-
-                <a href="<?= base_url('/public/materials/index.php') ?>" class="app-sidebar-link <?= (
-                      str_contains($currentPath, '/materials/index.php') ||
-                      str_contains($currentPath, '/materials/create.php') ||
-                      str_contains($currentPath, '/materials/edit.php')
-                  ) ? 'active' : '' ?>">
-                    <i class="fas fa-boxes"></i>
-                    <span>Materials</span>
-                </a>
-
-                <a href="<?= base_url('/public/materials/stock.php') ?>"
-                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock.php') ? 'active' : '' ?>">
-                    <i class="fas fa-warehouse"></i>
-                    <span>Stock</span>
-                </a>
-
-                <a href="<?= base_url('/public/materials/stock_in.php') ?>"
-                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock_in.php') ? 'active' : '' ?>">
-                    <i class="fas fa-arrow-down"></i>
-                    <span>Stock In</span>
-                </a>
-
-                <a href="<?= base_url('/public/materials/stock_out.php') ?>"
-                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock_out.php') ? 'active' : '' ?>">
-                    <i class="fas fa-arrow-up"></i>
-                    <span>Stock Out</span>
-                </a>
-
-                <a href="<?= base_url('/public/materials/stock_return.php') ?>"
-                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/stock_return.php') ? 'active' : '' ?>">
-                    <i class="fas fa-undo"></i>
-                    <span>Stock Returns</span>
-                </a>
-
-                <a href="<?= e(base_url('/public/materials/movements.php')) ?>"
-                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/movements.php') ? 'active' : '' ?>">
-                    <i class="fa-solid fa-clock-rotate-left"></i>
-                    <span>Stock Movement History</span>
-                </a>
-
             </nav>
         </div>
 

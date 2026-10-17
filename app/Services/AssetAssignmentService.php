@@ -23,146 +23,67 @@ class AssetAssignmentService
         $this->authorization = new AuthorizationService();
     }
 
+
+
     public function assign(
         int $assetId,
-        int $assignedToUserId,
+        string $assignedToName,
         int $assignedBy,
         ?string $acknowledgementReference = null,
         ?string $remarks = null
     ): int {
         if ($assetId <= 0) {
-            throw new RuntimeException(
-                'Invalid asset.'
-            );
+            throw new RuntimeException('Invalid asset.');
         }
 
-        if ($assignedToUserId <= 0) {
+        $assignedToName = trim($assignedToName);
+
+        if ($assignedToName === '') {
+            throw new RuntimeException('Please enter the employee name.');
+        }
+
+        if (mb_strlen($assignedToName) > 150) {
             throw new RuntimeException(
-                'Please select a user.'
+                'Employee name must not exceed 150 characters.'
             );
         }
 
         if ($assignedBy <= 0) {
-            throw new RuntimeException(
-                'Invalid assigning user.'
-            );
+            throw new RuntimeException('Invalid assigning user.');
         }
 
-        $asset = $this->getAssetForAssignment(
-            $assetId
-        );
-
-        if (!$asset) {
-            throw new RuntimeException(
-                'Asset not found.'
-            );
-        }
-
-        if (
-            !$this->authorization->isAssetManager()
-            && !$this->authorization->isAssetCustodian()
-        ) {
+        if (!$this->authorization->canAccessAssetMaterialAreas()) {
             throw new RuntimeException(
                 'You do not have permission to assign assets.'
             );
         }
 
-        $userDepartmentId = $this->authorization->departmentId();
-
-        $assetDepartmentId = $asset['department_id'] === null
-            ? null
-            : (int) $asset['department_id'];
-
-        if (
-            $userDepartmentId === null
-            || $assetDepartmentId === null
-            || $userDepartmentId !== $assetDepartmentId
-        ) {
-            throw new RuntimeException(
-                'You may only assign assets belonging to your department.'
-            );
-        }
-
-        $user = $this->getActiveUser(
-            $assignedToUserId
-        );
-
-        if (!$user) {
-            throw new RuntimeException(
-                'Selected user is not active.'
-            );
-        }
-
-        $userDepartmentId = $this->authorization->departmentId();
-
-        $recipientDepartmentId = $user['department_id'] === null
-            ? null
-            : (int) $user['department_id'];
-
-        if (
-            $userDepartmentId === null
-            || $recipientDepartmentId === null
-            || $userDepartmentId !== $recipientDepartmentId
-        ) {
-            throw new RuntimeException(
-                'You may only assign an asset to a user in your department.'
-            );
-        }
-
-        if (
-            !empty($asset['assigned_to_user_id'])
-        ) {
-            throw new RuntimeException(
-                'This asset is already assigned to a user.'
-            );
-        }
-
-        if (
-            strtolower(
-                (string) ($asset['status_name'] ?? '')
-            ) !== 'available'
-        ) {
-            throw new RuntimeException(
-                'Only assets with Available status can be assigned.'
-            );
-        }
-
         $acknowledgementReference =
-            $this->normalizeNullableString(
-                $acknowledgementReference
-            );
+            $this->normalizeNullableString($acknowledgementReference);
 
-        $remarks = $this->normalizeNullableString(
-            $remarks
-        );
+        $remarks = $this->normalizeNullableString($remarks);
 
         $this->db->beginTransaction();
 
         try {
-            // Re-read and lock the asset inside the transaction.
-            $lockedAsset = $this->getAssetForAssignment(
-                $assetId,
-                true
-            );
+            $asset = $this->getAssetForAssignment($assetId, true);
 
-            if (!$lockedAsset) {
-                throw new RuntimeException(
-                    'Asset not found.'
-                );
+            if (!$asset) {
+                throw new RuntimeException('Asset not found.');
             }
 
             if (
-                !empty($lockedAsset['assigned_to_user_id'])
+                !empty($asset['assigned_to_user_id'])
+                || trim((string) ($asset['assigned_to_name'] ?? '')) !== ''
             ) {
                 throw new RuntimeException(
-                    'This asset is already assigned to a user.'
+                    'This asset is already assigned. Return it before assigning it again.'
                 );
             }
 
             if (
-                strtolower(
-                    (string) ($lockedAsset['status_name'] ?? '')
-                ) !== 'available'
+                strtolower(trim((string) ($asset['status_name'] ?? '')))
+                !== 'available'
             ) {
                 throw new RuntimeException(
                     'Only assets with Available status can be assigned.'
@@ -171,16 +92,15 @@ class AssetAssignmentService
 
             $assignmentId = $this->assignmentModel->create(
                 $assetId,
-                $assignedToUserId,
+                null,
                 $assignedBy,
                 date('Y-m-d H:i:s'),
                 $acknowledgementReference,
-                $remarks
+                $remarks,
+                $assignedToName
             );
 
-            $assignedStatusId = $this->getStatusId(
-                'Assigned'
-            );
+            $assignedStatusId = $this->getStatusId('Assigned');
 
             if (!$assignedStatusId) {
                 throw new RuntimeException(
@@ -190,14 +110,17 @@ class AssetAssignmentService
 
             $stmt = $this->db->prepare(
                 'UPDATE assets
-                 SET assigned_to_user_id = :assigned_to_user_id,
-                     status_id = :status_id
-                 WHERE id = :id
-                 LIMIT 1'
+             SET assigned_to_user_id = NULL,
+                 assigned_to_name = :assigned_to_name,
+                 status_id = :status_id,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id
+               AND assigned_to_user_id IS NULL
+             LIMIT 1'
             );
 
             $stmt->execute([
-                'assigned_to_user_id' => $assignedToUserId,
+                'assigned_to_name' => $assignedToName,
                 'status_id' => $assignedStatusId,
                 'id' => $assetId,
             ]);
@@ -211,7 +134,6 @@ class AssetAssignmentService
             $this->db->commit();
 
             return $assignmentId;
-
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
@@ -222,7 +144,9 @@ class AssetAssignmentService
             }
 
             throw new RuntimeException(
-                'Unable to assign the asset.'
+                'Unable to assign the asset.',
+                0,
+                $e
             );
         }
     }
@@ -255,28 +179,24 @@ class AssetAssignmentService
         ?string $remarks = null
     ): bool {
         if ($assignmentId <= 0) {
-            throw new RuntimeException(
-                'Invalid assignment.'
-            );
+            throw new RuntimeException('Invalid assignment.');
         }
 
         if ($returnedTo <= 0) {
+            throw new RuntimeException('Invalid returning user.');
+        }
+
+        if (!$this->authorization->canAccessAssetMaterialAreas()) {
             throw new RuntimeException(
-                'Invalid returning user.'
+                'You do not have permission to return assets.'
             );
         }
 
-        $remarks = $this->normalizeNullableString(
-            $remarks
-        );
+        $remarks = $this->normalizeNullableString($remarks);
 
         $this->db->beginTransaction();
 
         try {
-            /*
-             * Lock the active assignment row before making
-             * any authorization or state changes.
-             */
             $assignment = $this->getActiveAssignment(
                 $assignmentId,
                 true
@@ -288,42 +208,22 @@ class AssetAssignmentService
                 );
             }
 
-            /*
-             * Only Asset Managers and Asset Custodians
-             * may return assets.
-             */
-            if (
-                !$this->authorization->isAssetManager()
-                && !$this->authorization->isAssetCustodian()
-            ) {
+            $assetId = (int) ($assignment['asset_id'] ?? 0);
+
+            if ($assetId <= 0) {
                 throw new RuntimeException(
-                    'You do not have permission to return assets.'
+                    'The assignment record is invalid.'
                 );
             }
 
-            /*
-             * The asset must belong to the current user's
-             * department.
-             */
-            $userDepartmentId = $this->authorization->departmentId();
+            $availableStatusId = $this->getStatusId('Available');
 
-            $assetDepartmentId = $assignment['department_id'] === null
-                ? null
-                : (int) $assignment['department_id'];
-
-            if (
-                $userDepartmentId === null
-                || $assetDepartmentId === null
-                || $userDepartmentId !== $assetDepartmentId
-            ) {
+            if (!$availableStatusId) {
                 throw new RuntimeException(
-                    'You may only return assets belonging to your department.'
+                    'Available asset status is not configured.'
                 );
             }
 
-            /*
-             * Mark the assignment as returned.
-             */
             $updated = $this->assignmentModel->returnAssignment(
                 $assignmentId,
                 $returnedTo,
@@ -337,39 +237,19 @@ class AssetAssignmentService
                 );
             }
 
-            /*
-             * Get the Available status.
-             */
-            $availableStatusId = $this->getStatusId(
-                'Available'
-            );
-
-            if (!$availableStatusId) {
-                throw new RuntimeException(
-                    'Available asset status is not configured.'
-                );
-            }
-
-            /*
-             * Release the asset back to available inventory.
-             *
-             * The assigned user condition prevents the asset
-             * from being released if its assignment state has
-             * unexpectedly changed.
-             */
             $stmt = $this->db->prepare(
                 'UPDATE assets
              SET assigned_to_user_id = NULL,
-                 status_id = :status_id
+                 assigned_to_name = NULL,
+                 status_id = :status_id,
+                 updated_at = CURRENT_TIMESTAMP
              WHERE id = :id
-               AND assigned_to_user_id = :assigned_to_user_id
              LIMIT 1'
             );
 
             $stmt->execute([
                 'status_id' => $availableStatusId,
-                'id' => (int) $assignment['asset_id'],
-                'assigned_to_user_id' => (int) $assignment['assigned_to_user_id'],
+                'id' => $assetId,
             ]);
 
             if ($stmt->rowCount() !== 1) {
@@ -381,9 +261,7 @@ class AssetAssignmentService
             $this->db->commit();
 
             return true;
-
         } catch (\Throwable $e) {
-
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
             }
@@ -393,11 +271,12 @@ class AssetAssignmentService
             }
 
             throw new RuntimeException(
-                'Unable to return the asset.'
+                'Unable to return the asset.',
+                0,
+                $e
             );
         }
     }
-
     private function getActiveAssignment(
         int $assignmentId,
         bool $forUpdate = false

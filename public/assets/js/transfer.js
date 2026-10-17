@@ -39,28 +39,24 @@
                     return;
                 }
 
-                const locationSelect =
+                const locationInput =
                     document.getElementById(
-                        'to_location_id'
+                        'destination_location_name'
                     );
 
-                const userSelect =
+                const userInput =
                     document.getElementById(
-                        'to_user_id'
+                        'assigned_to_name'
                     );
 
-                const locationText =
-                    locationSelect.options[
-                        locationSelect.selectedIndex
-                    ].text.trim();
+                const locationText = locationInput
+                    ? locationInput.value.trim()
+                    : '';
 
-                const userText =
-                    userSelect
-                    && userSelect.value !== ''
-                        ? userSelect.options[
-                            userSelect.selectedIndex
-                        ].text.trim()
-                        : 'Unassigned / Shared Asset';
+                const userText = userInput
+                    && userInput.value.trim() !== ''
+                    ? userInput.value.trim()
+                    : 'Unassigned / Shared Asset';
 
                 const confirmation =
                     await Swal.fire({

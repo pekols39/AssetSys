@@ -8,10 +8,24 @@ use App\Helpers\Csrf;
 use App\Core\Auth;
 use App\Middleware\AuthMiddleware;
 use App\Services\MaintenanceService;
+use App\Services\AuthorizationService;
 
 header('Content-Type: application/json; charset=utf-8');
 
 AuthMiddleware::handle();
+
+$authorization = new AuthorizationService();
+
+if (!$authorization->canAccessAssetMaterialAreas()) {
+    http_response_code(403);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'You do not have permission to perform this action.',
+    ]);
+
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

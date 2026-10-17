@@ -22,19 +22,9 @@ if ($currentUser === null) {
 
 $assetService = new AssetService();
 
-$departmentId = $authorization->departmentId();
-
-if (
-    !$authorization->isAssetManager()
-    && !$authorization->isAssetCustodian()
-) {
+if (!$authorization->canAccessAssetMaterialAreas()) {
     http_response_code(403);
     exit('You do not have permission to view the asset register.');
-}
-
-if ($departmentId === null) {
-    http_response_code(403);
-    exit('Your account must be assigned to a department.');
 }
 
 $filters = [
@@ -68,7 +58,7 @@ $locations = $referenceData->getLocations();
 
 $result = $assetService->getPage(
     $filters,
-    $departmentId,
+    null,
     $page,
     $perPage
 );
@@ -301,6 +291,10 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                             </th>
 
                             <th>
+                                Department
+                            </th>
+
+                            <th>
                                 Location
                             </th>
 
@@ -327,39 +321,38 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     <tbody>
 
                         <?php foreach ($assets as $asset): ?>
+                                <?php
+                                $assignedName = trim(
+                                    (string) ($asset['assigned_to_name'] ?? '')
+                                );
 
-                            <?php
-                            $assignedName = trim(
-                                ($asset['assigned_first_name'] ?? '')
-                                . ' '
-                                . ($asset['assigned_last_name'] ?? '')
-                            );
+                                if ($assignedName === '') {
+                                    $assignedName = trim(
+                                        ($asset['assigned_first_name'] ?? '')
+                                        . ' '
+                                        . ($asset['assigned_last_name'] ?? '')
+                                    );
+                                }
 
-                            $assignedName = $assignedName !== ''
-                                ? $assignedName
-                                : 'Unassigned';
+                                $assignedName = $assignedName !== ''
+                                    ? $assignedName
+                                    : 'Unassigned';
 
-                            $statusName =
-                                $asset['status_name'] ?? 'Unknown';
+                                $statusName = $asset['status_name'] ?? 'Unknown';
 
-                            $statusClass = match (
-                            strtolower($statusName)
-                            ) {
-                                'available' => 'status-available',
-                                'assigned' => 'status-assigned',
-                                'under maintenance' =>
-                                    'status-maintenance',
-                                'under repair' =>
-                                    'status-repair',
-                                'lost' => 'status-lost',
-                                'damaged' => 'status-damaged',
-                                'for disposal' =>
-                                    'status-disposal',
-                                'retired' => 'status-retired',
-                                'disposed' => 'status-disposed',
-                                default => 'status-default',
-                            };
-                            ?>
+                                $statusClass = match (strtolower($statusName)) {
+                                    'available' => 'status-available',
+                                    'assigned' => 'status-assigned',
+                                    'under maintenance' => 'status-maintenance',
+                                    'under repair' => 'status-repair',
+                                    'lost' => 'status-lost',
+                                    'damaged' => 'status-damaged',
+                                    'for disposal' => 'status-disposal',
+                                    'retired' => 'status-retired',
+                                    'disposed' => 'status-disposed',
+                                    default => 'status-default',
+                                };
+                                ?>
 
                             <tr>
 
@@ -421,6 +414,13 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                 <td>
                                     <?= e(
                                         $asset['condition_name']
+                                        ?? '—'
+                                    ) ?>
+                                </td>
+
+                                <td>
+                                    <?= e(
+                                        $asset['department_name']
                                         ?? '—'
                                     ) ?>
                                 </td>

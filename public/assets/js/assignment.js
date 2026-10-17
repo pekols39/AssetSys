@@ -36,7 +36,7 @@
 
                         title: 'Incomplete Form',
 
-                        text: 'Please select an employee before assigning this asset.',
+                        text: 'Please enter an employee name before assigning this asset.',
 
                         confirmButtonText: 'OK',
 
@@ -46,15 +46,25 @@
                     return;
                 }
 
-                const selectedUser =
-                    document.getElementById(
-                        'assigned_to_user_id'
-                    );
+                const assignedToInput =
+                    document.getElementById('assigned_to_name');
 
                 const selectedText =
-                    selectedUser.options[
-                        selectedUser.selectedIndex
-                    ].text.trim();
+                    assignedToInput
+                        ? assignedToInput.value.trim()
+                        : '';
+
+                if (!selectedText) {
+                    await Swal.fire({
+                        icon: 'warning',
+                        title: 'Employee Name Required',
+                        text: 'Please enter the employee name before assigning this asset.',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#007472'
+                    });
+
+                    return;
+                }
 
                 const confirmation =
                     await Swal.fire({

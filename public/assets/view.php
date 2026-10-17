@@ -10,6 +10,7 @@ use App\Services\AssetService;
 use App\Services\AssetAssignmentService;
 use App\Services\ReferenceDataService;
 use App\Services\AssetTransferService;
+use App\Services\AssetDepartmentTransferService;
 use App\Services\MaintenanceService;
 use App\Models\DepreciationSchedule;
 use App\Models\DepreciationEntry;
@@ -20,6 +21,13 @@ use App\Models\AssetDisposal;
 use App\Services\AuthorizationService;
 
 AuthMiddleware::handle();
+
+$authorization = new AuthorizationService();
+
+if (!$authorization->canAccessAssetMaterialAreas()) {
+    http_response_code(403);
+    exit('You do not have permission to view assets.');
+}
 
 $id = filter_input(
     INPUT_GET,
@@ -55,9 +63,26 @@ if (!$authorization->canAccessAsset((int) $asset['id'])) {
     exit('You do not have permission to view this asset.');
 }
 
+
+$canRequestDepartmentTransfer =
+    $authorization->canAccessAssetMaterialAreas()
+    && empty($asset['assigned_to_user_id'])
+    && !in_array(
+        strtolower(trim((string) ($asset['status_name'] ?? ''))),
+        [
+            'lost',
+            'retired',
+            'disposed',
+            'for disposal',
+            'pending disposal',
+        ],
+        true
+    );
+
 $assignmentService = new AssetAssignmentService();
 $referenceDataService = new ReferenceDataService();
 $transferService = new AssetTransferService();
+$departmentTransferService = new AssetDepartmentTransferService();
 $maintenanceService = new MaintenanceService();
 $depreciationScheduleModel = new DepreciationSchedule();
 $depreciationEntryModel = new DepreciationEntry();
@@ -84,6 +109,11 @@ $users = $referenceDataService->getUsers();
 $transferHistory = $transferService->getHistoryByAssetId(
     (int) $asset['id']
 );
+
+$departmentTransferHistory =
+    $departmentTransferService->getHistoryByAssetId(
+        (int) $asset['id']
+    );
 
 $maintenanceHistory = $maintenanceService->getByAssetId(
     (int) $asset['id']
@@ -155,15 +185,23 @@ strtolower($statusName)
     default => 'status-default',
 };
 
+
 $assignedTo = trim(
-    ($asset['assigned_first_name'] ?? '')
-    . ' '
-    . ($asset['assigned_last_name'] ?? '')
+    (string) ($asset['assigned_to_name'] ?? '')
 );
+
+if ($assignedTo === '') {
+    $assignedTo = trim(
+        ($asset['assigned_first_name'] ?? '')
+        . ' '
+        . ($asset['assigned_last_name'] ?? '')
+    );
+}
 
 $assignedTo = $assignedTo !== ''
     ? $assignedTo
     : 'Unassigned';
+
 
 function displayValue(
     mixed $value,
@@ -453,6 +491,16 @@ function displayDate(
 
                     <div class="detail-row">
                         <span class="detail-label">
+                            Department
+                        </span>
+
+                        <span class="detail-value">
+                            <?= displayValue($asset['department_name'] ?? null) ?>
+                        </span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span class="detail-label">
                             Location
                         </span>
 
@@ -467,23 +515,29 @@ function displayDate(
                         </span>
 
                         <span class="detail-value">
-                            <?php if ($activeAssignment): ?>
+                            <?php
+                            $assignedToDisplay = trim(
+                                (string) ($asset['assigned_to_name'] ?? '')
+                            );
 
-                                <?= e(
-                                    trim(
+                            if ($assignedToDisplay === '' && $activeAssignment) {
+                                $assignedToDisplay = trim(
+                                    (string) ($activeAssignment['assigned_to_name'] ?? '')
+                                );
+
+                                if ($assignedToDisplay === '') {
+                                    $assignedToDisplay = trim(
                                         ($activeAssignment['first_name'] ?? '')
                                         . ' '
                                         . ($activeAssignment['last_name'] ?? '')
-                                    )
-                                ) ?>
+                                    );
+                                }
+                            }
+                            ?>
 
-                            <?php else: ?>
-
-                                <span class="text-muted">
-                                    Unassigned
-                                </span>
-
-                            <?php endif; ?>
+                            <?= $assignedToDisplay !== ''
+                                ? e($assignedToDisplay)
+                                : '<span class="text-muted">Unassigned</span>' ?>
                         </span>
                     </div>
 
@@ -587,11 +641,13 @@ function displayDate(
 
                                         <td>
                                             <?= e(
-                                                trim(
+                                                trim((string) ($history['assigned_to_name'] ?? ''))
+                                                ?: trim(
                                                     ($history['assigned_first_name'] ?? '')
                                                     . ' '
                                                     . ($history['assigned_last_name'] ?? '')
                                                 )
+                                                ?: '—'
                                             ) ?>
 
                                             <?php if (!empty($history['assigned_username'])): ?>
@@ -747,6 +803,8 @@ function displayDate(
 
                             <thead>
                                 <tr>
+                                    <th>From Department</th>
+                                    <th>To Department</th>
                                     <th>From Location</th>
                                     <th>To Location</th>
                                     <th>From User</th>
@@ -764,6 +822,18 @@ function displayDate(
                                 <?php foreach ($transferHistory as $history): ?>
 
                                     <tr>
+
+                                        <td>
+                                            <?= !empty($history['from_department_name'])
+                                                ? e($history['from_department_name'])
+                                                : '<span class="text-muted">—</span>' ?>
+                                        </td>
+
+                                        <td>
+                                            <?= !empty($history['to_department_name'])
+                                                ? e($history['to_department_name'])
+                                                : '<span class="text-muted">—</span>' ?>
+                                        </td>
 
                                         <td>
                                             <?= !empty(
@@ -874,6 +944,90 @@ function displayDate(
             </div>
 
         <?php endif; ?>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-building-circle-arrow-right text-teal me-2"></i>
+                    Department Transfer History
+                </h2>
+            </div>
+
+            <div class="card-body">
+                <?php if (empty($departmentTransferHistory)): ?>
+                    <p class="text-muted mb-0">
+                        No department transfers have been recorded for this asset.
+                    </p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>From Department</th>
+                                    <th>To Department</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                    <th>Transferred By</th>
+                                    <th>Transfer Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($departmentTransferHistory as $history): ?>
+                                    <?php
+                                    $requesterName = trim(
+                                        ($history['requester_first_name'] ?? '')
+                                        . ' '
+                                        . ($history['requester_last_name'] ?? '')
+                                    );
+
+                                    $reviewerName = trim(
+                                        ($history['reviewer_first_name'] ?? '')
+                                        . ' '
+                                        . ($history['reviewer_last_name'] ?? '')
+                                    );
+
+                                    $departmentStatus = (string) (
+                                        $history['request_status'] ?? ''
+                                    );
+
+                                    $departmentBadgeClass = match ($departmentStatus) {
+                                        'completed', 'approved' => 'text-bg-success',
+                                        'rejected' => 'text-bg-danger',
+                                        'cancelled' => 'text-bg-secondary',
+                                        default => 'text-bg-warning',
+                                    };
+                                    ?>
+                                    <tr>
+                                        <td>
+                                            <?= e($history['source_department_name'] ?? '') ?>
+                                        </td>
+                                        <td>
+                                            <?= e($history['destination_department_name'] ?? '') ?>
+                                        </td>
+                                        <td>
+                                            <?= e($history['request_reason'] ?? '') ?>
+                                        </td>
+                                        <td>
+                                            <span class="badge <?= e($departmentBadgeClass) ?>">
+                                                <?= e(ucfirst($departmentStatus)) ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <?= e($requesterName !== ''
+                                                ? $requesterName
+                                                : ($history['requester_username'] ?? '')) ?>
+                                        </td>
+                                        <td class="text-nowrap">
+                                            <?= e($history['requested_at'] ?? '') ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
 
         <!-- Maintenance History -->
         <div class="card shadow-sm border-0 mb-4">
@@ -2521,37 +2675,13 @@ function displayDate(
                         <div class="row g-3">
 
                             <div class="col-md-6">
-
-                                <label for="assigned_to_user_id" class="form-label">
+                                <label for="assigned_to_name" class="form-label">
                                     Assign To
                                     <span class="text-danger">*</span>
                                 </label>
 
-                                <select class="form-select" id="assigned_to_user_id" name="assigned_to_user_id" required>
-                                    <option value="">
-                                        Select employee
-                                    </option>
-
-                                    <?php foreach ($users as $user): ?>
-
-                                        <option value="<?= (int) $user['id'] ?>">
-                                            <?= e(
-                                                trim(
-                                                    ($user['first_name'] ?? '')
-                                                    . ' '
-                                                    . ($user['last_name'] ?? '')
-                                                )
-                                            ) ?>
-                                            —
-                                            <?= e(
-                                                $user['username'] ?? ''
-                                            ) ?>
-                                        </option>
-
-                                    <?php endforeach; ?>
-
-                                </select>
-
+                                <input type="text" class="form-control" id="assigned_to_name" name="assigned_to_name"
+                                    maxlength="150" placeholder="Enter employee name" required />
                             </div>
 
                             <div class="col-md-6">
@@ -2625,69 +2755,72 @@ function displayDate(
                     <div class="row g-3">
 
                         <div class="col-md-6">
+                            <label for="destination_department_name" class="form-label">
+                                Destination Department
+                            </label>
 
-                            <label for="to_location_id" class="form-label">
+                            <input type="text" class="form-control" id="destination_department_name"
+                                name="destination_department_name" maxlength="150"
+                                placeholder="Enter destination department" />
+
+                            <div class="form-text">
+                                Leave blank to keep the current department. Enter a new name to create a department if
+                                it does not already exist.
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="destination_location_name" class="form-label">
                                 Destination Location
                                 <span class="text-danger">*</span>
                             </label>
 
-                            <select class="form-select" id="to_location_id" name="to_location_id" required>
+                            <input type="text" class="form-control" id="destination_location_name"
+                                name="destination_location_name" maxlength="150"
+                                placeholder="Enter destination location" required />
 
-                                <option value="">
-                                    Select destination location
-                                </option>
-
-                                <?php foreach ($locations as $location): ?>
-
-                                    <option value="<?= (int) $location['id'] ?>">
-                                        <?= e(
-                                            $location['name']
-                                            ?? ''
-                                        ) ?>
-                                    </option>
-
-                                <?php endforeach; ?>
-
-                            </select>
-
+                            <div class="form-text">
+                                Enter an existing location or a new location name.
+                            </div>
                         </div>
 
-                        <div class="col-md-6">
 
-                            <label for="to_user_id" class="form-label">
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                Current Assignee
+                            </label>
+
+                            <input type="text" class="form-control" value="<?= e(
+                                trim((string) ($asset['assigned_to_name'] ?? '')) !== ''
+                                ? (string) $asset['assigned_to_name']
+                                : 'Unassigned'
+                            ) ?>" readonly />
+
+                            <div class="form-text">
+                                Shows the employee currently assigned to this asset.
+                            </div>
+
+                            <div class="alert alert-info mt-2 mb-0" role="note">
+                                <i class="fa-solid fa-circle-info me-1"></i>
+                                <strong>Before transferring:</strong>
+                                If this asset is currently assigned to an employee, return it first
+                                using the <strong>Return Asset</strong> action. Once returned, you
+                                can proceed with the transfer.
+                            </div>
+                        </div>
+
+
+                        <div class="col-md-6">
+                            <label for="assigned_to_name" class="form-label">
                                 Assign To
                             </label>
 
-                            <select class="form-select" id="to_user_id" name="to_user_id">
-
-                                <option value="">
-                                    Unassigned / Shared Asset
-                                </option>
-
-                                <?php foreach ($users as $user): ?>
-
-                                    <option value="<?= (int) $user['id'] ?>">
-                                        <?= e(
-                                            trim(
-                                                ($user['first_name'] ?? '')
-                                                . ' '
-                                                . ($user['last_name'] ?? '')
-                                            )
-                                        ) ?>
-                                        —
-                                        <?= e(
-                                            $user['username'] ?? ''
-                                        ) ?>
-                                    </option>
-
-                                <?php endforeach; ?>
-
-                            </select>
+                            <input type="text" class="form-control" id="assigned_to_name" name="assigned_to_name"
+                                maxlength="150" placeholder="Enter future employee name" />
 
                             <div class="form-text">
-                                Leave unassigned for shared or location-based assets.
+                                Optional. Enter the employee who should receive the asset after the transfer.
                             </div>
-
                         </div>
 
                         <div class="col-md-6">

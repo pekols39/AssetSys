@@ -69,26 +69,7 @@ try {
         exit;
     }
 
-    if (
-        $authorization->isAssetManager()
-        || $authorization->isAssetCustodian()
-    ) {
-        $departmentId = $authorization->departmentId();
-
-        if ($departmentId === null) {
-            http_response_code(403);
-
-            echo json_encode([
-                'success' => false,
-                'message' => 'Your account must be assigned to a department before creating assets.',
-            ]);
-
-            exit;
-        }
-
-        // Never trust the department submitted by the browser.
-        $_POST['department_id'] = $departmentId;
-    } else {
+    if (!$authorization->canAccessAssetMaterialAreas()) {
         http_response_code(403);
 
         echo json_encode([

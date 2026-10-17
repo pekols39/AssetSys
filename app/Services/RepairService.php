@@ -254,7 +254,6 @@ class RepairService
             throw $e;
         }
     }
-
     private function authorizeAssetAccess(
         array $asset
     ): void {
@@ -266,32 +265,14 @@ class RepairService
             );
         }
 
-        if (
-            !$this->authorization->isAssetManager()
-            && !$this->authorization->isAssetCustodian()
-        ) {
+        if (!$this->authorization->canAccessAssetMaterialAreas()) {
             throw new RuntimeException(
                 'You do not have permission to manage repair records.'
             );
         }
 
-        $userDepartmentId =
-            $this->authorization->departmentId();
-
-        $assetDepartmentId =
-            $asset['department_id'] === null
-            ? null
-            : (int) $asset['department_id'];
-
-        if (
-            $userDepartmentId === null
-            || $assetDepartmentId === null
-            || $userDepartmentId !== $assetDepartmentId
-        ) {
-            throw new RuntimeException(
-                'You may only manage repair records for assets belonging to your department.'
-            );
-        }
+        // The authorized Asset Manager may manage repair
+        // records for assets across departments.
     }
 
     private function normalizeData(array $data): array

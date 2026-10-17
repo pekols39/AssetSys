@@ -55,6 +55,7 @@ class ReferenceDataService
         );
     }
 
+
     public function getRoles(): array
     {
         $stmt = $this->db->query(
@@ -66,14 +67,14 @@ class ReferenceDataService
             CASE name
                 WHEN \'Administrator\' THEN 1
                 WHEN \'Asset Manager\' THEN 2
-                WHEN \'Asset Custodian\' THEN 3
-                ELSE 4
+                ELSE 3
             END,
             name ASC'
         );
 
         return $stmt->fetchAll();
     }
+
     public function getUsers(): array
     {
         $stmt = $this->db->query(

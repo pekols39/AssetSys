@@ -21,6 +21,7 @@ class Asset
         $stmt = $this->db->prepare(
             'SELECT
                 a.id,
+                a.assigned_to_name,
                 a.asset_code,
                 a.asset_tag,
                 a.serial_number,
@@ -53,6 +54,7 @@ class Asset
                 c.name AS category_name,
                 s.name AS status_name,
                 ac.name AS condition_name,
+                d.name AS department_name,
                 l.name AS location_name,
                 v.name AS supplier_name,
 
@@ -74,6 +76,9 @@ class Asset
 
             LEFT JOIN asset_conditions ac
                 ON ac.id = a.condition_id
+
+            LEFT JOIN departments d
+                ON d.id = a.department_id
 
             LEFT JOIN locations l
                 ON l.id = a.location_id
@@ -432,6 +437,8 @@ class Asset
                 ON s.id = a.status_id
             LEFT JOIN asset_conditions ac
                 ON ac.id = a.condition_id
+            LEFT JOIN departments d
+                ON d.id = a.department_id
             LEFT JOIN locations l
                 ON l.id = a.location_id
             LEFT JOIN vendors v
@@ -491,9 +498,11 @@ class Asset
                 a.current_book_value,
                 a.department_id,
                 a.assigned_to_user_id,
+                a.assigned_to_name,
                 c.name AS category_name,
                 s.name AS status_name,
                 ac.name AS condition_name,
+                d.name AS department_name,
                 l.name AS location_name,
                 v.name AS supplier_name,
                 assigned.first_name AS assigned_first_name,
@@ -558,6 +567,7 @@ class Asset
                 location_id,
                 condition_id,
                 assigned_to_user_id,
+                assigned_to_name,
                 created_by
             ) VALUES (
                 :asset_code,
@@ -585,6 +595,7 @@ class Asset
                 :location_id,
                 :condition_id,
                 :assigned_to_user_id,
+                :assigned_to_name,
                 :created_by
             )'
         );
@@ -619,6 +630,8 @@ class Asset
             'condition_id' => $data['condition_id'] ?? null,
             'assigned_to_user_id' =>
                 $data['assigned_to_user_id'] ?? null,
+            'assigned_to_name' =>
+                $data['assigned_to_name'] ?? null,
             'created_by' => (int) $data['created_by'],
         ]);
 
@@ -656,7 +669,8 @@ class Asset
                 status_id = :status_id,
                 location_id = :location_id,
                 condition_id = :condition_id,
-                assigned_to_user_id = :assigned_to_user_id
+                assigned_to_user_id = :assigned_to_user_id,
+                assigned_to_name = :assigned_to_name
              WHERE id = :id
              LIMIT 1'
         );
@@ -691,6 +705,8 @@ class Asset
             'condition_id' => $data['condition_id'] ?? null,
             'assigned_to_user_id' =>
                 $data['assigned_to_user_id'] ?? null,
+            'assigned_to_name' =>
+                $data['assigned_to_name'] ?? null,
         ]);
     }
 }

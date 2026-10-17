@@ -107,11 +107,13 @@ try {
 
     $roleName = $user['role_name'] ?? '';
 
-    $redirect = match ($roleName) {
-        'Administrator' => base_url('/public/administration/'),
+    $redirect = match (true) {
+        $roleName === 'Administrator' =>
+            base_url('/public/administration/'),
 
-        'Asset Manager',
-        'Asset Custodian' => base_url('/public/dashboard/'),
+        ($user['username'] ?? '') === 'manager'
+        && $roleName === 'Asset Manager' =>
+            base_url('/public/dashboard/'),
 
         default => base_url('/public/login.php'),
     };

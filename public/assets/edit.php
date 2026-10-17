@@ -7,8 +7,16 @@ require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
 use App\Services\AssetService;
 use App\Services\ReferenceDataService;
+use App\Services\AuthorizationService;
 
 AuthMiddleware::handle();
+
+$authorization = new AuthorizationService();
+
+if (!$authorization->canAccessAssetMaterialAreas()) {
+    http_response_code(403);
+    exit('You do not have permission to edit assets.');
+}
 
 $id = filter_input(
     INPUT_GET,
@@ -39,8 +47,6 @@ if (!$asset) {
 $categories = $referenceDataService->getAssetCategories();
 $statuses = $referenceDataService->getAssetStatuses();
 $conditions = $referenceDataService->getAssetConditions();
-$locations = $referenceDataService->getLocations();
-$users = $referenceDataService->getUsers();
 $vendors = $referenceDataService->getVendors();
 
 $pageTitle = 'Edit Asset';
@@ -431,58 +437,57 @@ $currentStatus = strtolower(
             </div>
 
             <div class="card-body">
-
                 <div class="row g-3">
 
                     <div class="col-md-6">
-                        <label for="location_id" class="form-label">
-                            Location
-                        </label>
+                        <div class="form-label">
+                            Current Location
+                        </div>
 
-                        <select class="form-select" id="location_id" name="location_id">
-                            <option value="">
-                                Select location
-                            </option>
-
-                            <?php foreach ($locations as $location): ?>
-                                <option value="<?= (int) $location['id'] ?>" <?= (int) ($asset['location_id'] ?? 0) === (int) $location['id']
-                                       ? 'selected'
-                                       : '' ?>>
-                                    <?= e($location['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                        <p class="form-control-plaintext mb-0">
+                            <?= e(
+                                $asset['location_name'] ?? 'Not set'
+                            ) ?>
+                        </p>
                     </div>
 
                     <div class="col-md-6">
-                        <label for="assigned_to_user_id" class="form-label">
+                        <div class="form-label">
                             Assigned To
-                        </label>
+                        </div>
 
-                        <select class="form-select" id="assigned_to_user_id" name="assigned_to_user_id">
-                            <option value="">
-                                Unassigned
-                            </option>
 
-                            <?php foreach ($users as $user): ?>
-                                <option value="<?= (int) $user['id'] ?>" <?= (int) ($asset['assigned_to_user_id'] ?? 0) === (int) $user['id']
-                                       ? 'selected'
-                                       : '' ?>>
-                                    <?= e(
-                                        trim(
-                                            ($user['first_name'] ?? '')
-                                            . ' '
-                                            . ($user['last_name'] ?? '')
-                                        )
-                                    ) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                        <?php
+                        $assignedName = trim(
+                            (string) ($asset['assigned_to_name'] ?? '')
+                        );
+
+                        if ($assignedName === '') {
+                            $assignedName = trim(
+                                (string) ($asset['assigned_first_name'] ?? '')
+                                . ' '
+                                . (string) ($asset['assigned_last_name'] ?? '')
+                            );
+                        }
+                        ?>
+
+                        <p class="form-control-plaintext mb-0">
+                            <?= $assignedName !== ''
+                                ? e($assignedName)
+                                : 'Unassigned' ?>
+                        </p>
+
                     </div>
 
                 </div>
 
+                <p class="form-text mt-3 mb-0">
+                    Use the assignment, return, or transfer actions
+                    on the Asset Details page to change these values.
+                    Those workflows preserve movement history.
+                </p>
             </div>
+
         </div>
 
         <div class="d-flex justify-content-end gap-2 mb-5">

@@ -8,6 +8,8 @@ use App\Core\Auth;
 use App\Helpers\Csrf;
 use App\Middleware\AuthMiddleware;
 use App\Services\AssetTransferService;
+use App\Services\AuthorizationService;
+use App\Exceptions\AssetTransferInternalException;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -25,9 +27,24 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     AuthMiddleware::handle();
 
-    if (!Csrf::validate(
-        $_POST[CSRF_TOKEN_NAME] ?? null
-    )) {
+    $authorization = new AuthorizationService();
+
+    if (!$authorization->canAccessAssetMaterialAreas()) {
+        http_response_code(403);
+
+        echo json_encode([
+            'success' => false,
+            'message' => 'You do not have permission to perform this action.',
+        ]);
+
+        exit;
+    }
+
+    if (
+        !Csrf::validate(
+            $_POST[CSRF_TOKEN_NAME] ?? null
+        )
+    ) {
         http_response_code(419);
 
         echo json_encode([
@@ -67,81 +84,99 @@ try {
         exit;
     }
 
-    $toLocationId = filter_var(
-        $_POST['to_location_id'] ?? null,
-        FILTER_VALIDATE_INT
+    $destinationLocationName = trim(
+        (string) ($_POST['destination_location_name'] ?? '')
     );
 
-    if (!$toLocationId || $toLocationId <= 0) {
+    if ($destinationLocationName === '') {
         http_response_code(422);
 
         echo json_encode([
             'success' => false,
-            'message' => 'Please select a destination location.',
+            'message' => 'Please enter a destination location.',
         ]);
 
         exit;
     }
 
-    $toUserId = null;
+    if (mb_strlen($destinationLocationName) > 150) {
+        http_response_code(422);
 
-    if (
-        isset($_POST['to_user_id'])
-        && $_POST['to_user_id'] !== ''
-    ) {
-        $toUserId = filter_var(
-            $_POST['to_user_id'],
-            FILTER_VALIDATE_INT
-        );
+        echo json_encode([
+            'success' => false,
+            'message' => 'Destination location must not exceed 150 characters.',
+        ]);
 
-        if (!$toUserId || $toUserId <= 0) {
-            http_response_code(422);
-
-            echo json_encode([
-                'success' => false,
-                'message' => 'Invalid destination user.',
-            ]);
-
-            exit;
-        }
+        exit;
     }
 
     $transferReason =
         isset($_POST['transfer_reason'])
-            ? (string) $_POST['transfer_reason']
-            : null;
+        ? (string) $_POST['transfer_reason']
+        : null;
 
     $transferReference =
         isset($_POST['transfer_reference'])
-            ? (string) $_POST['transfer_reference']
-            : null;
+        ? (string) $_POST['transfer_reference']
+        : null;
 
     $remarks =
         isset($_POST['remarks'])
-            ? (string) $_POST['remarks']
-            : null;
+        ? (string) $_POST['remarks']
+        : null;
 
     $transferService =
         new AssetTransferService();
 
-    $transferId =
-        $transferService->transfer(
-            (int) $assetId,
-            (int) $toLocationId,
-            $toUserId !== null
-                ? (int) $toUserId
-                : null,
-            (int) $transferredBy,
-            $transferReason,
-            $transferReference,
-            $remarks
-        );
+    $destinationDepartmentName = trim(
+        (string) ($_POST['destination_department_name'] ?? '')
+    );
+
+    $destinationDepartmentName = $destinationDepartmentName !== ''
+        ? $destinationDepartmentName
+        : null;
+
+    $assignedToName = trim(
+        (string) ($_POST['assigned_to_name'] ?? '')
+    );
+
+    $assignedToName = $assignedToName !== ''
+        ? $assignedToName
+        : null;
+
+    $transferId = $transferService->transfer(
+        (int) $assetId,
+        $destinationLocationName,
+        $destinationDepartmentName,
+        $assignedToName,
+        (int) $transferredBy,
+        $transferReason,
+        $transferReference,
+        $remarks
+    );
+
 
     echo json_encode([
         'success' => true,
         'message' => 'Asset transferred successfully.',
         'transfer_id' => $transferId,
         'asset_id' => (int) $assetId,
+    ]);
+
+    exit;
+
+
+} catch (AssetTransferInternalException $e) {
+    error_log(
+        'Asset transfer error: '
+        . $e->getMessage()
+    );
+
+    http_response_code(500);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'Unable to transfer the asset at this time.',
     ]);
 
     exit;

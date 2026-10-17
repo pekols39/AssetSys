@@ -11,6 +11,19 @@ use App\Services\MaterialCategoryService;
 
 AuthMiddleware::handle();
 
+$authorization = new AuthorizationService();
+
+if (!$authorization->canAccessAssetMaterialAreas()) {
+    http_response_code(403);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'You do not have permission to access this resource.',
+    ]);
+
+    exit;
+}
+
 header('Content-Type: application/json; charset=utf-8');
 
 try {
@@ -38,15 +51,12 @@ try {
 
     $authorization = new AuthorizationService();
 
-    if (
-        !$authorization->isAssetManager()
-        && !$authorization->isAssetCustodian()
-    ) {
+    if (!$authorization->canAccessAssetMaterialAreas()) {
         http_response_code(403);
 
         echo json_encode([
             'success' => false,
-            'message' => 'Asset Manager or Asset Custodian access required.',
+            'message' => 'Authorized Asset Manager access required.',
         ]);
 
         exit;

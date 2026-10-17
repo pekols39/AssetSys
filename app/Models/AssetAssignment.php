@@ -20,21 +20,21 @@ class AssetAssignment
     {
         $stmt = $this->db->prepare(
             'SELECT
-                aa.*,
-                u.first_name,
-                u.last_name,
-                u.username,
-                assigned_by_user.first_name AS assigned_by_first_name,
-                assigned_by_user.last_name AS assigned_by_last_name
-             FROM asset_assignments aa
-             INNER JOIN users u
-                ON u.id = aa.assigned_to_user_id
-             INNER JOIN users assigned_by_user
-                ON assigned_by_user.id = aa.assigned_by
-             WHERE aa.asset_id = :asset_id
-               AND aa.assignment_status = :status
-             ORDER BY aa.id DESC
-             LIMIT 1'
+            aa.*,
+            u.first_name,
+            u.last_name,
+            u.username,
+            assigned_by_user.first_name AS assigned_by_first_name,
+            assigned_by_user.last_name AS assigned_by_last_name
+         FROM asset_assignments aa
+         LEFT JOIN users u
+            ON u.id = aa.assigned_to_user_id
+         INNER JOIN users assigned_by_user
+            ON assigned_by_user.id = aa.assigned_by
+         WHERE aa.asset_id = :asset_id
+           AND aa.assignment_status = :status
+         ORDER BY aa.id DESC
+         LIMIT 1'
         );
 
         $stmt->execute([
@@ -77,6 +77,7 @@ class AssetAssignment
         $stmt = $this->db->prepare(
             'SELECT
                 aa.*,
+                aa.assigned_to_name,
                 assigned_user.first_name AS assigned_first_name,
                 assigned_user.last_name AS assigned_last_name,
                 assigned_user.username AS assigned_username,
@@ -85,7 +86,7 @@ class AssetAssignment
                 returned_by_user.first_name AS returned_by_first_name,
                 returned_by_user.last_name AS returned_by_last_name
              FROM asset_assignments aa
-             INNER JOIN users assigned_user
+            LEFT JOIN users assigned_user
                 ON assigned_user.id = aa.assigned_to_user_id
              INNER JOIN users assigned_by_user
                 ON assigned_by_user.id = aa.assigned_by
@@ -102,37 +103,42 @@ class AssetAssignment
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+
     public function create(
         int $assetId,
-        int $assignedToUserId,
+        ?int $assignedToUserId,
         int $assignedBy,
         string $assignedAt,
         ?string $acknowledgementReference,
-        ?string $remarks
+        ?string $remarks,
+        ?string $assignedToName = null
     ): int {
         $stmt = $this->db->prepare(
             'INSERT INTO asset_assignments (
-                asset_id,
-                assigned_to_user_id,
-                assigned_by,
-                assigned_at,
-                acknowledgement_reference,
-                remarks,
-                assignment_status
-             ) VALUES (
-                :asset_id,
-                :assigned_to_user_id,
-                :assigned_by,
-                :assigned_at,
-                :acknowledgement_reference,
-                :remarks,
-                :assignment_status
-             )'
+            asset_id,
+            assigned_to_user_id,
+            assigned_to_name,
+            assigned_by,
+            assigned_at,
+            acknowledgement_reference,
+            remarks,
+            assignment_status
+        ) VALUES (
+            :asset_id,
+            :assigned_to_user_id,
+            :assigned_to_name,
+            :assigned_by,
+            :assigned_at,
+            :acknowledgement_reference,
+            :remarks,
+            :assignment_status
+        )'
         );
 
         $stmt->execute([
             'asset_id' => $assetId,
             'assigned_to_user_id' => $assignedToUserId,
+            'assigned_to_name' => $assignedToName,
             'assigned_by' => $assignedBy,
             'assigned_at' => $assignedAt,
             'acknowledgement_reference' => $acknowledgementReference,
@@ -142,7 +148,6 @@ class AssetAssignment
 
         return (int) $this->db->lastInsertId();
     }
-
     public function returnAssignment(
         int $assignmentId,
         int $returnedTo,

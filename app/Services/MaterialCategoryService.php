@@ -258,10 +258,7 @@ class MaterialCategoryService
             );
         }
 
-        if (
-            !$this->authorization->isAssetManager()
-            && !$this->authorization->isAssetCustodian()
-        ) {
+        if (!$this->authorization->canAccessAssetMaterialAreas()) {
             throw new RuntimeException(
                 'You do not have permission to manage material categories.'
             );

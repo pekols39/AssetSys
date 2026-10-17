@@ -16,6 +16,7 @@ class AssetTransfer
         $this->db = Database::connection();
     }
 
+
     public function create(
         int $assetId,
         ?int $fromLocationId,
@@ -26,40 +27,56 @@ class AssetTransfer
         string $transferDate,
         ?string $transferReason,
         ?string $transferReference,
-        ?string $remarks
+        ?string $remarks,
+        ?int $fromDepartmentId = null,
+        ?int $toDepartmentId = null,
+        ?string $fromAssignedToName = null,
+        ?string $toAssignedToName = null
     ): int {
         $stmt = $this->db->prepare(
             'INSERT INTO asset_transfers (
-                asset_id,
-                from_location_id,
-                to_location_id,
-                from_user_id,
-                to_user_id,
-                transferred_by,
-                transfer_date,
-                transfer_reason,
-                transfer_reference,
-                remarks
-             ) VALUES (
-                :asset_id,
-                :from_location_id,
-                :to_location_id,
-                :from_user_id,
-                :to_user_id,
-                :transferred_by,
-                :transfer_date,
-                :transfer_reason,
-                :transfer_reference,
-                :remarks
-             )'
+            asset_id,
+            from_department_id,
+            to_department_id,
+            from_location_id,
+            to_location_id,
+            from_user_id,
+            to_user_id,
+            from_assigned_to_name,
+            to_assigned_to_name,
+            transferred_by,
+            transfer_date,
+            transfer_reason,
+            transfer_reference,
+            remarks
+        ) VALUES (
+            :asset_id,
+            :from_department_id,
+            :to_department_id,
+            :from_location_id,
+            :to_location_id,
+            :from_user_id,
+            :to_user_id,
+            :from_assigned_to_name,
+            :to_assigned_to_name,
+            :transferred_by,
+            :transfer_date,
+            :transfer_reason,
+            :transfer_reference,
+            :remarks
+        )'
         );
 
         $stmt->execute([
             'asset_id' => $assetId,
+            'from_department_id' => $fromDepartmentId,
+            'to_department_id' => $toDepartmentId,
             'from_location_id' => $fromLocationId,
             'to_location_id' => $toLocationId,
             'from_user_id' => $fromUserId,
             'to_user_id' => $toUserId,
+            'from_assigned_to_name' => $fromAssignedToName,
+            'to_assigned_to_name' => $toAssignedToName,
             'transferred_by' => $transferredBy,
             'transfer_date' => $transferDate,
             'transfer_reason' => $transferReason,
@@ -75,6 +92,9 @@ class AssetTransfer
         $stmt = $this->db->prepare(
             'SELECT
                 at.*,
+
+                from_department.name AS from_department_name,
+                to_department.name AS to_department_name,
 
                 from_location.name AS from_location_name,
                 to_location.name AS to_location_name,
@@ -98,6 +118,12 @@ class AssetTransfer
 
              INNER JOIN locations to_location
                 ON to_location.id = at.to_location_id
+
+            LEFT JOIN departments from_department
+                ON from_department.id = at.from_department_id
+
+            LEFT JOIN departments to_department
+                ON to_department.id = at.to_department_id
 
              LEFT JOIN users from_user
                 ON from_user.id = at.from_user_id

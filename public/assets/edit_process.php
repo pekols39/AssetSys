@@ -85,24 +85,7 @@ try {
         exit;
     }
 
-    $assetService = new AssetService();
-    $asset = $assetService->findById((int) $id);
-
-    if ($asset === false) {
-        http_response_code(404);
-
-        echo json_encode([
-            'success' => false,
-            'message' => 'Asset not found.',
-        ]);
-
-        exit;
-    }
-
-    if (
-        !$authorization->isAssetManager()
-        && !$authorization->isAssetCustodian()
-    ) {
+    if (!$authorization->canAccessAssetMaterialAreas()) {
         http_response_code(403);
 
         echo json_encode([
@@ -113,22 +96,15 @@ try {
         exit;
     }
 
-    $userDepartmentId = $authorization->departmentId();
+    $assetService = new AssetService();
+    $asset = $assetService->findById((int) $id);
 
-    $assetDepartmentId = $asset['department_id'] === null
-        ? null
-        : (int) $asset['department_id'];
-
-    if (
-        $userDepartmentId === null
-        || $assetDepartmentId === null
-        || $userDepartmentId !== $assetDepartmentId
-    ) {
-        http_response_code(403);
+    if ($asset === false) {
+        http_response_code(404);
 
         echo json_encode([
             'success' => false,
-            'message' => 'You may only edit assets assigned to your department.',
+            'message' => 'Asset not found.',
         ]);
 
         exit;

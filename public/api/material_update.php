@@ -7,10 +7,24 @@ require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 use App\Helpers\Csrf;
 use App\Middleware\AuthMiddleware;
 use App\Services\MaterialService;
+use App\Services\AuthorizationService;
 
 header('Content-Type: application/json; charset=utf-8');
 
 AuthMiddleware::handle();
+
+$authorization = new AuthorizationService();
+
+if (!$authorization->canAccessAssetMaterialAreas()) {
+    http_response_code(403);
+
+    echo json_encode([
+        'success' => false,
+        'message' => 'You do not have permission to access this resource.',
+    ]);
+
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

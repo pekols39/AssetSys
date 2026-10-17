@@ -406,32 +406,14 @@ class MaintenanceService
             );
         }
 
-        if (
-            !$this->authorization->isAssetManager()
-            && !$this->authorization->isAssetCustodian()
-        ) {
+        if (!$this->authorization->canAccessAssetMaterialAreas()) {
             throw new RuntimeException(
                 'You do not have permission to manage maintenance records.'
             );
         }
 
-        $userDepartmentId =
-            $this->authorization->departmentId();
-
-        $assetDepartmentId =
-            $asset['department_id'] === null
-            ? null
-            : (int) $asset['department_id'];
-
-        if (
-            $userDepartmentId === null
-            || $assetDepartmentId === null
-            || $userDepartmentId !== $assetDepartmentId
-        ) {
-            throw new RuntimeException(
-                'You may only manage maintenance records for assets belonging to your department.'
-            );
-        }
+        // The authorized Asset Manager may manage maintenance
+        // records for assets across departments.
     }
 
     private function validateMaintenanceStartStatus(

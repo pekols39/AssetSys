@@ -288,47 +288,20 @@ class DepreciationService
     ): void {
         $user = $this->authorization->currentUser();
 
-        if ($user === null) {
+        if ($user === null || \App\Core\Auth::id() === null) {
             throw new RuntimeException(
                 'Authentication required.'
             );
         }
 
-        if (
-            !$this->authorization->isAssetManager()
-            && !$this->authorization->isAssetCustodian()
-        ) {
+        if (!$this->authorization->canAccessAssetMaterialAreas()) {
             throw new RuntimeException(
                 'You do not have permission to manage depreciation.'
             );
         }
 
-        $authenticatedUserId =
-            \App\Core\Auth::id();
-
-        if ($authenticatedUserId === null) {
-            throw new RuntimeException(
-                'Authentication required.'
-            );
-        }
-
-        $userDepartmentId =
-            $this->authorization->departmentId();
-
-        $assetDepartmentId =
-            $asset['department_id'] === null
-            ? null
-            : (int) $asset['department_id'];
-
-        if (
-            $userDepartmentId === null
-            || $assetDepartmentId === null
-            || $userDepartmentId !== $assetDepartmentId
-        ) {
-            throw new RuntimeException(
-                'You may only manage depreciation for assets belonging to your department.'
-            );
-        }
+        // The authorized Asset Manager may manage depreciation
+        // for assets across departments.
     }
 
     /**

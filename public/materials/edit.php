@@ -21,15 +21,9 @@ if ($currentUser === null) {
     exit('Authentication required.');
 }
 
-if (
-    !$authorization->isAssetManager()
-    && !$authorization->isAssetCustodian()
-) {
+if (!$authorization->canAccessAssetMaterialAreas()) {
     http_response_code(403);
-
-    exit(
-        '403 Forbidden: Asset Manager or Asset Custodian access required.'
-    );
+    exit('You do not have permission to access this area.');
 }
 
 $materialId = filter_input(

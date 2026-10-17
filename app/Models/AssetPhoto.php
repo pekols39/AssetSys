@@ -5,6 +5,7 @@ namespace App\Models;
 
 use App\Core\Database;
 use PDO;
+use RuntimeException;
 
 class AssetPhoto
 {
@@ -122,16 +123,40 @@ class AssetPhoto
 
         return (int) $this->db->lastInsertId();
     }
-
     public function setPrimary(int $id, int $assetId): bool
     {
+        if ($id <= 0 || $assetId <= 0) {
+            return false;
+        }
+
         $this->db->beginTransaction();
 
         try {
+            // Confirm the requested photo belongs to this asset
+            // before clearing the existing primary photo.
+            $check = $this->db->prepare(
+                "SELECT id
+             FROM asset_photos
+             WHERE id = :id
+               AND asset_id = :asset_id
+             LIMIT 1
+             FOR UPDATE"
+            );
+
+            $check->execute([
+                'id' => $id,
+                'asset_id' => $assetId,
+            ]);
+
+            if (!$check->fetchColumn()) {
+                $this->db->rollBack();
+                return false;
+            }
+
             $clearPrimary = $this->db->prepare(
                 "UPDATE asset_photos
-                 SET is_primary = 0
-                 WHERE asset_id = :asset_id"
+             SET is_primary = 0
+             WHERE asset_id = :asset_id"
             );
 
             $clearPrimary->execute([
@@ -140,9 +165,9 @@ class AssetPhoto
 
             $setPrimary = $this->db->prepare(
                 "UPDATE asset_photos
-                 SET is_primary = 1
-                 WHERE id = :id
-                   AND asset_id = :asset_id"
+             SET is_primary = 1
+             WHERE id = :id
+               AND asset_id = :asset_id"
             );
 
             $setPrimary->execute([
@@ -150,11 +175,15 @@ class AssetPhoto
                 'asset_id' => $assetId,
             ]);
 
-            $updated = $setPrimary->rowCount() > 0;
+            if ($setPrimary->rowCount() !== 1) {
+                throw new RuntimeException(
+                    'Unable to set the primary photo.'
+                );
+            }
 
             $this->db->commit();
 
-            return $updated;
+            return true;
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();

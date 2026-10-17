@@ -25,11 +25,8 @@ $roleName = $user['role_name'] ?? '';
 $departmentId = (int) ($user['department_id'] ?? 0);
 
 if (
-    !in_array(
-        $roleName,
-        ['Asset Manager', 'Asset Custodian'],
-        true
-    )
+    ($user['username'] ?? '') !== 'manager'
+    || ($user['role_name'] ?? '') !== 'Asset Manager'
 ) {
     http_response_code(403);
     exit('Access denied. The dashboard is unavailable for your account.');

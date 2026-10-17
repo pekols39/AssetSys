@@ -7,8 +7,16 @@ require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 use App\Helpers\Csrf;
 use App\Middleware\AuthMiddleware;
 use App\Services\ReferenceDataService;
+use App\Services\AuthorizationService;
 
 AuthMiddleware::handle();
+
+$authorization = new AuthorizationService();
+
+if (!$authorization->canAccessAssetMaterialAreas()) {
+    http_response_code(403);
+    exit('You do not have permission to create assets.');
+}
 
 $referenceDataService = new ReferenceDataService();
 
@@ -446,53 +454,28 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                 <div class="col-12 col-md-4">
 
-                    <label for="department_id" class="form-label">
-                        Department
+                    <label for="department_name" class="form-label">
+                        Department <span class="text-danger">*</span>
                     </label>
 
-                    <select class="form-select" id="department_id" name="department_id">
-
-                        <option value="">
-                            Select department
-                        </option>
-
-                        <?php foreach ($departments as $department): ?>
-
-                            <option value="<?= e((string) $department['id']) ?>">
-                                <?= e($department['name']) ?>
-                            </option>
-
-                        <?php endforeach; ?>
-
-                    </select>
+                    <input type="text" class="form-control" id="department_name" name="department_name" maxlength="150"
+                        placeholder="Enter department name" required>
 
                     <div class="form-text">
-                        Department responsible for this asset.
+                        Enter the department responsible for this asset.
+                        Existing departments will be reused.
                     </div>
 
                 </div>
 
                 <div class="col-12 col-md-4">
 
-                    <label for="location_id" class="form-label">
+                    <label for="location_name" class="form-label">
                         Location
                     </label>
 
-                    <select class="form-select" id="location_id" name="location_id">
-
-                        <option value="">
-                            No location
-                        </option>
-
-                        <?php foreach ($locations as $location): ?>
-
-                            <option value="<?= e((string) $location['id']) ?>">
-                                <?= e($location['name']) ?>
-                            </option>
-
-                        <?php endforeach; ?>
-
-                    </select>
+                    <input type="text" class="form-control" id="location_name" name="location_name" maxlength="150"
+                        placeholder="Enter location (optional)">
 
                 </div>
 
@@ -522,42 +505,16 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                 <div class="col-12 col-md-4">
 
-                    <label for="assigned_to_user_id" class="form-label">
-                        Assigned To
+                    <label for="assigned_to_name" class="form-label">
+                        Assign To
                     </label>
 
-                    <select class="form-select" id="assigned_to_user_id" name="assigned_to_user_id">
+                    <input type="text" class="form-control" id="assigned_to_name" name="assigned_to_name"
+                        maxlength="150" placeholder="Enter employee name (optional)">
 
-                        <option value="">
-                            Unassigned
-                        </option>
-
-                        <?php foreach ($users as $user): ?>
-
-                            <?php
-                            $userName = trim(
-                                ($user['last_name'] ?? '')
-                                . ', '
-                                . ($user['first_name'] ?? '')
-                            );
-
-                            if (
-                                !empty($user['employee_number'])
-                            ) {
-                                $userName .=
-                                    ' ('
-                                    . $user['employee_number']
-                                    . ')';
-                            }
-                            ?>
-
-                            <option value="<?= e((string) $user['id']) ?>">
-                                <?= e($userName) ?>
-                            </option>
-
-                        <?php endforeach; ?>
-
-                    </select>
+                    <div class="form-text">
+                        Enter the employee's name. A user account is not required.
+                    </div>
 
                 </div>
 

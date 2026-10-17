@@ -669,38 +669,17 @@ class AssetDisposalService
             );
         }
 
-        if ($managerOnly) {
-            if (!$this->authorization->isAssetManager()) {
-                throw new RuntimeException(
-                    'Only Asset Managers can perform this disposal action.'
-                );
-            }
-        } elseif (
-            !$this->authorization->isAssetManager()
-            && !$this->authorization->isAssetCustodian()
-        ) {
+        if (!$this->authorization->canAccessAssetMaterialAreas()) {
             throw new RuntimeException(
-                'You do not have permission to manage asset disposal.'
+                $managerOnly
+                ? 'Only the authorized Asset Manager account can perform this disposal action.'
+                : 'You do not have permission to manage asset disposal.'
             );
         }
 
-        $userDepartmentId =
-            $this->authorization->departmentId();
-
-        $assetDepartmentId =
-            $asset['department_id'] === null
-            ? null
-            : (int) $asset['department_id'];
-
-        if (
-            $userDepartmentId === null
-            || $assetDepartmentId === null
-            || $userDepartmentId !== $assetDepartmentId
-        ) {
-            throw new RuntimeException(
-                'You may only manage disposal for assets belonging to your department.'
-            );
-        }
+        // The authorized Asset Manager may manage assets across
+        // departments. Do not restrict disposal by the manager's
+        // own department.
     }
 
     private function validateAssetForDisposal(

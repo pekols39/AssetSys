@@ -10,6 +10,7 @@ use PDO;
 use RuntimeException;
 use App\Core\Auth;
 use App\Services\AuthorizationService;
+use App\Models\AssetAssignment;
 
 class AssetService
 {
@@ -17,10 +18,13 @@ class AssetService
 
     private Asset $assetModel;
 
+    private AssetAssignment $assignmentModel;
+
     public function __construct()
     {
         $this->db = Database::connection();
         $this->assetModel = new Asset();
+        $this->assignmentModel = new AssetAssignment();
     }
 
 
@@ -51,26 +55,14 @@ class AssetService
             );
         }
 
-        if (
-            !$authorization->isAssetManager()
-            && !$authorization->isAssetCustodian()
-        ) {
+        if (!$authorization->canAccessAssetMaterialAreas()) {
             throw new RuntimeException(
                 'You do not have permission to create assets.'
             );
         }
 
-        $departmentId = $authorization->departmentId();
-
-        if ($departmentId === null) {
-            throw new RuntimeException(
-                'Your account must be assigned to a department.'
-            );
-        }
-
-        // Asset Managers and Asset Custodians can create assets
-        // only for their own department, regardless of submitted form data.
-        $data['department_id'] = $departmentId;
+        // The authenticated Asset Manager may enter any department.
+        // The submitted department name will be resolved by create().
     }
 
     /**
@@ -80,38 +72,133 @@ class AssetService
         array $data,
         int $createdBy
     ): int {
-        $this->authorizeAssetCreation(
-            $data,
-            $createdBy
-        );
-
-        $data = $this->validateAndNormalize(
-            $data
-        );
+        $this->authorizeAssetCreation($data, $createdBy);
 
         if ($createdBy <= 0) {
+            throw new RuntimeException('Invalid creator.');
+        }
+
+        $departmentName = trim(
+            (string) ($data['department_name'] ?? '')
+        );
+
+        $locationName = trim(
+            (string) ($data['location_name'] ?? '')
+        );
+
+        $assignedToName = trim(
+            (string) ($data['assigned_to_name'] ?? '')
+        );
+
+        if ($departmentName === '') {
+            throw new RuntimeException('Department is required.');
+        }
+
+        if (mb_strlen($departmentName) > 150) {
             throw new RuntimeException(
-                'Invalid creator.'
+                'Department name cannot exceed 150 characters.'
             );
         }
 
-        $this->validateUniqueFields(
-            $data
-        );
-
-        $data['created_by'] = $createdBy;
-
-        if (
-            !isset($data['current_book_value'])
-            || $data['current_book_value'] === ''
-        ) {
-            $data['current_book_value'] =
-                $data['purchase_cost'];
+        if (mb_strlen($locationName) > 150) {
+            throw new RuntimeException(
+                'Location name cannot exceed 150 characters.'
+            );
         }
 
-        return $this->assetModel->create(
-            $data
-        );
+        if (mb_strlen($assignedToName) > 150) {
+            throw new RuntimeException(
+                'Assigned employee name cannot exceed 150 characters.'
+            );
+        }
+
+        $this->db->beginTransaction();
+
+        try {
+            $data['department_id'] = $this->resolveOrCreateNamedRecord(
+                'departments',
+                $departmentName
+            );
+
+            $data['location_id'] = $locationName === ''
+                ? null
+                : $this->resolveOrCreateNamedRecord(
+                    'locations',
+                    $locationName
+                );
+
+            // A manual assignee does not require a user account.
+            $data['assigned_to_name'] = $assignedToName !== ''
+                ? $assignedToName
+                : null;
+
+            $data['assigned_to_user_id'] = null;
+
+            $data = $this->validateAndNormalize($data);
+
+            $this->validateUniqueFields($data);
+
+            $data['created_by'] = $createdBy;
+
+            if (
+                !isset($data['current_book_value'])
+                || $data['current_book_value'] === ''
+            ) {
+                $data['current_book_value'] = $data['purchase_cost'];
+            }
+
+            /*
+             * If a manual assignee was entered, set the asset status to
+             * Assigned before inserting the asset.
+             */
+            if (!empty($data['assigned_to_name'])) {
+                $assignedStatusId = $this->getStatusId('Assigned');
+
+                if ($assignedStatusId === null) {
+                    throw new RuntimeException(
+                        'Assigned asset status is not configured or inactive.'
+                    );
+                }
+
+                $data['status_id'] = $assignedStatusId;
+            }
+
+            $assetId = $this->assetModel->create($data);
+
+            /*
+             * Record the initial assignment in the same transaction as
+             * the asset creation.
+             */
+            if (!empty($data['assigned_to_name'])) {
+                $this->assignmentModel->create(
+                    $assetId,
+                    null,
+                    $createdBy,
+                    date('Y-m-d H:i:s'),
+                    null,
+                    'Initial assignment during asset creation.',
+                    $data['assigned_to_name']
+                );
+            }
+
+            $this->db->commit();
+
+            return $assetId;
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            if ($e instanceof RuntimeException) {
+                throw $e;
+            }
+
+            throw new RuntimeException(
+                'Unable to create the asset.',
+                0,
+                $e
+            );
+        }
     }
 
     /**
@@ -139,9 +226,100 @@ class AssetService
 
         $this->authorizeAssetUpdate($existing);
 
+        // Preserve fields managed by dedicated workflows.
+        $data['department_id'] =
+            $existing['department_id'] ?? null;
+
+        $data['location_id'] =
+            $existing['location_id'] ?? null;
+
+        $data['assigned_to_user_id'] =
+            $existing['assigned_to_user_id'] ?? null;
+
+        $data['assigned_to_name'] =
+            $existing['assigned_to_name'] ?? null;
+
         $data = $this->validateAndNormalize(
             $data
         );
+
+        $statusStmt = $this->db->prepare(
+            'SELECT name
+         FROM asset_statuses
+         WHERE id = :status_id
+         LIMIT 1'
+        );
+
+        $statusStmt->execute([
+            'status_id' => (int) $data['status_id'],
+        ]);
+
+        $statusName = $statusStmt->fetchColumn();
+
+        if ($statusName === false) {
+            throw new RuntimeException(
+                'The selected asset status does not exist.'
+            );
+        }
+
+        $requestedStatus = strtolower(
+            trim((string) $statusName)
+        );
+
+        $currentStatus = strtolower(
+            trim((string) (
+                $existing['status_name']
+                ?? $existing['status']
+                ?? ''
+            ))
+        );
+
+        // Terminal lifecycle states cannot be changed through
+        // ordinary asset editing.
+        $protectedStatuses = [
+            'lost',
+            'retired',
+            'disposed',
+            'for disposal',
+            'pending disposal',
+        ];
+
+        if (
+            in_array(
+                $currentStatus,
+                $protectedStatuses,
+                true
+            )
+            && $requestedStatus !== $currentStatus
+        ) {
+            throw new RuntimeException(
+                'This asset has a protected lifecycle status. Use the appropriate dedicated workflow to manage its lifecycle.'
+            );
+        }
+
+        $isAssigned = !empty(
+            $existing['assigned_to_user_id']
+        ) || trim(
+                (string) ($existing['assigned_to_name'] ?? '')
+            ) !== '';
+
+        if (
+            $requestedStatus === 'available'
+            && $isAssigned
+        ) {
+            throw new RuntimeException(
+                'Return the assigned asset before setting its status to Available.'
+            );
+        }
+
+        if (
+            $requestedStatus === 'assigned'
+            && !$isAssigned
+        ) {
+            throw new RuntimeException(
+                'Use the Assign Asset workflow before setting the status to Assigned.'
+            );
+        }
 
         $this->validateUniqueFields(
             $data,
@@ -231,30 +409,100 @@ class AssetService
         }
 
 
-        if (
-            !$authorization->isAssetManager()
-            && !$authorization->isAssetCustodian()
-        ) {
+        if (!$authorization->canAccessAssetMaterialAreas()) {
             throw new RuntimeException(
                 'You do not have permission to edit assets.'
             );
         }
+    }
 
-        $userDepartmentId = $authorization->departmentId();
+    /**
+     * Find or create a department or location by name.
+     */
+    private function resolveOrCreateNamedRecord(
+        string $table,
+        string $name
+    ): int {
+        $allowedTables = [
+            'departments',
+            'locations',
+        ];
 
-        $assetDepartmentId = $asset['department_id'] === null
-            ? null
-            : (int) $asset['department_id'];
+        if (!in_array($table, $allowedTables, true)) {
+            throw new RuntimeException('Invalid reference table.');
+        }
 
-        if (
-            $userDepartmentId === null
-            || $assetDepartmentId === null
-            || $userDepartmentId !== $assetDepartmentId
-        ) {
+        $name = trim($name);
+
+        if ($name === '') {
+            throw new RuntimeException('Name is required.');
+        }
+
+        $stmt = $this->db->prepare(
+            "SELECT id, is_active
+         FROM {$table}
+         WHERE name = :name
+         LIMIT 1
+         FOR UPDATE"
+        );
+
+        $stmt->execute(['name' => $name]);
+
+        $record = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($record) {
+            if (!(int) $record['is_active']) {
+                throw new RuntimeException(
+                    'The selected department or location is inactive.'
+                );
+            }
+
+            return (int) $record['id'];
+        }
+
+        $stmt = $this->db->prepare(
+            "INSERT INTO {$table} (name, is_active)
+         VALUES (:name, 1)"
+        );
+
+        $stmt->execute(['name' => $name]);
+
+        $id = (int) $this->db->lastInsertId();
+
+        if ($id <= 0) {
             throw new RuntimeException(
-                'You may only edit assets assigned to your department.'
+                'Unable to create the department or location.'
             );
         }
+
+        return $id;
+    }
+
+    /**
+     * Find an active asset status by name.
+     */
+    private function getStatusId(
+        string $statusName
+    ): ?int {
+        $stmt = $this->db->prepare(
+            'SELECT id
+         FROM asset_statuses
+         WHERE name = :name
+           AND is_active = 1
+         LIMIT 1'
+        );
+
+        $stmt->execute([
+            'name' => $statusName,
+        ]);
+
+        $id = $stmt->fetchColumn();
+
+        if ($id === false) {
+            return null;
+        }
+
+        return (int) $id;
     }
 
     /**
@@ -378,6 +626,20 @@ class AssetService
             $this->normalizeOptionalId(
                 $data['assigned_to_user_id'] ?? null
             );
+
+        $assignedToName = trim(
+            (string) ($data['assigned_to_name'] ?? '')
+        );
+
+        if (mb_strlen($assignedToName) > 150) {
+            throw new RuntimeException(
+                'Assigned employee name cannot exceed 150 characters.'
+            );
+        }
+
+        $assignedToName = $assignedToName !== ''
+            ? $assignedToName
+            : null;
 
         if ($supplierId !== null) {
             $this->validateReferenceId(
@@ -515,6 +777,8 @@ class AssetService
             'condition_id' => $conditionId,
 
             'assigned_to_user_id' => $assignedToUserId,
+
+            'assigned_to_name' => $assignedToName,
 
         ];
     }

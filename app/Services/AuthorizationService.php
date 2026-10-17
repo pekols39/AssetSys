@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Core\Auth;
+use App\Core\Database;
 use App\Models\User;
 
 class AuthorizationService
 {
     private User $userModel;
+
+    private const OPERATIONAL_ROLE = 'Asset Manager';
+    private const OPERATIONAL_USERNAME = 'manager';
 
     public function __construct()
     {
@@ -19,8 +23,8 @@ class AuthorizationService
     /**
      * Retrieve the authenticated user's current database record.
      *
-     * Do not use session role or department values as the source
-     * of truth for authorization.
+     * Session role and department values are not trusted as the
+     * source of truth for authorization.
      */
     public function currentUser(): ?array
     {
@@ -61,6 +65,7 @@ class AuthorizationService
 
         if (
             $user === null
+            || !array_key_exists('department_id', $user)
             || $user['department_id'] === null
         ) {
             return null;
@@ -74,18 +79,50 @@ class AuthorizationService
         return $this->roleName() === 'Administrator';
     }
 
+    /**
+     * Check the operational role.
+     *
+     * This method checks the role only. Use
+     * canAccessAssetMaterialAreas() for the four restricted areas.
+     */
     public function isAssetManager(): bool
     {
-        return $this->roleName() === 'Asset Manager';
-    }
-
-    public function isAssetCustodian(): bool
-    {
-        return $this->roleName() === 'Asset Custodian';
+        return $this->roleName() === self::OPERATIONAL_ROLE;
     }
 
     /**
-     * Check whether the current user may access a department.
+     * Compatibility method for existing callers.
+     *
+     * The Asset Custodian role has been retired.
+     * This method intentionally returns false.
+     */
+    public function isAssetCustodian(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Only the active account named "manager" with the Asset Manager
+     * role may access Assets, Department Transfers, Material Categories,
+     * and Materials.
+     */
+    public function canAccessAssetMaterialAreas(): bool
+    {
+        $user = $this->currentUser();
+
+        if ($user === null) {
+            return false;
+        }
+
+        return ($user['username'] ?? '') === self::OPERATIONAL_USERNAME
+            && ($user['role_name'] ?? '') === self::OPERATIONAL_ROLE;
+    }
+
+    /**
+     * Check whether the operational user may access a department.
+     *
+     * Keep this existing role-based behavior for callers outside
+     * the four restricted areas.
      */
     public function canAccessDepartment(int $departmentId): bool
     {
@@ -93,57 +130,35 @@ class AuthorizationService
             return false;
         }
 
-        if (!$this->isAssetManager()) {
-            return false;
-        }
-
-        return $this->departmentId() === $departmentId;
+        return $this->isAssetManager();
     }
 
+
+    /**
+     * Check whether the authorized operational account may access
+     * an existing asset, regardless of its department.
+     *
+     * Administrators and other Asset Manager accounts are denied.
+     */
     public function canAccessAsset(int $assetId): bool
     {
-        if ($assetId <= 0) {
+        if ($assetId <= 0 || !$this->canAccessAssetMaterialAreas()) {
             return false;
         }
 
-        if ($this->isAdministrator()) {
-            return false;
-        }
-
-        $userId = Auth::id();
-
-        if ($userId === null) {
-            return false;
-        }
-
-        $db = \App\Core\Database::connection();
+        $db = Database::connection();
 
         $stmt = $db->prepare(
-            "SELECT department_id
-         FROM assets
-         WHERE id = :asset_id
-         LIMIT 1"
+            'SELECT id
+             FROM assets
+             WHERE id = :asset_id
+             LIMIT 1'
         );
 
         $stmt->execute([
             'asset_id' => $assetId,
         ]);
 
-        $asset = $stmt->fetch(\PDO::FETCH_ASSOC);
-
-        if (!is_array($asset)) {
-            return false;
-        }
-
-        if (
-            $this->isAssetManager()
-            || $this->isAssetCustodian()
-        ) {
-            return
-                (int) ($asset['department_id'] ?? 0)
-                === (int) ($this->departmentId() ?? 0);
-        }
-
-        return false;
+        return $stmt->fetchColumn() !== false;
     }
 }
