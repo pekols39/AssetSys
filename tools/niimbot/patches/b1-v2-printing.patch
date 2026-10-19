@@ -1,0 +1,56 @@
+diff --git a/niimprint/printer.py b/niimprint/printer.py
+--- a/niimprint/printer.py
++++ b/niimprint/printer.py
+@@ -100,20 +100,44 @@ class PrinterClient:
+         self._transport = transport
+         self._packetbuf = bytearray()
+
+-    def print_image(self, image: Image, density: int = 3):
++    def print_image(self, image: Image, density: int = 5):
++        # B1-specific wake-up sequence.
++        self._send(NiimbotPacket(0x54, b"\x01"))
++        time.sleep(0.05)
++        self._recv()
++
+         self.set_label_density(density)
+         self.set_label_type(1)
+-        self.start_print()
+-        # self.allow_print_clear()  # Something unsupported in protocol decoding (B21)
++
++        # B1-specific START_PRINT payload.
++        self._send(
++            NiimbotPacket(
++                0x01,
++                b"\x00\x01\x00\x00\x00\x00\x00",
++            )
++        )
++        time.sleep(0.1)
++        self._recv()
++
+         self.start_page_print()
+-        self.set_dimension(image.height, image.width)
+-        # self.set_quantity(1)  # Same thing (B21)
++
++        # B1-specific dimensions: three unsigned 16-bit values.
++        self._send(
++            NiimbotPacket(
++                0x13,
++                struct.pack(">HHH", image.height, image.width, 1),
++            )
++        )
++        time.sleep(0.1)
++        self._recv()
++
+         for pkt in self._encode_image(image):
+             self._send(pkt)
++
+         self.end_page_print()
+-        time.sleep(0.3)  # FIXME: Check get_print_status()
+-        while not self.end_print():
+-            time.sleep(0.1)
++
++        # B1 V2 protocol: allow the printer time to finish.
++        time.sleep(2.0)
+
+     def _encode_image(self, image: Image):
+         img = ImageOps.invert(image.convert("L")).convert("1")

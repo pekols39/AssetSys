@@ -7,7 +7,8 @@
         "phpmailer/phpmailer": "^7.0",
         "vlucas/phpdotenv": "^5.6",
         "dompdf/dompdf": "^3.1",
-        "phpoffice/phpspreadsheet": "^5.0"
+        "phpoffice/phpspreadsheet": "^5.0",
+        "endroid/qr-code": "^6.0"
     },
     "autoload": {
         "psr-4": {

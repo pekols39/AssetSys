@@ -28,6 +28,9 @@ $isDepreciationReport =
 $isDepreciationSchedules =
     str_ends_with($currentPath, '/reports/depreciation_schedules.php');
 
+$isQrScanMonitoring =
+    str_ends_with($currentPath, '/reports/qr_scan_monitoring.php');
+
 $isAdministrationDashboard = str_ends_with(
     $currentPath,
     '/administration/index.php'
@@ -188,6 +191,16 @@ $isAdministrationSettings = str_ends_with(
                     </span>
                     <span class="app-sidebar-link-text">
                         Schedule Monitoring
+                    </span>
+                </a>
+
+                <a href="<?= e(base_url('/public/reports/qr_scan_monitoring.php')) ?>"
+                    class="app-sidebar-link <?= $isQrScanMonitoring ? 'active' : '' ?>">
+                    <span class="app-sidebar-link-icon">
+                        <i class="fa-solid fa-qrcode"></i>
+                    </span>
+                    <span class="app-sidebar-link-text">
+                        QR Scan Monitoring
                     </span>
                 </a>
             </nav>

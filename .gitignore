@@ -55,3 +55,13 @@ coverage/
 
 # Local development files
 docker-compose.override.yml
+# NIIMBOT local Python environments
+# Local NIIMBOT printer tooling and test artifacts
+/tools/niimbot/niimprintx/
+/tools/niimbot/patch-work/
+/tools/niimbot/.venv/
+/tools/niimbot/.venv311/
+/tools/niimbot/printer.py.b1-working
+/tools/niimbot/printer.py.before-b1-fix
+/tools/niimbot/test-label.png
+/tools/niimbot/*.log

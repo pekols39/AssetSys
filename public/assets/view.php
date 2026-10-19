@@ -258,7 +258,17 @@ function displayDate(
             </p>
         </div>
 
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+
+            <a href="<?= e(
+                base_url(
+                    '/public/assets/qr.php?asset_id='
+                    . (int) $asset['id']
+                )
+            ) ?>" class="btn btn-outline-primary">
+                <i class="fa-solid fa-qrcode me-1"></i>
+                QR Identity
+            </a>
 
             <a href="<?= e(
                 base_url(
