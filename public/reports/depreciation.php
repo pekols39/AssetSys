@@ -79,7 +79,19 @@ if (
     $requestedPage = 1;
 }
 
-$perPage = 10;
+$allowedPerPage = [10, 25, 50, 100];
+
+$requestedPerPage = filter_var(
+    $_GET['per_page'] ?? 10,
+    FILTER_VALIDATE_INT
+);
+
+$perPage = (
+    $requestedPerPage !== false
+    && in_array($requestedPerPage, $allowedPerPage, true)
+)
+    ? $requestedPerPage
+    : 10;
 
 /*
  * Get totals for the entire reporting month.
@@ -148,6 +160,7 @@ $pageUrl = static fn(int $targetPage): string =>
         . http_build_query([
             'month' => $month,
             'year' => $year,
+            'per_page' => $perPage,
             'page' => $targetPage,
         ])
     );
@@ -168,7 +181,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
 ?>
 
-<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <div class="text-muted small mb-1">
             Reports &amp; Analytics
@@ -180,6 +193,76 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
             Review posted depreciation entries and book values
             for the selected reporting month.
         </p>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 align-self-center">
+        <a
+            href="<?= e(base_url(
+                '/public/reports/export_depreciation_excel.php?'
+                . http_build_query([
+                    'month' => $month,
+                    'year' => $year,
+                ])
+            )) ?>"
+            class="btn btn-outline-success"
+        >
+            <i class="fa-solid fa-file-excel me-1"></i>
+            Export Excel
+        </a>
+
+        <a
+            href="<?= e(base_url(
+                '/public/reports/export_depreciation_pdf.php?'
+                . http_build_query([
+                    'month' => $month,
+                    'year' => $year,
+                ])
+            )) ?>"
+            class="btn btn-outline-danger"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            <i class="fa-solid fa-file-pdf me-1"></i>
+            Export PDF
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-2">
+                    Posted Entries
+                </div>
+
+                <div class="h3 mb-0">
+                    <?= e(number_format($totalEntries)) ?>
+                </div>
+
+                <div class="text-muted small mt-2">
+                    Periods ending in <?= e($periodLabel) ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-2">
+                    Total Depreciation
+                </div>
+
+                <div class="h3 mb-0">
+                    ₱<?= e(number_format($totalDepreciation, 2)) ?>
+                </div>
+
+                <div class="text-muted small mt-2">
+                    Posted entries ending in <?= e($periodLabel) ?>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -228,7 +311,24 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                 </div>
 
                 <div class="col-12 col-lg-4">
-                    <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+                    <label for="per_page" class="form-label fw-medium">
+                        Rows Per Page
+                    </label>
+
+                    <select class="form-select" id="per_page" name="per_page">
+                        <?php foreach ([10, 25, 50, 100] as $pageSize): ?>
+                            <option
+                                value="<?= $pageSize ?>"
+                                <?= $perPage === $pageSize ? 'selected' : '' ?>
+                            >
+                                <?= $pageSize ?> rows
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="col-12">
+                    <div class="d-flex flex-wrap gap-2 justify-content-start">
                         <button type="submit" class="btn btn-primary">
                             <i class="fa-solid fa-filter me-1"></i>
                             Apply Filters
@@ -243,82 +343,6 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                 </div>
             </div>
         </form>
-
-        <!-- Export actions -->
-        <div class="border-top mt-4 pt-3">
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                <div>
-                    <div class="fw-semibold">
-                        Export Report
-                    </div>
-                    <p class="text-muted small mb-0">
-                        Download the report for the selected period.
-                    </p>
-                </div>
-
-                <div class="d-flex flex-wrap gap-2">
-                    <a href="<?= e(base_url(
-                        '/public/reports/export_depreciation_excel.php?'
-                        . http_build_query([
-                            'month' => $month,
-                            'year' => $year,
-                        ])
-                    )) ?>" class="btn btn-outline-success">
-                        <i class="fa-solid fa-file-excel me-1"></i>
-                        Export Excel
-                    </a>
-
-                    <a href="<?= e(base_url(
-                        '/public/reports/export_depreciation_pdf.php?'
-                        . http_build_query([
-                            'month' => $month,
-                            'year' => $year,
-                        ])
-                    )) ?>" class="btn btn-outline-danger">
-                        <i class="fa-solid fa-file-pdf me-1"></i>
-                        Export PDF
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3 mb-4">
-    <div class="col-12 col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-muted small mb-2">
-                    Posted Entries
-                </div>
-
-                <div class="h3 mb-0">
-                    <?= e(number_format($totalEntries)) ?>
-                </div>
-
-                <div class="text-muted small mt-2">
-                    Periods ending in <?= e($periodLabel) ?>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-12 col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="text-muted small mb-2">
-                    Total Depreciation
-                </div>
-
-                <div class="h3 mb-0">
-                    ₱<?= e(number_format($totalDepreciation, 2)) ?>
-                </div>
-
-                <div class="text-muted small mt-2">
-                    Posted entries ending in <?= e($periodLabel) ?>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 

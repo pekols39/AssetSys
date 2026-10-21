@@ -71,11 +71,11 @@ if (Auth::check()) {
                                     alt="Company Logo">
 
                                 <p class="text-white fw-bold fs-5 helpdesk-title">
-                                    Asset Management System
+                                    Inventory Tracker
                                 </p>
 
                                 <p>
-                                    Manage company assets, assignments,
+                                    Manage company inventory, assignments,
                                     maintenance, repairs, transfers,
                                     and asset history in one centralized platform.
                                 </p>

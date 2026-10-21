@@ -61,7 +61,7 @@ $isAdministrationSettings = str_ends_with(
             </span>
 
             <span class="app-sidebar-brand-text">
-                Asset System
+                Inventory Tracker
             </span>
 
         </a>

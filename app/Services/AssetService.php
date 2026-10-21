@@ -134,6 +134,10 @@ class AssetService
 
             $data['assigned_to_user_id'] = null;
 
+            // Generate the asset code on the server.
+            // Ignore any asset_code submitted by the browser.
+            $data['asset_code'] = $this->generateAssetCode();
+
             $data = $this->validateAndNormalize($data);
 
             $this->validateUniqueFields($data);
@@ -202,6 +206,102 @@ class AssetService
     }
 
     /**
+     * Generate the next daily asset code.
+     *
+     * Format: YYYYMMDD-00001
+     * The counter resets each calendar day.
+     */
+    private function generateAssetCode(): string
+    {
+        $sequenceDate = date('Y-m-d');
+        $datePrefix = date('Ymd');
+
+        /*
+         * Insert the daily counter if it does not exist.
+         * Otherwise, increment it atomically. The row remains
+         * locked by the transaction until commit or rollback.
+         */
+        $stmt = $this->db->prepare(
+            'INSERT INTO asset_code_sequences (
+                sequence_date,
+                last_number
+            ) VALUES (
+                :sequence_date,
+                1
+            )
+            ON DUPLICATE KEY UPDATE
+                last_number = last_number + 1'
+        );
+
+        $stmt->execute([
+            'sequence_date' => $sequenceDate,
+        ]);
+
+        $stmt = $this->db->prepare(
+            'SELECT last_number
+             FROM asset_code_sequences
+             WHERE sequence_date = :sequence_date
+             FOR UPDATE'
+        );
+
+        $stmt->execute([
+            'sequence_date' => $sequenceDate,
+        ]);
+
+        $sequenceNumber = (int) $stmt->fetchColumn();
+
+        if ($sequenceNumber < 1) {
+            throw new RuntimeException(
+                'Unable to generate an asset code.'
+            );
+        }
+
+        /*
+         * Protect against collisions with existing assets that
+         * already use today's YYYYMMDD-NNNNN code format.
+         */
+        $stmt = $this->db->prepare(
+            'SELECT MAX(
+                CAST(
+                    SUBSTRING_INDEX(asset_code, "-", -1)
+                    AS UNSIGNED
+                )
+             )
+             FROM assets
+             WHERE asset_code REGEXP :pattern'
+        );
+
+        $stmt->execute([
+            'pattern' => '^' . $datePrefix . '-[0-9]+$',
+        ]);
+
+        $existingMaximum = (int) $stmt->fetchColumn();
+
+        if ($existingMaximum >= $sequenceNumber) {
+            $sequenceNumber = $existingMaximum + 1;
+
+            $stmt = $this->db->prepare(
+                'UPDATE asset_code_sequences
+                 SET last_number = :last_number
+                 WHERE sequence_date = :sequence_date'
+            );
+
+            $stmt->execute([
+                'last_number' => $sequenceNumber,
+                'sequence_date' => $sequenceDate,
+            ]);
+        }
+
+        return $datePrefix . '-'
+            . str_pad(
+                (string) $sequenceNumber,
+                5,
+                '0',
+                STR_PAD_LEFT
+            );
+    }
+
+    /**
      * Update an existing asset.
      */
     public function update(
@@ -225,6 +325,9 @@ class AssetService
         }
 
         $this->authorizeAssetUpdate($existing);
+
+        // Preserve the system-generated asset code.
+        $data['asset_code'] = $existing['asset_code'];
 
         // Preserve fields managed by dedicated workflows.
         $data['department_id'] =

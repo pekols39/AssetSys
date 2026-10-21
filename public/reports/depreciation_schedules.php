@@ -55,7 +55,37 @@ if (
     $requestedPage = 1;
 }
 
-$perPage = 10;
+/*
+ * Read and validate schedule filters.
+ */
+$allowedStatuses = [
+    'active',
+    'completed',
+    'cancelled',
+];
+
+$status = trim((string) ($_GET['status'] ?? ''));
+
+if (
+    $status !== ''
+    && !in_array($status, $allowedStatuses, true)
+) {
+    $status = '';
+}
+
+$allowedPerPage = [10, 25, 50, 100];
+
+$requestedPerPage = filter_var(
+    $_GET['per_page'] ?? 10,
+    FILTER_VALIDATE_INT
+);
+
+$perPage = (
+    $requestedPerPage !== false
+    && in_array($requestedPerPage, $allowedPerPage, true)
+)
+    ? $requestedPerPage
+    : 10;
 
 /*
  * Obtain totals across all schedules in this department.
@@ -91,11 +121,17 @@ $totalFuturePostedPeriods = (int) (
 );
 
 /*
- * Calculate pagination boundaries.
+ * Calculate pagination using the selected status filter.
+ * Summary cards continue using department-wide totals.
  */
+$totalFilteredSchedules = $reportService
+    ->countDepreciationScheduleOverview(
+        $status !== '' ? $status : null
+    );
+
 $totalPages = max(
     1,
-    (int) ceil($totalSchedules / $perPage)
+    (int) ceil($totalFilteredSchedules / $perPage)
 );
 
 $page = min(
@@ -110,16 +146,17 @@ $offset = ($page - 1) * $perPage;
  */
 $schedules = $reportService->getDepreciationScheduleOverview(
     $perPage,
-    $offset
+    $offset,
+    $status !== '' ? $status : null
 );
 
-$firstSchedule = $totalSchedules > 0
+$firstSchedule = $totalFilteredSchedules > 0
     ? $offset + 1
     : 0;
 
 $lastSchedule = min(
     $offset + $perPage,
-    $totalSchedules
+    $totalFilteredSchedules
 );
 
 $pageStart = max(
@@ -133,13 +170,15 @@ $pageEnd = min(
 );
 
 /*
- * Preserve the current page when navigating.
+ * Preserve the selected filters when navigating.
  */
 $pageUrl = static fn(int $targetPage): string =>
     base_url(
         '/public/reports/depreciation_schedules.php?'
         . http_build_query([
             'page' => $targetPage,
+            'per_page' => $perPage,
+            'status' => $status,
         ])
     );
 
@@ -150,7 +189,8 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
 ?>
 
-<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <div class="text-muted small mb-1">
             Reports &amp; Analytics
@@ -162,6 +202,30 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
             Monitor depreciation progress, schedule status,
             accumulated depreciation, and current book value.
         </p>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <a
+            href="<?= e(base_url(
+                '/public/reports/export_depreciation_schedules_excel.php?'
+                . http_build_query(['status' => $status])
+            )) ?>"
+            class="btn btn-outline-success"
+        >
+            <i class="fa-solid fa-file-excel me-1"></i>
+            Export Excel
+        </a>
+
+        <a
+            href="<?= e(base_url(
+                '/public/reports/export_depreciation_schedules_pdf.php?'
+                . http_build_query(['status' => $status])
+            )) ?>"
+            class="btn btn-outline-danger"
+        >
+            <i class="fa-solid fa-file-pdf me-1"></i>
+            Export PDF
+        </a>
     </div>
 </div>
 
@@ -245,6 +309,99 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     </div>
 </div>
 
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3">
+        <h2 class="h5 mb-0">Filter Depreciation Schedules</h2>
+    </div>
+
+    <div class="card-body">
+        <form
+            method="GET"
+            action="<?= e(base_url('/public/reports/depreciation_schedules.php')) ?>"
+            class="row g-3 align-items-end"
+        >
+            <div class="col-12 col-md-5">
+                <label for="status" class="form-label">
+                    Schedule Status
+                </label>
+
+                <select
+                    id="status"
+                    name="status"
+                    class="form-select"
+                >
+                    <option
+                        value=""
+                        <?= $status === '' ? 'selected' : '' ?>
+                    >
+                        All Statuses
+                    </option>
+
+                    <option
+                        value="active"
+                        <?= $status === 'active' ? 'selected' : '' ?>
+                    >
+                        Active
+                    </option>
+
+                    <option
+                        value="completed"
+                        <?= $status === 'completed' ? 'selected' : '' ?>
+                    >
+                        Completed
+                    </option>
+
+                    <option
+                        value="cancelled"
+                        <?= $status === 'cancelled' ? 'selected' : '' ?>
+                    >
+                        Cancelled
+                    </option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label for="per_page" class="form-label">
+                    Rows Per Page
+                </label>
+
+                <select
+                    id="per_page"
+                    name="per_page"
+                    class="form-select"
+                >
+                    <?php foreach ([10, 25, 50, 100] as $option): ?>
+                        <option
+                            value="<?= $option ?>"
+                            <?= $perPage === $option ? 'selected' : '' ?>
+                        >
+                            <?= $option ?> rows
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-3">
+                <div class="d-flex flex-wrap justify-content-start gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-filter me-1"></i>
+                        Apply Filters
+                    </button>
+
+                    <a
+                        href="<?= e(base_url('/public/reports/depreciation_schedules.php')) ?>"
+                        class="btn btn-outline-secondary"
+                    >
+                        <i class="fa-solid fa-rotate-left me-1"></i>
+                        Reset
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white py-3">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -252,8 +409,8 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                 <h2 class="h5 mb-1">Depreciation Schedules</h2>
 
                 <p class="text-muted small mb-0">
-                    <?= e(number_format($totalSchedules)) ?>
-                    schedule(s) for your department.
+                    <?= e(number_format($totalFilteredSchedules)) ?>
+                    schedule(s) matching the current filter.
                     <?= e(number_format($completedSchedules)) ?>
                     completed.
                 </p>
@@ -262,7 +419,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     </div>
 
     <div class="card-body">
-        <?php if ($totalSchedules === 0): ?>
+        <?php if ($totalFilteredSchedules === 0): ?>
             <div class="text-center py-5">
                 <div class="text-muted fs-1 mb-3">
                     <i class="fa-solid fa-chart-line"></i>
@@ -271,7 +428,11 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                 <h3 class="h5">No depreciation schedules found</h3>
 
                 <p class="text-muted mb-0">
-                    There are no depreciation schedules for your department.
+                    <?php if ($status !== ''): ?>
+                        No depreciation schedules match the selected status.
+                    <?php else: ?>
+                        There are no depreciation schedules for your department.
+                    <?php endif; ?>
                 </p>
             </div>
         <?php else: ?>

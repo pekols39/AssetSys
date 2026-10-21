@@ -88,15 +88,12 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                     <label for="asset_code" class="form-label">
                         Asset Code
-                        <span class="text-danger">*</span>
                     </label>
-
-                    <input type="text" class="form-control" id="asset_code" name="asset_code" maxlength="100" required>
-
-                    <div class="form-text">
-                        Unique internal asset identifier.
+                    <input type="text" class="form-control" id="asset_code" value="Generated automatically when saved"
+                        readonly aria-describedby="asset-code-help">
+                    <div class="form-text" id="asset-code-help">
+                        The system automatically generates a unique code when the asset is saved.
                     </div>
-
                 </div>
 
                 <div class="col-12 col-md-6">

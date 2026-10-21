@@ -124,12 +124,14 @@ $currentStatus = strtolower(
                     <div class="col-md-4">
                         <label for="asset_code" class="form-label">
                             Asset Code
-                            <span class="text-danger">*</span>
                         </label>
 
-                        <input type="text" class="form-control" id="asset_code" name="asset_code" maxlength="100" value="<?= e(
-                            $asset['asset_code'] ?? ''
-                        ) ?>" required>
+                        <input type="text" class="form-control" id="asset_code"
+                            value="<?= e($asset['asset_code'] ?? '') ?>" readonly aria-describedby="asset-code-help">
+
+                        <div class="form-text" id="asset-code-help">
+                            Asset codes cannot be changed after creation.
+                        </div>
                     </div>
 
                     <div class="col-md-4">
