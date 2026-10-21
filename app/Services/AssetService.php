@@ -342,6 +342,24 @@ class AssetService
         $data['assigned_to_name'] =
             $existing['assigned_to_name'] ?? null;
 
+        // Preserve the book value maintained by depreciation
+        // whenever this asset has a depreciation schedule.
+        $scheduleStmt = $this->db->prepare(
+            'SELECT id
+             FROM depreciation_schedules
+             WHERE asset_id = :asset_id
+             LIMIT 1'
+        );
+
+        $scheduleStmt->execute([
+            'asset_id' => $id,
+        ]);
+
+        if ($scheduleStmt->fetchColumn() !== false) {
+            $data['current_book_value'] =
+                $existing['current_book_value'];
+        }
+
         $data = $this->validateAndNormalize(
             $data
         );
