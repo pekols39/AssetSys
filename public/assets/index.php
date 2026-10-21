@@ -77,12 +77,13 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
 ?>
 
+
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
 
     <div>
 
         <div class="text-muted small mb-1">
-            Asset Management
+            Inventory Tracker
         </div>
 
         <h1 class="h3 mb-1">
@@ -90,15 +91,35 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         </h1>
 
         <p class="text-muted mb-0">
-            Manage and monitor company assets.
+            Manage and monitor company inventory.
         </p>
 
     </div>
 
-    <a href="<?= e(base_url('/public/assets/create.php')) ?>" class="btn btn-primary">
-        <i class="fa-solid fa-plus me-1"></i>
-        Add Asset
-    </a>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+
+        <a
+            href="<?= e(base_url('/public/assets/export_excel.php?' . http_build_query($_GET))) ?>"
+            class="btn btn-outline-success"
+        >
+            <i class="fa-solid fa-file-excel me-1"></i>
+            Export Excel
+        </a>
+
+        <a
+            href="<?= e(base_url('/public/assets/export_pdf.php?' . http_build_query($_GET))) ?>"
+            class="btn btn-outline-danger"
+        >
+            <i class="fa-solid fa-file-pdf me-1"></i>
+            Export PDF
+        </a>
+
+        <a href="<?= e(base_url('/public/assets/create.php')) ?>" class="btn btn-primary">
+            <i class="fa-solid fa-plus me-1"></i>
+            Add Asset
+        </a>
+
+    </div>
 
 </div>
 

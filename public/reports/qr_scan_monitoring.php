@@ -126,7 +126,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
 ?>
 
-<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <div class="text-muted small mb-1">
             Reports &amp; Analytics
@@ -138,8 +138,54 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
             Review recorded QR scans, the associated assets, and who scanned them.
         </p>
     </div>
+
+    <?php
+    $exportFilters = [
+        'asset_tag' => $assetTag,
+        'scanner' => $scanner,
+        'date_from' => $dateFrom,
+        'date_to' => $dateTo,
+    ];
+
+    $excelExportUrl = base_url(
+        '/public/reports/export_qr_scan_monitoring_excel.php?'
+        . http_build_query($exportFilters)
+    );
+
+    $pdfExportUrl = base_url(
+        '/public/reports/export_qr_scan_monitoring_pdf.php?'
+        . http_build_query($exportFilters)
+    );
+    ?>
+
+    <div class="d-flex flex-wrap flex-md-nowrap align-items-center gap-2">
+        <a href="<?= e($excelExportUrl) ?>" class="btn btn-outline-success">
+            <i class="fa-solid fa-file-excel me-1"></i>
+            Export Excel
+        </a>
+
+        <a href="<?= e($pdfExportUrl) ?>" class="btn btn-outline-danger">
+            <i class="fa-solid fa-file-pdf me-1"></i>
+            Export PDF
+        </a>
+    </div>
 </div>
 
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-6 col-xl-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-2">
+                    Total Recorded Scans
+                </div>
+
+                <div class="h3 mb-0">
+                    <?= e(number_format($totalScans)) ?>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="card mb-4">
     <div class="card-header">
@@ -212,22 +258,6 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                 </div>
             </div>
         </form>
-    </div>
-</div>
-
-<div class="row g-3 mb-4">
-    <div class="col-12 col-md-6 col-xl-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <div class="text-muted small mb-2">
-                    Total Recorded Scans
-                </div>
-
-                <div class="h3 mb-0">
-                    <?= e(number_format($totalScans)) ?>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 

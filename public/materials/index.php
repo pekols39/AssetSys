@@ -36,6 +36,14 @@ $filters = [
     'direction' => (string) ($_GET['direction'] ?? 'asc'),
 ];
 
+$exportQuery = http_build_query([
+    'search' => $filters['search'],
+    'category_id' => $filters['category_id'],
+    'status' => $filters['status'],
+    'sort' => $filters['sort'],
+    'direction' => $filters['direction'],
+]);
+
 $page = filter_var(
     $_GET['page'] ?? 1,
     FILTER_VALIDATE_INT
@@ -93,8 +101,23 @@ require_once dirname(__DIR__)
 
     </div>
 
+    <div class="d-flex flex-wrap gap-2">
 
-    <div>
+        <a href="<?= e(
+            base_url('/public/materials/export_excel.php')
+            . '?' . $exportQuery
+        ) ?>" class="btn btn-outline-success">
+            <i class="fa-solid fa-file-excel me-1"></i>
+            Export Excel
+        </a>
+
+        <a href="<?= e(
+            base_url('/public/materials/export_pdf.php')
+            . '?' . $exportQuery
+        ) ?>" class="btn btn-outline-danger">
+            <i class="fa-solid fa-file-pdf me-1"></i>
+            Export PDF
+        </a>
 
         <a href="<?= e(
             base_url('/public/materials/create.php')

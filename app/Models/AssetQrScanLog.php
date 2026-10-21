@@ -101,6 +101,48 @@ class AssetQrScanLog
     }
 
     /**
+     * Retrieve all QR scan history matching the supplied filters.
+     * QR tokens are deliberately excluded from monitoring results.
+     */
+    public function getAllScans(array $filters = []): array
+    {
+        [$whereSql, $params] = $this->buildScanFilters($filters);
+
+        $sql = '
+            SELECT
+                logs.id AS scan_log_id,
+                logs.asset_qr_code_id,
+                logs.asset_id,
+                logs.scanned_by,
+                logs.scanned_at,
+                assets.asset_tag,
+                assets.asset_name,
+                users.first_name,
+                users.last_name,
+                users.username
+            FROM asset_qr_scan_logs AS logs
+            INNER JOIN assets
+                ON assets.id = logs.asset_id
+            INNER JOIN asset_qr_codes AS qr
+                ON qr.id = logs.asset_qr_code_id
+            LEFT JOIN users
+                ON users.id = logs.scanned_by
+            ' . $whereSql . '
+            ORDER BY logs.scanned_at DESC, logs.id DESC
+        ';
+
+        $stmt = Database::connection()->prepare($sql);
+
+        foreach ($params as $name => $value) {
+            $stmt->bindValue($name, $value, PDO::PARAM_STR);
+        }
+
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Count QR scans matching the supplied filters.
      */
     public function countScans(array $filters = []): int

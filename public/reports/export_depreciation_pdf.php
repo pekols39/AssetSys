@@ -119,7 +119,7 @@ try {
         <title>Depreciation Report</title>
         <style>
             @page {
-                margin: 18px 22px 22px 22px;
+                margin: 0px 22px 22px 22px;
             }
 
             body {
@@ -130,12 +130,17 @@ try {
 
             .company-header {
                 width: 100%;
-                margin-bottom: 12px;
+                margin: 0 0 12px 0;
+                padding: 0;
+                line-height: 0;
             }
 
             .company-header img {
-                width: 100%;
+                display: block;
+                width: calc(100% + 44px);
                 height: auto;
+                margin: 0 -22px;
+                padding: 0;
             }
 
             h1 {

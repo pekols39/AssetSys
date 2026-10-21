@@ -488,8 +488,15 @@ class AssetReportService
      */
     public function getDepreciationScheduleOverview(
         ?int $limit = null,
-        int $offset = 0
+        int $offset = 0,
+        ?string $status = null
     ): array {
+
+        $allowedStatuses = [
+            'active',
+            'completed',
+            'cancelled',
+        ];
 
         if (
             $offset < 0
@@ -497,9 +504,13 @@ class AssetReportService
                 $limit !== null
                 && ($limit < 1 || $limit > 100)
             )
+            || (
+                $status !== null
+                && !in_array($status, $allowedStatuses, true)
+            )
         ) {
             throw new \InvalidArgumentException(
-                'Invalid depreciation schedule pagination settings.'
+                'Invalid depreciation schedule filter or pagination settings.'
             );
         }
 
@@ -582,7 +593,13 @@ class AssetReportService
                 ON entry_summary.depreciation_schedule_id = ds.id
 
             WHERE a.department_id = :department_id
+            ";
 
+        if ($status !== null) {
+            $sql .= " AND ds.schedule_status = :schedule_status";
+        }
+
+        $sql .= "
             ORDER BY
                 CASE ds.schedule_status
                     WHEN 'active' THEN 0
@@ -617,6 +634,14 @@ class AssetReportService
             PDO::PARAM_INT
         );
 
+        if ($status !== null) {
+            $stmt->bindValue(
+                ':schedule_status',
+                $status,
+                PDO::PARAM_STR
+            );
+        }
+
         if ($limit !== null) {
             $stmt->bindValue(
                 ':limit',
@@ -634,6 +659,63 @@ class AssetReportService
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Count depreciation schedules for the current department,
+     * optionally filtered by schedule status.
+     */
+    public function countDepreciationScheduleOverview(
+        ?string $status = null
+    ): int {
+        $allowedStatuses = [
+            'active',
+            'completed',
+            'cancelled',
+        ];
+
+        if (
+            $status !== null
+            && !in_array($status, $allowedStatuses, true)
+        ) {
+            throw new \InvalidArgumentException(
+                'Invalid depreciation schedule status.'
+            );
+        }
+
+        $sql = "
+        SELECT COUNT(ds.id)
+        FROM depreciation_schedules ds
+        INNER JOIN assets a
+            ON a.id = ds.asset_id
+        INNER JOIN asset_categories c
+            ON c.id = a.category_id
+        WHERE a.department_id = :department_id
+    ";
+
+        if ($status !== null) {
+            $sql .= " AND ds.schedule_status = :schedule_status";
+        }
+
+        $stmt = $this->db->prepare($sql);
+
+        $stmt->bindValue(
+            ':department_id',
+            $this->departmentId,
+            PDO::PARAM_INT
+        );
+
+        if ($status !== null) {
+            $stmt->bindValue(
+                ':schedule_status',
+                $status,
+                PDO::PARAM_STR
+            );
+        }
+
+        $stmt->execute();
+
+        return (int) $stmt->fetchColumn();
     }
 
     /**

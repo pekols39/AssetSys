@@ -69,7 +69,19 @@ if (
     $requestedPage = 1;
 }
 
-$perPage = 10;
+$allowedPerPage = [10, 25, 50, 100];
+
+$requestedPerPage = filter_var(
+    $_GET['per_page'] ?? 10,
+    FILTER_VALIDATE_INT
+);
+
+$perPage = (
+    $requestedPerPage !== false
+    && in_array($requestedPerPage, $allowedPerPage, true)
+)
+    ? $requestedPerPage
+    : 10;
 
 /*
  * Calculate summary totals across ALL matching assets.
@@ -142,7 +154,10 @@ $pageUrl = static fn(int $targetPage): string =>
         . http_build_query(
             array_merge(
                 $filters,
-                ['page' => $targetPage]
+                [
+                    'per_page' => $perPage,
+                    'page' => $targetPage,
+                ]
             )
         )
     );
@@ -154,7 +169,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
 ?>
 
-<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <div class="text-muted small mb-1">Reports &amp; Analytics</div>
 
@@ -163,6 +178,26 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         <p class="text-muted mb-0">
             Review company assets, current status, locations, and book values.
         </p>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 align-self-center">
+        <a
+            href="<?= e(base_url('/public/reports/export_excel.php?' . http_build_query($filters))) ?>"
+            class="btn btn-outline-success"
+        >
+            <i class="fa-solid fa-file-excel me-1"></i>
+            Export Excel
+        </a>
+
+        <a
+            href="<?= e(base_url('/public/reports/export_pdf.php?' . http_build_query($filters))) ?>"
+            class="btn btn-outline-danger"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            <i class="fa-solid fa-file-pdf me-1"></i>
+            Export PDF
+        </a>
     </div>
 </div>
 
@@ -277,6 +312,20 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                 <?= $filters['location_id'] === (string) $location['id'] ? 'selected' : '' ?>
                             >
                                 <?= e($location['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-2">
+                    <label for="per_page" class="form-label">Rows Per Page</label>
+                    <select class="form-select" id="per_page" name="per_page">
+                        <?php foreach ([10, 25, 50, 100] as $pageSize): ?>
+                            <option
+                                value="<?= $pageSize ?>"
+                                <?= $perPage === $pageSize ? 'selected' : '' ?>
+                            >
+                                <?= $pageSize ?> rows
                             </option>
                         <?php endforeach; ?>
                     </select>
