@@ -22,7 +22,7 @@ if ($currentUser === null) {
 
 $assetService = new AssetService();
 
-if (!$authorization->canAccessAssetMaterialAreas()) {
+if (!$authorization->canAccessAssetOperations()) {
     http_response_code(403);
     exit('You do not have permission to view the asset register.');
 }

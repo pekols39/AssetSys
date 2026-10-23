@@ -15,7 +15,7 @@ AuthMiddleware::handle();
 
 $authorization = new AuthorizationService();
 
-if (!$authorization->canAccessAssetMaterialAreas()) {
+if (!$authorization->canAccessAssetOperations()) {
     http_response_code(403);
 
     echo json_encode([
@@ -38,9 +38,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    Csrf::validate(
-        $_POST['csrf_token'] ?? null
-    );
+    if (!Csrf::validate($_POST[CSRF_TOKEN_NAME] ?? null)) {
+        http_response_code(419);
+
+        echo json_encode([
+            'success' => false,
+            'message' => 'Invalid or expired CSRF token.',
+        ]);
+
+        exit;
+    }
 
     $materialId = (int) (
         $_POST['id'] ?? 0

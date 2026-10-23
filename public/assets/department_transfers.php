@@ -21,7 +21,7 @@ if ($user === null) {
 
 $roleName = (string) ($user['role_name'] ?? '');
 
-if (!$authorization->canAccessAssetMaterialAreas()) {
+if (!$authorization->canAccessAssetOperations()) {
     http_response_code(403);
     exit('You are not authorized to access this page.');
 }
@@ -32,7 +32,12 @@ if ((int) ($user['department_id'] ?? 0) <= 0) {
 }
 
 $transferService = new AssetDepartmentTransferService();
+
 $departmentHistory = $transferService->getDepartmentHistory();
+
+$pendingRequests = $roleName === 'Asset Manager'
+    ? $transferService->getPendingRequests()
+    : [];
 
 $totalTransfers = count($departmentHistory);
 
@@ -67,12 +72,26 @@ $pageScripts = ['js/department-transfers.js'];
 require_once dirname(__DIR__) . '/includes/app_header.php';
 ?>
 
+<?php if ($roleName === 'Asset Manager'): ?>
+    <form
+        id="departmentTransferDecisionForm"
+        action="<?= e(base_url('/public/assets/department_transfer_decision_process.php')) ?>"
+        method="post"
+        class="d-none"
+    >
+        <?= \App\Helpers\Csrf::field() ?>
+        <input type="hidden" name="request_id" value="">
+        <input type="hidden" name="decision" value="">
+        <input type="hidden" name="review_notes" value="">
+    </form>
+<?php endif; ?>
+
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <div class="text-muted small mb-1">Asset Lifecycle</div>
         <h1 class="h3 mb-1">Department Transfers</h1>
         <p class="text-muted mb-0">
-            Transfer assets between departments immediately and review the transfer history.
+            Submit department-transfer requests and track their approval status.
         </p>
     </div>
 
@@ -129,6 +148,94 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     </div>
 </div>
 
+<?php if ($roleName === 'Asset Manager'): ?>
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+            <h2 class="h5 mb-0">
+                <i class="fa-solid fa-clipboard-check me-2 text-teal"></i>
+                Pending Department-Transfer Requests
+                <span class="badge text-bg-warning ms-2">
+                    <?= e((string) count($pendingRequests)) ?>
+                </span>
+            </h2>
+        </div>
+
+        <div class="card-body">
+            <?php if ($pendingRequests === []): ?>
+                <div class="text-center text-muted py-4">
+                    <i class="fa-regular fa-circle-check fs-2 mb-3"></i>
+                    <p class="mb-0">
+                        There are no pending department-transfer requests.
+                    </p>
+                </div>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>From Department</th>
+                                <th>To Department</th>
+                                <th>Requester</th>
+                                <th>Reason</th>
+                                <th>Requested</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($pendingRequests as $request): ?>
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">
+                                            <?= e($request['asset_code'] ?? '') ?>
+                                        </div>
+                                        <div class="small text-muted">
+                                            <?= e($request['asset_name'] ?? '') ?>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <?= e($request['source_department_name'] ?? '') ?>
+                                    </td>
+                                    <td>
+                                        <?= e($request['destination_department_name'] ?? '') ?>
+                                    </td>
+                                    <td>
+                                        <?= e(
+                                            trim(
+                                                (string) ($request['requester_first_name'] ?? '')
+                                                . ' '
+                                                . (string) ($request['requester_last_name'] ?? '')
+                                            ) ?: ($request['requester_username'] ?? 'Unknown user')
+                                        ) ?>
+                                    </td>
+                                    <td class="text-wrap">
+                                        <?= e($request['request_reason'] ?? '') ?>
+                                    </td>
+                                    <td class="text-nowrap">
+                                        <?= e($request['requested_at'] ?? '') ?>
+                                    </td>
+                                    <td class="text-nowrap">
+                                        <button type="button" class="btn btn-sm btn-success js-department-transfer-decision"
+                                            data-request-id="<?= e((string) ($request['id'] ?? '')) ?>" data-decision="approve">
+                                            <i class="fa-solid fa-check me-1"></i>
+                                            Approve
+                                        </button>
+
+                                        <button type="button" class="btn btn-sm btn-outline-danger js-department-transfer-decision"
+                                            data-request-id="<?= e((string) ($request['id'] ?? '')) ?>" data-decision="reject">
+                                            <i class="fa-solid fa-xmark me-1"></i>
+                                            Reject
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+<?php endif; ?>
 
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white py-3">

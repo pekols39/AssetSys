@@ -136,7 +136,7 @@ try {
     echo json_encode([
         'success' => true,
         'message' =>
-            'Department transfer completed successfully.',
+            'Department-transfer request submitted successfully. It is pending Asset Manager approval.',
         'transfer_id' => $requestId,
     ]);
 

@@ -19,7 +19,7 @@ if ($user === null) {
 }
 
 
-if (!$authorization->canAccessAssetMaterialAreas()) {
+if (!$authorization->canAccessAssetOperations()) {
     http_response_code(403);
     exit('Access denied.');
 }
@@ -116,7 +116,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         <div class="text-muted small mb-1">Asset Lifecycle</div>
         <h1 class="h3 mb-1">Transfer Department</h1>
         <p class="text-muted mb-0">
-            Transfer asset responsibility immediately to another department.
+            Submit a department-transfer request for Asset Manager approval.
         </p>
     </div>
 
@@ -216,9 +216,9 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
             <div class="alert alert-info">
                 <i class="fa-solid fa-circle-info me-2"></i>
-                The asset's department will be updated immediately after a successful
-                transfer. Its current location and employee assignment will remain
-                unchanged. The transfer will be recorded in the history.
+                Your request will remain pending until the Asset Manager reviews it.
+                The asset's department will not change unless the request is approved.
+                Its current location and employee assignment will remain unchanged.
             </div>
 
             <div class="d-flex flex-wrap justify-content-end gap-2">
@@ -229,7 +229,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                 <button type="submit" class="btn btn-primary" id="submitDepartmentTransferButton">
                     <i class="fa-solid fa-paper-plane me-1"></i>
-                    Transfer Asset
+                    Submit Transfer Request
                 </button>
             </div>
         </form>

@@ -21,7 +21,7 @@ if ($currentUser === null) {
     exit('Authentication required.');
 }
 
-if (!$authorization->canAccessAssetMaterialAreas()) {
+if (!$authorization->canAccessAssetOperations()) {
     http_response_code(403);
     exit('You do not have permission to manage asset QR codes.');
 }

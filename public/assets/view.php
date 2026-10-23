@@ -24,7 +24,7 @@ AuthMiddleware::handle();
 
 $authorization = new AuthorizationService();
 
-if (!$authorization->canAccessAssetMaterialAreas()) {
+if (!$authorization->canAccessAssetOperations()) {
     http_response_code(403);
     exit('You do not have permission to view assets.');
 }
@@ -65,7 +65,7 @@ if (!$authorization->canAccessAsset((int) $asset['id'])) {
 
 
 $canRequestDepartmentTransfer =
-    $authorization->canAccessAssetMaterialAreas()
+    $authorization->canAccessAssetOperations()
     && empty($asset['assigned_to_user_id'])
     && !in_array(
         strtolower(trim((string) ($asset['status_name'] ?? ''))),
@@ -956,11 +956,23 @@ function displayDate(
         <?php endif; ?>
 
         <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-white">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h2 class="h5 mb-0">
                     <i class="fa-solid fa-building-circle-arrow-right text-teal me-2"></i>
                     Department Transfer History
                 </h2>
+
+                <?php if ($canRequestDepartmentTransfer): ?>
+                    <a href="<?= e(
+                        base_url(
+                            '/public/assets/department_transfer_request.php?id='
+                            . (int) $asset['id']
+                        )
+                    ) ?>" class="btn btn-outline-primary">
+                        <i class="fa-solid fa-paper-plane me-1"></i>
+                        Transfer Department
+                    </a>
+                <?php endif; ?>
             </div>
 
             <div class="card-body">
@@ -2736,152 +2748,155 @@ function displayDate(
 
         <?php endif; ?>
 
-        <div class="card shadow-sm mb-4">
+        <?php if ($authorization->canAccessAssetMaterialAreas()): ?>
 
-            <div class="card-header bg-white">
-                <h2 class="h5 mb-0">
-                    <i class="fa-solid fa-right-left me-2 text-teal"></i>
-                    Transfer Asset
-                </h2>
+            <div class="card shadow-sm mb-4">
+
+                <div class="card-header bg-white">
+                    <h2 class="h5 mb-0">
+                        <i class="fa-solid fa-right-left me-2 text-teal"></i>
+                        Transfer Asset
+                    </h2>
+                </div>
+
+                <div class="card-body">
+
+                    <form id="assetTransferForm" method="post" action="<?= e(
+                        base_url(
+                            '/public/assets/transfer_process.php'
+                        )
+                    ) ?>" data-view-url="<?= e(
+                         base_url(
+                             '/public/assets/view.php?id='
+                             . (int) $asset['id']
+                         )
+                     ) ?>">
+
+                        <?= Csrf::field() ?>
+
+                        <input type="hidden" name="asset_id" value="<?= (int) $asset['id'] ?>">
+
+                        <div class="row g-3">
+
+                            <div class="col-md-6">
+                                <label for="destination_department_name" class="form-label">
+                                    Destination Department
+                                </label>
+
+                                <input type="text" class="form-control" id="destination_department_name"
+                                    name="destination_department_name" maxlength="150"
+                                    placeholder="Enter destination department" />
+
+                                <div class="form-text">
+                                    Leave blank to keep the current department. Enter a new name to create a department if
+                                    it does not already exist.
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="destination_location_name" class="form-label">
+                                    Destination Location
+                                    <span class="text-danger">*</span>
+                                </label>
+
+                                <input type="text" class="form-control" id="destination_location_name"
+                                    name="destination_location_name" maxlength="150"
+                                    placeholder="Enter destination location" required />
+
+                                <div class="form-text">
+                                    Enter an existing location or a new location name.
+                                </div>
+                            </div>
+
+
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    Current Assignee
+                                </label>
+
+                                <input type="text" class="form-control" value="<?= e(
+                                    trim((string) ($asset['assigned_to_name'] ?? '')) !== ''
+                                    ? (string) $asset['assigned_to_name']
+                                    : 'Unassigned'
+                                ) ?>" readonly />
+
+                                <div class="form-text">
+                                    Shows the employee currently assigned to this asset.
+                                </div>
+
+                                <div class="alert alert-info mt-2 mb-0" role="note">
+                                    <i class="fa-solid fa-circle-info me-1"></i>
+                                    <strong>Before transferring:</strong>
+                                    If this asset is currently assigned to an employee, return it first
+                                    using the <strong>Return Asset</strong> action. Once returned, you
+                                    can proceed with the transfer.
+                                </div>
+                            </div>
+
+
+                            <div class="col-md-6">
+                                <label for="assigned_to_name" class="form-label">
+                                    Assign To
+                                </label>
+
+                                <input type="text" class="form-control" id="assigned_to_name" name="assigned_to_name"
+                                    maxlength="150" placeholder="Enter future employee name" />
+
+                                <div class="form-text">
+                                    Optional. Enter the employee who should receive the asset after the transfer.
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+
+                                <label for="transfer_reason" class="form-label">
+                                    Transfer Reason
+                                </label>
+
+                                <input type="text" class="form-control" id="transfer_reason" name="transfer_reason"
+                                    maxlength="255" placeholder="e.g. Department transfer">
+
+                            </div>
+
+                            <div class="col-md-6">
+
+                                <label for="transfer_reference" class="form-label">
+                                    Transfer Reference
+                                </label>
+
+                                <input type="text" class="form-control" id="transfer_reference" name="transfer_reference"
+                                    maxlength="100" placeholder="Optional reference number">
+
+                            </div>
+
+                            <div class="col-12">
+
+                                <label for="transfer_remarks" class="form-label">
+                                    Remarks
+                                </label>
+
+                                <textarea class="form-control" id="transfer_remarks" name="remarks" rows="3"
+                                    placeholder="Optional transfer remarks"></textarea>
+
+                            </div>
+
+                            <div class="col-12">
+
+                                <button type="submit" class="btn btn-primary" id="transferAssetButton">
+                                    <i class="fa-solid fa-right-left me-1"></i>
+                                    Transfer Asset
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </form>
+
+                </div>
+
             </div>
-
-            <div class="card-body">
-
-                <form id="assetTransferForm" method="post" action="<?= e(
-                    base_url(
-                        '/public/assets/transfer_process.php'
-                    )
-                ) ?>" data-view-url="<?= e(
-                     base_url(
-                         '/public/assets/view.php?id='
-                         . (int) $asset['id']
-                     )
-                 ) ?>">
-
-                    <?= Csrf::field() ?>
-
-                    <input type="hidden" name="asset_id" value="<?= (int) $asset['id'] ?>">
-
-                    <div class="row g-3">
-
-                        <div class="col-md-6">
-                            <label for="destination_department_name" class="form-label">
-                                Destination Department
-                            </label>
-
-                            <input type="text" class="form-control" id="destination_department_name"
-                                name="destination_department_name" maxlength="150"
-                                placeholder="Enter destination department" />
-
-                            <div class="form-text">
-                                Leave blank to keep the current department. Enter a new name to create a department if
-                                it does not already exist.
-                            </div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label for="destination_location_name" class="form-label">
-                                Destination Location
-                                <span class="text-danger">*</span>
-                            </label>
-
-                            <input type="text" class="form-control" id="destination_location_name"
-                                name="destination_location_name" maxlength="150"
-                                placeholder="Enter destination location" required />
-
-                            <div class="form-text">
-                                Enter an existing location or a new location name.
-                            </div>
-                        </div>
-
-
-                        <div class="col-md-6">
-                            <label class="form-label">
-                                Current Assignee
-                            </label>
-
-                            <input type="text" class="form-control" value="<?= e(
-                                trim((string) ($asset['assigned_to_name'] ?? '')) !== ''
-                                ? (string) $asset['assigned_to_name']
-                                : 'Unassigned'
-                            ) ?>" readonly />
-
-                            <div class="form-text">
-                                Shows the employee currently assigned to this asset.
-                            </div>
-
-                            <div class="alert alert-info mt-2 mb-0" role="note">
-                                <i class="fa-solid fa-circle-info me-1"></i>
-                                <strong>Before transferring:</strong>
-                                If this asset is currently assigned to an employee, return it first
-                                using the <strong>Return Asset</strong> action. Once returned, you
-                                can proceed with the transfer.
-                            </div>
-                        </div>
-
-
-                        <div class="col-md-6">
-                            <label for="assigned_to_name" class="form-label">
-                                Assign To
-                            </label>
-
-                            <input type="text" class="form-control" id="assigned_to_name" name="assigned_to_name"
-                                maxlength="150" placeholder="Enter future employee name" />
-
-                            <div class="form-text">
-                                Optional. Enter the employee who should receive the asset after the transfer.
-                            </div>
-                        </div>
-
-                        <div class="col-md-6">
-
-                            <label for="transfer_reason" class="form-label">
-                                Transfer Reason
-                            </label>
-
-                            <input type="text" class="form-control" id="transfer_reason" name="transfer_reason"
-                                maxlength="255" placeholder="e.g. Department transfer">
-
-                        </div>
-
-                        <div class="col-md-6">
-
-                            <label for="transfer_reference" class="form-label">
-                                Transfer Reference
-                            </label>
-
-                            <input type="text" class="form-control" id="transfer_reference" name="transfer_reference"
-                                maxlength="100" placeholder="Optional reference number">
-
-                        </div>
-
-                        <div class="col-12">
-
-                            <label for="transfer_remarks" class="form-label">
-                                Remarks
-                            </label>
-
-                            <textarea class="form-control" id="transfer_remarks" name="remarks" rows="3"
-                                placeholder="Optional transfer remarks"></textarea>
-
-                        </div>
-
-                        <div class="col-12">
-
-                            <button type="submit" class="btn btn-primary" id="transferAssetButton">
-                                <i class="fa-solid fa-right-left me-1"></i>
-                                Transfer Asset
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                </form>
-
-            </div>
-
-        </div>
+        <?php endif; ?>
 
         <!-- Purchase Information -->
 

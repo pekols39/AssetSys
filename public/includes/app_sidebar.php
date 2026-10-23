@@ -71,7 +71,7 @@ $isAdministrationSettings = str_ends_with(
 
     <?php if (
         isset($authorization)
-        && $authorization->canAccessAssetMaterialAreas()
+        && $authorization->canAccessAssetOperations()
     ): ?>
 
         <div class="app-sidebar-section">
@@ -158,6 +158,13 @@ $isAdministrationSettings = str_ends_with(
             </nav>
         </div>
 
+    <?php endif; ?>
+
+    <?php if (
+        isset($authorization)
+        && $authorization->canAccessAssetMaterialAreas()
+    ): ?>
+
         <div class="app-sidebar-section">
             <div class="app-sidebar-section-title">
                 REPORTS
@@ -206,7 +213,12 @@ $isAdministrationSettings = str_ends_with(
             </nav>
         </div>
 
-    <?php elseif ($roleName === 'Administrator'): ?>
+    <?php endif; ?>
+
+    <?php if (
+        isset($authorization)
+        && $authorization->isAdministrator()
+    ): ?>
 
         <div class="app-sidebar-section">
 

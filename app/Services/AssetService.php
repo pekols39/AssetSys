@@ -55,7 +55,7 @@ class AssetService
             );
         }
 
-        if (!$authorization->canAccessAssetMaterialAreas()) {
+        if (!$authorization->canAccessAssetOperations()) {
             throw new RuntimeException(
                 'You do not have permission to create assets.'
             );
@@ -530,7 +530,7 @@ class AssetService
         }
 
 
-        if (!$authorization->canAccessAssetMaterialAreas()) {
+        if (!$authorization->canAccessAssetOperations()) {
             throw new RuntimeException(
                 'You do not have permission to edit assets.'
             );

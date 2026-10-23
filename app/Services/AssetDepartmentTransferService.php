@@ -29,12 +29,10 @@ class AssetDepartmentTransferService
         $this->authorization = new AuthorizationService();
     }
 
-
     /**
-     * Transfer an asset to another department immediately.
+     * Submit a department-transfer request for manager approval.
      *
-     * The asset update and completed-history record are committed
-     * together, or both are rolled back if an operation fails.
+     * The asset's department is not changed when a request is submitted.
      */
     public function requestTransfer(
         int $assetId,
@@ -73,7 +71,10 @@ class AssetDepartmentTransferService
             );
         }
 
-        $this->requireActor($requestedBy, []);
+        $this->requireActor(
+            $requestedBy,
+            ['Asset Manager', 'Property Custodian']
+        );
 
         $this->db->beginTransaction();
 
@@ -90,36 +91,51 @@ class AssetDepartmentTransferService
 
             if ($sourceDepartmentId <= 0) {
                 throw new RuntimeException(
-                    'The asset must have a current responsible department before it can be transferred.'
+                    'The asset must have a current responsible department before a transfer can be requested.'
                 );
             }
 
-            $sourceDepartmentStmt = $this->db->prepare(
-                'SELECT name
-                FROM departments
-                WHERE id = :department_id
-                LIMIT 1'
+            $sourceStmt = $this->db->prepare(
+                'SELECT id
+                 FROM departments
+                 WHERE id = :department_id
+                   AND is_active = 1
+                 LIMIT 1
+                 FOR UPDATE'
             );
 
-            $sourceDepartmentStmt->execute([
+            $sourceStmt->execute([
                 'department_id' => $sourceDepartmentId,
             ]);
 
-            if ($sourceDepartmentStmt->fetchColumn() === false) {
+            if ($sourceStmt->fetchColumn() === false) {
                 throw new RuntimeException(
                     'The asset’s current department does not exist or is inactive.'
                 );
             }
 
-            /*
-             * Resolve an existing active destination department.
-             * Departments are never created by a transfer.
-             * This lookup occurs inside the transfer transaction.
-             */
-            $destinationDepartmentId =
-                $this->resolveExistingDestinationDepartment(
-                    $destinationDepartmentName
+            $destinationStmt = $this->db->prepare(
+                'SELECT id, name
+                 FROM departments
+                 WHERE name = :department_name
+                   AND is_active = 1
+                 LIMIT 1
+                 FOR UPDATE'
+            );
+
+            $destinationStmt->execute([
+                'department_name' => $destinationDepartmentName,
+            ]);
+
+            $destination = $destinationStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$destination) {
+                throw new RuntimeException(
+                    'Select an existing active destination department.'
                 );
+            }
+
+            $destinationDepartmentId = (int) $destination['id'];
 
             if ($destinationDepartmentId === $sourceDepartmentId) {
                 throw new RuntimeException(
@@ -128,71 +144,50 @@ class AssetDepartmentTransferService
             }
 
             /*
-             * Use the actual department name in the transfer history,
-             * rather than relying on the user's capitalization.
+             * Prevent multiple outstanding requests for the same asset.
+             * The asset row is already locked within this transaction.
              */
-            $destinationNameStmt = $this->db->prepare(
-                'SELECT name
-                    FROM departments
-                    WHERE id = :department_id
-                    LIMIT 1'
+            $pendingStmt = $this->db->prepare(
+                "SELECT id
+                 FROM asset_department_transfers
+                 WHERE asset_id = :asset_id
+                   AND request_status = 'pending'
+                 LIMIT 1
+                 FOR UPDATE"
             );
 
-            $destinationNameStmt->execute([
-                'department_id' => $destinationDepartmentId,
+            $pendingStmt->execute([
+                'asset_id' => $assetId,
             ]);
 
-            $canonicalDestinationName =
-                $destinationNameStmt->fetchColumn();
-
-            if ($canonicalDestinationName === false) {
+            if ($pendingStmt->fetchColumn() !== false) {
                 throw new RuntimeException(
-                    'The destination department does not exist or is inactive.'
+                    'This asset already has a pending department-transfer request.'
                 );
             }
 
             /*
-             * Update only department ownership.
-             * Location and employee assignment remain unchanged.
+             * Record the request only. Do not update assets.department_id
+             * until the Asset Manager approves the request.
              */
-            $assetUpdate = $this->db->prepare(
-                'UPDATE assets
-                 SET department_id = :destination_department_id,
-                     updated_at = CURRENT_TIMESTAMP
-                 WHERE id = :asset_id
-                   AND department_id = :source_department_id'
-            );
-
-            $assetUpdate->execute([
-                'destination_department_id' => $destinationDepartmentId,
-                'asset_id' => $assetId,
-                'source_department_id' => $sourceDepartmentId,
-            ]);
-
-            if ($assetUpdate->rowCount() !== 1) {
-                throw new RuntimeException(
-                    'Unable to update the asset department. No transfer was completed.'
-                );
-            }
-
-            $transferId = $this->transferModel->createCompletedTransfer(
+            $requestId = $this->transferModel->createPendingRequest(
                 $assetId,
                 $sourceDepartmentId,
                 $destinationDepartmentId,
-                (string) $canonicalDestinationName,
+                (string) $destination['name'],
                 $requestedBy,
                 $requestReason
             );
 
-            if ($transferId <= 0) {
+            if ($requestId <= 0) {
                 throw new RuntimeException(
-                    'Unable to record the completed department transfer.'
+                    'Unable to record the department-transfer request.'
                 );
             }
 
             $this->db->commit();
 
-            return $transferId;
+            return $requestId;
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
@@ -205,32 +200,251 @@ class AssetDepartmentTransferService
 
 
     /**
-     * The application no longer uses an approval workflow
-     * for department transfers.
+     * Approve a pending request and update the asset's department
+     * within the same transaction.
      */
     public function approve(
         int $requestId,
         int $reviewedBy,
         ?string $reviewNotes = null
     ): void {
-        throw new RuntimeException(
-            'Department transfers are completed immediately. Approval is no longer available.'
+        if ($requestId <= 0) {
+            throw new RuntimeException(
+                'Invalid department-transfer request.'
+            );
+        }
+
+        if (mb_strlen(trim((string) $reviewNotes)) > 500) {
+            throw new RuntimeException(
+                'Review notes must not exceed 500 characters.'
+            );
+        }
+
+        $this->requireActor(
+            $reviewedBy,
+            ['Asset Manager']
         );
+
+        $this->db->beginTransaction();
+
+        try {
+            $request = $this->transferModel->findByIdForUpdate(
+                $requestId
+            );
+
+            if (!$request) {
+                throw new RuntimeException(
+                    'Department-transfer request not found.'
+                );
+            }
+
+            if (($request['request_status'] ?? '') !== 'pending') {
+                throw new RuntimeException(
+                    'This request has already been reviewed or is no longer pending.'
+                );
+            }
+
+            $assetId = (int) ($request['asset_id'] ?? 0);
+
+            $asset = $this->assetModel->findByIdForUpdate(
+                $assetId
+            );
+
+            if (!$asset) {
+                throw new RuntimeException(
+                    'The asset associated with this request no longer exists.'
+                );
+            }
+
+            $this->assertAssetCanTransfer($asset);
+
+            $sourceDepartmentId = (int) (
+                $request['source_department_id'] ?? 0
+            );
+
+            $destinationDepartmentId = (int) (
+                $request['destination_department_id'] ?? 0
+            );
+
+            $currentDepartmentId = (int) (
+                $asset['department_id'] ?? 0
+            );
+
+            if (
+                $sourceDepartmentId <= 0
+                || $destinationDepartmentId <= 0
+                || $sourceDepartmentId === $destinationDepartmentId
+            ) {
+                throw new RuntimeException(
+                    'The transfer request contains invalid department details.'
+                );
+            }
+
+            if ($currentDepartmentId !== $sourceDepartmentId) {
+                throw new RuntimeException(
+                    'The asset’s current department has changed since this request was submitted. The request cannot be approved.'
+                );
+            }
+
+            $destinationStmt = $this->db->prepare(
+                'SELECT id
+                 FROM departments
+                 WHERE id = :department_id
+                   AND is_active = 1
+                 LIMIT 1
+                 FOR UPDATE'
+            );
+
+            $destinationStmt->execute([
+                'department_id' => $destinationDepartmentId,
+            ]);
+
+            if ($destinationStmt->fetchColumn() === false) {
+                throw new RuntimeException(
+                    'The destination department no longer exists or is inactive.'
+                );
+            }
+
+            $assetStmt = $this->db->prepare(
+                'UPDATE assets
+                 SET department_id = :department_id
+                 WHERE id = :asset_id
+                   AND department_id = :source_department_id'
+            );
+
+            $assetStmt->execute([
+                'department_id' => $destinationDepartmentId,
+                'asset_id' => $assetId,
+                'source_department_id' => $sourceDepartmentId,
+            ]);
+
+            if ($assetStmt->rowCount() !== 1) {
+                throw new RuntimeException(
+                    'The asset department was not updated. The request was not approved.'
+                );
+            }
+
+            $updated = $this->transferModel->updateDecision(
+                $requestId,
+                $reviewedBy,
+                'approved',
+                $reviewNotes !== null && trim($reviewNotes) !== ''
+                ? trim($reviewNotes)
+                : null
+            );
+
+            if (!$updated) {
+                throw new RuntimeException(
+                    'The request could not be marked as approved.'
+                );
+            }
+
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $e;
+        }
     }
 
-
     /**
-     * The application no longer uses a rejection workflow
-     * for department transfers.
+     * Reject a pending request without changing the asset's department.
      */
     public function reject(
         int $requestId,
         int $reviewedBy,
         ?string $reviewNotes = null
     ): void {
-        throw new RuntimeException(
-            'Department transfers are completed immediately. Rejection is no longer available.'
+        if ($requestId <= 0) {
+            throw new RuntimeException(
+                'Invalid department-transfer request.'
+            );
+        }
+
+        $reviewNotes = trim((string) $reviewNotes);
+
+        if ($reviewNotes === '') {
+            throw new RuntimeException(
+                'A reason is required when rejecting a transfer request.'
+            );
+        }
+
+        if (mb_strlen($reviewNotes) > 500) {
+            throw new RuntimeException(
+                'The rejection reason must not exceed 500 characters.'
+            );
+        }
+
+        $this->requireActor(
+            $reviewedBy,
+            ['Asset Manager']
         );
+
+        $this->db->beginTransaction();
+
+        try {
+            $request = $this->transferModel->findByIdForUpdate(
+                $requestId
+            );
+
+            if (!$request) {
+                throw new RuntimeException(
+                    'Department-transfer request not found.'
+                );
+            }
+
+            if (($request['request_status'] ?? '') !== 'pending') {
+                throw new RuntimeException(
+                    'This request has already been reviewed or is no longer pending.'
+                );
+            }
+
+            $updated = $this->transferModel->updateDecision(
+                $requestId,
+                $reviewedBy,
+                'rejected',
+                $reviewNotes
+            );
+
+            if (!$updated) {
+                throw new RuntimeException(
+                    'The request could not be marked as rejected.'
+                );
+            }
+
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+
+    /**
+     * Retrieve pending department-transfer requests for the
+     * designated Asset Manager's approval queue.
+     */
+    public function getPendingRequests(): array
+    {
+        $actorId = Auth::id();
+
+        if ($actorId === null) {
+            throw new RuntimeException(
+                'Authentication required.'
+            );
+        }
+
+        $this->requireActor(
+            (int) $actorId,
+            ['Asset Manager']
+        );
+
+        return $this->transferModel->getPendingRequests();
     }
 
     /**
@@ -242,12 +456,23 @@ class AssetDepartmentTransferService
         $actorId = Auth::id();
 
         if ($actorId === null) {
-            throw new RuntimeException('Authentication required.');
+            throw new RuntimeException(
+                'Authentication required.'
+            );
         }
 
-        $this->requireActor((int) $actorId, []);
+        $actor = $this->requireActor(
+            (int) $actorId,
+            ['Asset Manager', 'Property Custodian']
+        );
 
-        return $this->transferModel->getAllRequests();
+        if (($actor['role_name'] ?? '') === 'Asset Manager') {
+            return $this->transferModel->getAllRequests();
+        }
+
+        return $this->transferModel->getRequestsByRequester(
+            (int) $actorId
+        );
     }
 
     /**
@@ -269,13 +494,25 @@ class AssetDepartmentTransferService
             throw new RuntimeException('Authentication required.');
         }
 
-        $this->requireActor((int) $actorId, []);
+        $actor = $this->requireActor(
+            (int) $actorId,
+            ['Asset Manager', 'Property Custodian']
+        );
 
         $request = $this->transferModel->findById($requestId);
 
         if (!$request) {
             throw new RuntimeException(
                 'Department transfer record not found.'
+            );
+        }
+
+        if (
+            ($actor['role_name'] ?? '') === 'Property Custodian'
+            && (int) ($request['requested_by'] ?? 0) !== (int) $actorId
+        ) {
+            throw new RuntimeException(
+                'You do not have permission to view this transfer request.'
             );
         }
 
@@ -301,7 +538,10 @@ class AssetDepartmentTransferService
             throw new RuntimeException('Authentication required.');
         }
 
-        $this->requireActor((int) $actorId, []);
+        $this->requireActor(
+            (int) $actorId,
+            ['Asset Manager', 'Property Custodian']
+        );
 
         $asset = $this->assetModel->findById($assetId);
 
@@ -313,13 +553,13 @@ class AssetDepartmentTransferService
     }
 
 
+
     /**
-     * Reload the authenticated user and enforce the department-transfer
-     * access policy.
+     * Reload the authenticated user and enforce the allowed role.
      *
-     * Only the active account named "manager" with the active
-     * "Asset Manager" role may use department transfers.
-     * Administrators and all other accounts are denied.
+     * Asset Manager actions are restricted to the active manager account.
+     * Property Custodian accounts may submit requests and view their
+     * own requests, but may not approve or reject transfers.
      */
     private function requireActor(
         int $providedUserId,
@@ -351,30 +591,37 @@ class AssetDepartmentTransferService
         $username = (string) ($user['username'] ?? '');
         $roleName = (string) ($user['role_name'] ?? '');
 
+        if (!in_array($roleName, $allowedRoles, true)) {
+            throw new RuntimeException(
+                'You do not have permission to perform this department-transfer action.'
+            );
+        }
+
         if (
-            $username !== 'manager'
-            || $roleName !== 'Asset Manager'
+            $roleName === 'Asset Manager'
+            && $username !== 'manager'
         ) {
             throw new RuntimeException(
-                'You do not have permission to perform this department transfer action.'
+                'Only the designated Asset Manager account may perform this action.'
             );
         }
 
         $roleStatusStmt = $this->db->prepare(
-            "SELECT r.is_active
-         FROM users u
-         INNER JOIN roles r ON r.id = u.role_id
-         WHERE u.id = :user_id
-           AND u.username = 'manager'
-           AND u.is_active = 1
-           AND u.account_status = 'active'
-           AND r.name = 'Asset Manager'
-           AND r.is_active = 1
-         LIMIT 1"
+            'SELECT r.is_active
+             FROM users u
+             INNER JOIN roles r ON r.id = u.role_id
+             WHERE u.id = :user_id
+               AND u.is_active = 1
+               AND u.account_status = :account_status
+               AND r.name = :role_name
+               AND r.is_active = 1
+             LIMIT 1'
         );
 
         $roleStatusStmt->execute([
             'user_id' => $providedUserId,
+            'account_status' => 'active',
+            'role_name' => $roleName,
         ]);
 
         if ($roleStatusStmt->fetchColumn() === false) {

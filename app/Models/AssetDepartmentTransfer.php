@@ -16,6 +16,167 @@ class AssetDepartmentTransfer
         $this->db = Database::connection();
     }
 
+    /**
+     * Create a pending department-transfer request.
+     *
+     * This method records the request only. It does not update the asset.
+     * The calling service must validate the asset and run this insert
+     * inside its transaction.
+     */
+    public function createPendingRequest(
+        int $assetId,
+        int $sourceDepartmentId,
+        int $destinationDepartmentId,
+        string $destinationDepartmentName,
+        int $requestedBy,
+        string $requestReason
+    ): int {
+        if (
+            $assetId <= 0
+            || $sourceDepartmentId <= 0
+            || $destinationDepartmentId <= 0
+            || $sourceDepartmentId === $destinationDepartmentId
+            || $requestedBy <= 0
+            || trim($destinationDepartmentName) === ''
+            || trim($requestReason) === ''
+        ) {
+            throw new \InvalidArgumentException(
+                'Invalid department-transfer request details.'
+            );
+        }
+
+        $stmt = $this->db->prepare(
+            "INSERT INTO asset_department_transfers (
+                asset_id,
+                source_department_id,
+                destination_department_id,
+                destination_department_name,
+                requested_by,
+                request_reason,
+                request_status,
+                reviewed_by,
+                reviewed_at,
+                review_notes
+            ) VALUES (
+                :asset_id,
+                :source_department_id,
+                :destination_department_id,
+                :destination_department_name,
+                :requested_by,
+                :request_reason,
+                'pending',
+                NULL,
+                NULL,
+                NULL
+            )"
+        );
+
+        $stmt->execute([
+            'asset_id' => $assetId,
+            'source_department_id' => $sourceDepartmentId,
+            'destination_department_id' => $destinationDepartmentId,
+            'destination_department_name' => trim(
+                $destinationDepartmentName
+            ),
+            'requested_by' => $requestedBy,
+            'request_reason' => trim($requestReason),
+        ]);
+
+        return (int) $this->db->lastInsertId();
+    }
+
+    /**
+     * Retrieve pending requests for Asset Manager review.
+     */
+    public function getPendingRequests(): array
+    {
+        $stmt = $this->db->prepare(
+            $this->detailsSelect()
+            . " WHERE t.request_status = 'pending'
+                ORDER BY t.requested_at ASC, t.id ASC"
+        );
+
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Retrieve requests submitted by one user.
+     */
+    public function getRequestsByRequester(
+        int $requesterId
+    ): array {
+        if ($requesterId <= 0) {
+            return [];
+        }
+
+        $stmt = $this->db->prepare(
+            $this->detailsSelect()
+            . ' WHERE t.requested_by = :requester_id
+                ORDER BY t.requested_at DESC, t.id DESC'
+        );
+
+        $stmt->execute([
+            'requester_id' => $requesterId,
+        ]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Record an approval or rejection.
+     *
+     * The calling service must run this within the same transaction
+     * as any corresponding asset update.
+     */
+    public function updateDecision(
+        int $requestId,
+        int $reviewedBy,
+        string $status,
+        ?string $reviewNotes = null
+    ): bool {
+        if (
+            $requestId <= 0
+            || $reviewedBy <= 0
+            || !in_array($status, ['approved', 'rejected'], true)
+        ) {
+            throw new \InvalidArgumentException(
+                'Invalid department-transfer decision.'
+            );
+        }
+
+        if (
+            $status === 'rejected'
+            && trim((string) $reviewNotes) === ''
+        ) {
+            throw new \InvalidArgumentException(
+                'A reason is required when rejecting a transfer request.'
+            );
+        }
+
+        $stmt = $this->db->prepare(
+            "UPDATE asset_department_transfers
+             SET request_status = :request_status,
+                 reviewed_by = :reviewed_by,
+                 reviewed_at = CURRENT_TIMESTAMP,
+                 review_notes = :review_notes,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :request_id
+               AND request_status = 'pending'"
+        );
+
+        $stmt->execute([
+            'request_status' => $status,
+            'reviewed_by' => $reviewedBy,
+            'review_notes' => $reviewNotes !== null
+                ? trim($reviewNotes)
+                : null,
+            'request_id' => $requestId,
+        ]);
+
+        return $stmt->rowCount() === 1;
+    }
 
     /**
      * Record a completed department transfer.

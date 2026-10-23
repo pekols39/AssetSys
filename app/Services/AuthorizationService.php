@@ -90,11 +90,19 @@ class AuthorizationService
         return $this->roleName() === self::OPERATIONAL_ROLE;
     }
 
+
+    /**
+     * Check whether the current active user has the Property Custodian role.
+     */
+    public function isPropertyCustodian(): bool
+    {
+        return $this->roleName() === 'Property Custodian';
+    }
+
     /**
      * Compatibility method for existing callers.
      *
-     * The Asset Custodian role has been retired.
-     * This method intentionally returns false.
+     * The old Asset Custodian role has been retired.
      */
     public function isAssetCustodian(): bool
     {
@@ -103,8 +111,7 @@ class AuthorizationService
 
     /**
      * Only the active account named "manager" with the Asset Manager
-     * role may access Assets, Department Transfers, Material Categories,
-     * and Materials.
+     * role may access the restricted manager-only areas.
      */
     public function canAccessAssetMaterialAreas(): bool
     {
@@ -117,6 +124,21 @@ class AuthorizationService
         return ($user['username'] ?? '') === self::OPERATIONAL_USERNAME
             && ($user['role_name'] ?? '') === self::OPERATIONAL_ROLE;
     }
+
+    /**
+     * Allow authorized Asset Manager and Property Custodian accounts
+     * to enter general asset-operational workflows.
+     *
+     * This does not grant access to manager-only reports, exports,
+     * or depreciation functions. Those must continue to use their
+     * manager-specific authorization checks.
+     */
+    public function canAccessAssetOperations(): bool
+    {
+        return $this->canAccessAssetMaterialAreas()
+            || $this->isPropertyCustodian();
+    }
+
 
     /**
      * Check whether the operational user may access a department.
@@ -142,7 +164,7 @@ class AuthorizationService
      */
     public function canAccessAsset(int $assetId): bool
     {
-        if ($assetId <= 0 || !$this->canAccessAssetMaterialAreas()) {
+        if ($assetId <= 0 || !$this->canAccessAssetOperations()) {
             return false;
         }
 

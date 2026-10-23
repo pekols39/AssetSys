@@ -23,7 +23,7 @@ if ($currentUser === null) {
 }
 
 // Preserve AssetSys's existing restricted-area permission.
-if (!$authorization->canAccessAssetMaterialAreas()) {
+if (!$authorization->canAccessAssetOperations()) {
     http_response_code(403);
     exit('You are not authorized to view asset details.');
 }

@@ -69,7 +69,7 @@ try {
         exit;
     }
 
-    if (!$authorization->canAccessAssetMaterialAreas()) {
+    if (!$authorization->canAccessAssetOperations()) {
         http_response_code(403);
 
         echo json_encode([

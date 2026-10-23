@@ -268,7 +268,8 @@ $stmt = $db->prepare(
      WHERE id = :role_id
        AND name IN (
             \'Administrator\',
-            \'Asset Manager\'
+            \'Asset Manager\',
+            \'Property Custodian\'
        )
      LIMIT 1'
 );
