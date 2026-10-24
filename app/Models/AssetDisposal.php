@@ -223,6 +223,7 @@ class AssetDisposal
         $stmt = $this->db->prepare(
             'INSERT INTO asset_disposals (
                 asset_id,
+                previous_status_id,
                 disposal_type,
                 disposal_reason,
                 description,
@@ -239,6 +240,7 @@ class AssetDisposal
                 remarks
             ) VALUES (
                 :asset_id,
+                :previous_status_id,
                 :disposal_type,
                 :disposal_reason,
                 :description,
@@ -259,6 +261,11 @@ class AssetDisposal
         $stmt->execute([
             'asset_id' =>
                 (int) $data['asset_id'],
+
+            'previous_status_id' =>
+                isset($data['previous_status_id'])
+                ? (int) $data['previous_status_id']
+                : null,
 
             'disposal_type' =>
                 $data['disposal_type'],
@@ -304,6 +311,40 @@ class AssetDisposal
         ]);
 
         return (int) $this->db->lastInsertId();
+    }
+    public function updateRejectionStatus(
+        int $id,
+        string $remarks
+    ): bool {
+        if ($id <= 0) {
+            return false;
+        }
+
+        $stmt = $this->db->prepare(
+            'UPDATE asset_disposals
+            SET
+                disposal_status = :disposal_status,
+                remarks = :remarks
+            WHERE
+                id = :id
+                AND disposal_status = :current_status'
+        );
+
+        $executed = $stmt->execute([
+            'id' => $id,
+
+            'disposal_status' =>
+                'cancelled',
+
+            'remarks' =>
+                $remarks,
+
+            'current_status' =>
+                'pending',
+        ]);
+
+        return $executed
+            && $stmt->rowCount() === 1;
     }
 
     public function update(

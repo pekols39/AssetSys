@@ -50,6 +50,12 @@ class AssetDisposalService
     ): int {
         $this->validateUser($createdBy);
 
+        if (!$this->authorization->isPropertyCustodian()) {
+            throw new RuntimeException(
+                'Only Property Custodians can request asset disposal.'
+            );
+        }
+
         $asset = $this->assetModel->findById($assetId);
 
         if (!$asset) {
@@ -188,6 +194,9 @@ class AssetDisposalService
                 $this->disposalModel->create([
                     'asset_id' =>
                         $assetId,
+
+                    'previous_status_id' =>
+                        (int) $asset['status_id'],
 
                     'disposal_type' =>
                         $disposalType,
@@ -395,6 +404,119 @@ class AssetDisposalService
         }
     }
 
+    public function reject(
+        int $disposalId,
+        int $rejectedBy,
+        string $rejectionReason
+    ): void {
+        $this->validateUser($rejectedBy);
+
+        $rejectionReason = trim($rejectionReason);
+
+        if ($rejectionReason === '') {
+            throw new RuntimeException(
+                'A rejection reason is required.'
+            );
+        }
+
+        $authenticatedUserId = Auth::id();
+
+        if (
+            $authenticatedUserId === null
+            || (int) $authenticatedUserId !== $rejectedBy
+        ) {
+            throw new RuntimeException(
+                'Invalid rejecting user.'
+            );
+        }
+
+        $disposal =
+            $this->disposalModel->findById($disposalId);
+
+        if (!$disposal) {
+            throw new RuntimeException(
+                'Disposal record not found.'
+            );
+        }
+
+        $asset =
+            $this->assetModel->findById(
+                (int) $disposal['asset_id']
+            );
+
+        if (!$asset) {
+            throw new RuntimeException(
+                'Asset not found.'
+            );
+        }
+
+        $this->authorizeAssetAccess($asset, true);
+
+        if (
+            (string) $disposal['disposal_status'] !== 'pending'
+        ) {
+            throw new RuntimeException(
+                'Only pending disposal requests can be rejected.'
+            );
+        }
+
+        if (
+            (int) $disposal['disposed_by'] === $rejectedBy
+        ) {
+            throw new RuntimeException(
+                'The person who created the disposal request cannot reject the same request.'
+            );
+        }
+
+        $existingRemarks = trim(
+            (string) ($disposal['remarks'] ?? '')
+        );
+
+        $rejectionNote =
+            'REJECTED by user ID '
+            . $rejectedBy
+            . ' on '
+            . date('Y-m-d H:i:s')
+            . '. Reason: '
+            . $rejectionReason;
+
+        $remarks = $existingRemarks !== ''
+            ? $existingRemarks . "\n\n" . $rejectionNote
+            : $rejectionNote;
+
+        $this->db->beginTransaction();
+
+        try {
+            $updated =
+                $this->disposalModel->updateRejectionStatus(
+                    $disposalId,
+                    $remarks
+                );
+
+            if (!$updated) {
+                throw new RuntimeException(
+                    'Unable to reject the disposal request.'
+                );
+            }
+
+            $this->restoreAssetStatus(
+                (int) $disposal['asset_id'],
+                isset($disposal['previous_status_id'])
+                ? (int) $disposal['previous_status_id']
+                : null
+            );
+
+            $this->db->commit();
+
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
     public function complete(
         int $disposalId,
         int $completedBy
@@ -423,10 +545,13 @@ class AssetDisposalService
             );
         }
 
-        $this->authorizeAssetAccess(
-            $asset,
-            true
-        );
+        if (!$this->authorization->isPropertyCustodian()) {
+            throw new RuntimeException(
+                'Only Property Custodians can complete approved disposal requests.'
+            );
+        }
+
+        $this->authorizeAssetAccess($asset);
 
         $authenticatedUserId = Auth::id();
 
@@ -553,18 +678,9 @@ class AssetDisposalService
         $currentStatus =
             (string) $disposal['disposal_status'];
 
-        if (
-            !in_array(
-                $currentStatus,
-                [
-                    'pending',
-                    'approved',
-                ],
-                true
-            )
-        ) {
+        if ($currentStatus !== 'pending') {
             throw new RuntimeException(
-                'Only pending or approved disposal requests can be cancelled.'
+                'Only pending disposal requests can be cancelled.'
             );
         }
 
@@ -579,9 +695,16 @@ class AssetDisposalService
             );
         }
 
-        $this->authorizeAssetAccess(
-            $asset
-        );
+        $this->authorizeAssetAccess($asset);
+
+        if (
+            !$this->authorization->isPropertyCustodian()
+            || (int) $disposal['disposed_by'] !== $cancelledBy
+        ) {
+            throw new RuntimeException(
+                'You can only cancel your own disposal request.'
+            );
+        }
 
         $this->db->beginTransaction();
 
@@ -642,7 +765,9 @@ class AssetDisposalService
 
             $this->restoreAssetStatus(
                 (int) $disposal['asset_id'],
-                $asset
+                isset($disposal['previous_status_id'])
+                ? (int) $disposal['previous_status_id']
+                : null
             );
 
             $this->db->commit();
@@ -669,17 +794,21 @@ class AssetDisposalService
             );
         }
 
-        if (!$this->authorization->canAccessAssetMaterialAreas()) {
-            throw new RuntimeException(
-                $managerOnly
-                ? 'Only the authorized Asset Manager account can perform this disposal action.'
-                : 'You do not have permission to manage asset disposal.'
-            );
+        if ($managerOnly) {
+            if (!$this->authorization->canAccessAssetMaterialAreas()) {
+                throw new RuntimeException(
+                    'Only the authorized Asset Manager account can perform this disposal action.'
+                );
+            }
+
+            return;
         }
 
-        // The authorized Asset Manager may manage assets across
-        // departments. Do not restrict disposal by the manager's
-        // own department.
+        if (!$this->authorization->canAccessAssetOperations()) {
+            throw new RuntimeException(
+                'You do not have permission to manage asset disposal.'
+            );
+        }
     }
 
     private function validateAssetForDisposal(
@@ -715,16 +844,22 @@ class AssetDisposalService
 
     private function restoreAssetStatus(
         int $assetId,
-        array $asset
+        ?int $previousStatusId
     ): void {
-        $statusId =
-            !empty($asset['assigned_to_user_id'])
-            ? self::STATUS_ASSIGNED
-            : self::STATUS_AVAILABLE;
+        if (
+            $previousStatusId === null
+            || $previousStatusId <= 0
+            || $previousStatusId === self::STATUS_FOR_DISPOSAL
+        ) {
+            throw new RuntimeException(
+                'The original asset status is unavailable. '
+                . 'Restore the asset status manually after reviewing its history.'
+            );
+        }
 
         $this->setAssetStatus(
             $assetId,
-            $statusId
+            $previousStatusId
         );
     }
 

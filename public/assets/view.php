@@ -1882,7 +1882,8 @@ function displayDate(
                 ): ?>
 
                     <?php if (
-                        (int) $asset['status_id'] !== 9
+                        $authorization->isPropertyCustodian()
+                        && (int) $asset['status_id'] !== 9
                         && (int) $asset['status_id'] !== 8
                     ): ?>
 
@@ -2054,7 +2055,8 @@ function displayDate(
                                             <div class="d-flex justify-content-end gap-2">
 
                                                 <?php if (
-                                                    $status === 'pending'
+                                                    $authorization->canAccessAssetMaterialAreas()
+                                                    && $status === 'pending'
                                                 ): ?>
 
                                                     <button type="button" class="btn btn-sm disposal-approve-button"
@@ -2063,33 +2065,39 @@ function displayDate(
                                                         Approve
                                                     </button>
 
-                                                    <button type="button" class="btn btn-sm disposal-cancel-button"
+                                                    <button type="button" class="btn btn-sm disposal-reject-button"
                                                         data-disposal-id="<?= (int) $disposal['id'] ?>">
                                                         <i class="fa-solid fa-xmark me-1"></i>
-                                                        Cancel
+                                                        Reject
                                                     </button>
 
                                                 <?php elseif (
-                                                    $status === 'approved'
+                                                    $authorization->isPropertyCustodian()
+                                                    && $status === 'pending'
+                                                    && (int) $disposal['disposed_by']
+                                                    === (int) ($currentUser['user_id'] ?? 0)
+                                                ): ?>
+
+                                                    <button type="button" class="btn btn-sm disposal-cancel-button"
+                                                        data-disposal-id="<?= (int) $disposal['id'] ?>">
+                                                        <i class="fa-solid fa-ban me-1"></i>
+                                                        Withdraw
+                                                    </button>
+
+                                                <?php elseif (
+                                                    $authorization->isPropertyCustodian()
+                                                    && $status === 'approved'
                                                 ): ?>
 
                                                     <button type="button" class="btn btn-sm disposal-complete-button"
                                                         data-disposal-id="<?= (int) $disposal['id'] ?>">
                                                         <i class="fa-solid fa-check-double me-1"></i>
-                                                        Complete
-                                                    </button>
-
-                                                    <button type="button" class="btn btn-sm disposal-cancel-button"
-                                                        data-disposal-id="<?= (int) $disposal['id'] ?>">
-                                                        <i class="fa-solid fa-xmark me-1"></i>
-                                                        Cancel
+                                                        Complete Disposal
                                                     </button>
 
                                                 <?php else: ?>
 
-                                                    <span class="text-muted">
-                                                        —
-                                                    </span>
+                                                    <span class="text-muted">—</span>
 
                                                 <?php endif; ?>
 

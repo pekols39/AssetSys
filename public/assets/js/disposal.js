@@ -115,6 +115,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
     document
+        .querySelectorAll('.disposal-reject-button')
+        .forEach((button) => {
+            button.addEventListener('click', async () => {
+                const disposalId = button.dataset.disposalId;
+
+                if (!disposalId) {
+                    return;
+                }
+
+                const result = await Swal.fire({
+                    icon: 'warning',
+                    title: 'Reject Disposal Request?',
+                    text: 'Please provide the reason for rejecting this request.',
+                    input: 'textarea',
+                    inputPlaceholder: 'Enter rejection reason...',
+                    inputAttributes: {
+                        'aria-label': 'Rejection reason'
+                    },
+                    inputValidator: (value) => {
+                        if (!value || !value.trim()) {
+                            return 'A rejection reason is required.';
+                        }
+
+                        return undefined;
+                    },
+                    showCancelButton: true,
+                    confirmButtonText: 'Reject Request',
+                    cancelButtonText: 'Keep Request',
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d'
+                });
+
+                if (!result.isConfirmed) {
+                    return;
+                }
+
+                await processDisposalAction(
+                    button,
+                    'disposal_reject_process.php',
+                    disposalId,
+                    'reject',
+                    {
+                        rejection_reason: result.value.trim()
+                    }
+                );
+            });
+        });
+
+    document
         .querySelectorAll('.disposal-complete-button')
         .forEach((button) => {
 
@@ -198,7 +247,8 @@ async function processDisposalAction(
     button,
     endpoint,
     disposalId,
-    action
+    action,
+    extraFields = {}
 ) {
     const originalButtonHtml =
         button.innerHTML;
@@ -230,6 +280,10 @@ async function processDisposalAction(
         'disposal_id',
         disposalId
     );
+
+    Object.entries(extraFields).forEach(([name, value]) => {
+        formData.append(name, value);
+    });
 
     if (csrfInput) {
         formData.append(
