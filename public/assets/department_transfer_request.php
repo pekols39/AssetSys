@@ -19,9 +19,9 @@ if ($user === null) {
 }
 
 
-if (!$authorization->canAccessAssetOperations()) {
+if (!$authorization->isPropertyCustodian()) {
     http_response_code(403);
-    exit('Access denied.');
+    exit('Only Property Custodians may submit department-transfer requests.');
 }
 
 $assetId = filter_input(

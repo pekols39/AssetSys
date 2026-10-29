@@ -10,18 +10,10 @@ use PDO;
 class AssetReportService
 {
     private PDO $db;
-    private int $departmentId;
 
-    public function __construct(int $departmentId)
+    public function __construct()
     {
-        if ($departmentId <= 0) {
-            throw new \InvalidArgumentException(
-                'A valid department is required for report access.'
-            );
-        }
-
         $this->db = Database::connection();
-        $this->departmentId = $departmentId;
     }
 
     /**
@@ -197,12 +189,10 @@ class AssetReportService
         array $filters
     ): array {
         $whereSql = '
-        WHERE a.department_id = :department_id
+        WHERE 1 = 1
     ';
 
-        $params = [
-            'department_id' => $this->departmentId,
-        ];
+        $params = [];
 
         $filterColumns = [
             'category_id' => 'a.category_id',
@@ -316,8 +306,7 @@ class AssetReportService
             LEFT JOIN users poster
                 ON poster.id = de.posted_by
 
-            WHERE a.department_id = :department_id
-            AND de.entry_status = 'posted'
+            WHERE de.entry_status = 'posted'
             AND de.period_end >= :period_start
             AND de.period_end < :next_month
         ";
@@ -325,7 +314,6 @@ class AssetReportService
         $stmt = $this->db->prepare($sql);
 
         $stmt->execute([
-            ':department_id' => $this->departmentId,
             ':period_start' => $periodStart,
             ':next_month' => $nextMonth,
         ]);
@@ -426,8 +414,7 @@ class AssetReportService
             LEFT JOIN users poster
                 ON poster.id = de.posted_by
 
-            WHERE a.department_id = :department_id
-              AND de.entry_status = 'posted'
+            WHERE de.entry_status = 'posted'
               AND de.period_end >= :period_start
               AND de.period_end < :next_month
 
@@ -442,12 +429,6 @@ class AssetReportService
         }
 
         $stmt = $this->db->prepare($sql);
-
-        $stmt->bindValue(
-            ':department_id',
-            $this->departmentId,
-            PDO::PARAM_INT
-        );
 
         $stmt->bindValue(
             ':period_start',
@@ -592,7 +573,7 @@ class AssetReportService
             ) entry_summary
                 ON entry_summary.depreciation_schedule_id = ds.id
 
-            WHERE a.department_id = :department_id
+            WHERE 1 = 1
             ";
 
         if ($status !== null) {
@@ -626,12 +607,6 @@ class AssetReportService
             ':future_cutoff_latest',
             $today,
             PDO::PARAM_STR
-        );
-
-        $stmt->bindValue(
-            ':department_id',
-            $this->departmentId,
-            PDO::PARAM_INT
         );
 
         if ($status !== null) {
@@ -690,7 +665,7 @@ class AssetReportService
             ON a.id = ds.asset_id
         INNER JOIN asset_categories c
             ON c.id = a.category_id
-        WHERE a.department_id = :department_id
+        WHERE 1 = 1
     ";
 
         if ($status !== null) {
@@ -698,12 +673,6 @@ class AssetReportService
         }
 
         $stmt = $this->db->prepare($sql);
-
-        $stmt->bindValue(
-            ':department_id',
-            $this->departmentId,
-            PDO::PARAM_INT
-        );
 
         if ($status !== null) {
             $stmt->bindValue(
@@ -807,14 +776,12 @@ class AssetReportService
         ) entry_summary
             ON entry_summary.depreciation_schedule_id = ds.id
 
-        WHERE a.department_id = :department_id
     ";
 
         $stmt = $this->db->prepare($sql);
 
         $stmt->execute([
             ':today' => $today,
-            ':department_id' => $this->departmentId,
         ]);
 
         $summary = $stmt->fetch(PDO::FETCH_ASSOC);

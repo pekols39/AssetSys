@@ -18,6 +18,8 @@ declare(strict_types=1);
 
 <script src="<?= e(asset('js/sidebar.js')) ?>"></script>
 
+<script src="<?= e(asset('js/notifications.js')) ?>"></script>
+
 <?php if (!empty($pageScript)): ?>
 
     <script src="<?= e(asset($pageScript)) ?>"></script>

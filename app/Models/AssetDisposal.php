@@ -314,7 +314,8 @@ class AssetDisposal
     }
     public function updateRejectionStatus(
         int $id,
-        string $remarks
+        string $remarks,
+        string $rejectionReason
     ): bool {
         if ($id <= 0) {
             return false;
@@ -322,29 +323,24 @@ class AssetDisposal
 
         $stmt = $this->db->prepare(
             'UPDATE asset_disposals
-            SET
-                disposal_status = :disposal_status,
-                remarks = :remarks
-            WHERE
-                id = :id
-                AND disposal_status = :current_status'
+         SET
+            disposal_status = :disposal_status,
+            remarks = :remarks,
+            rejection_reason = :rejection_reason
+         WHERE
+            id = :id
+            AND disposal_status = :current_status'
         );
 
         $executed = $stmt->execute([
             'id' => $id,
-
-            'disposal_status' =>
-                'cancelled',
-
-            'remarks' =>
-                $remarks,
-
-            'current_status' =>
-                'pending',
+            'disposal_status' => 'cancelled',
+            'remarks' => $remarks,
+            'rejection_reason' => $rejectionReason,
+            'current_status' => 'pending',
         ]);
 
-        return $executed
-            && $stmt->rowCount() === 1;
+        return $executed && $stmt->rowCount() === 1;
     }
 
     public function update(

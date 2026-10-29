@@ -36,13 +36,6 @@ if (!$authorization->canAccessAssetMaterialAreas()) {
     exit('Access denied. Depreciation reports are available to Asset Managers only.');
 }
 
-$departmentId = (int) ($user['department_id'] ?? 0);
-
-if ($departmentId <= 0) {
-    http_response_code(403);
-    exit('Access denied. Your account is not assigned to a department.');
-}
-
 $year = filter_var(
     $_GET['year'] ?? date('Y'),
     FILTER_VALIDATE_INT
@@ -68,7 +61,7 @@ if (
 $spreadsheet = null;
 
 try {
-    $reportService = new AssetReportService($departmentId);
+    $reportService = new AssetReportService();
 
     $entries = $reportService->getDepreciationReport(
         $year,

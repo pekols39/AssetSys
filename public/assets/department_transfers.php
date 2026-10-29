@@ -66,7 +66,7 @@ $rejectedCount = count(
 );
 
 
-$pageTitle = 'Department Transfers';
+$pageTitle = 'Asset Transfers';
 $pageScripts = ['js/department-transfers.js'];
 
 require_once dirname(__DIR__) . '/includes/app_header.php';
@@ -89,15 +89,15 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <div class="text-muted small mb-1">Asset Lifecycle</div>
-        <h1 class="h3 mb-1">Department Transfers</h1>
+        <h1 class="h3 mb-1">Asset Transfers</h1>
         <p class="text-muted mb-0">
-            Submit department-transfer requests and track their approval status.
+            Submit asset transfer requests and track their approval status.
         </p>
     </div>
 
     <a href="<?= e(base_url('/public/assets/')) ?>" class="btn btn-outline-secondary">
         <i class="fa-solid fa-boxes-stacked me-1"></i>
-        Department Assets
+        Assets
     </a>
 </div>
 
@@ -153,7 +153,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         <div class="card-header bg-white py-3">
             <h2 class="h5 mb-0">
                 <i class="fa-solid fa-clipboard-check me-2 text-teal"></i>
-                Pending Department-Transfer Requests
+                Pending Asset Transfer Requests
                 <span class="badge text-bg-warning ms-2">
                     <?= e((string) count($pendingRequests)) ?>
                 </span>
@@ -165,7 +165,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                 <div class="text-center text-muted py-4">
                     <i class="fa-regular fa-circle-check fs-2 mb-3"></i>
                     <p class="mb-0">
-                        There are no pending department-transfer requests.
+                        There are no pending asset transfer requests.
                     </p>
                 </div>
             <?php else: ?>
@@ -241,7 +241,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     <div class="card-header bg-white py-3">
         <h2 class="h5 mb-0">
             <i class="fa-solid fa-clock-rotate-left me-2 text-teal"></i>
-            Department Transfer History
+            Asset Transfer History
         </h2>
     </div>
 
@@ -250,7 +250,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
             <div class="text-center text-muted py-4">
                 <i class="fa-regular fa-folder-open fs-2 mb-3"></i>
                 <p class="mb-0">
-                    No department-transfer requests have been recorded for your department.
+                    No asset transfer requests have been recorded for your department.
                 </p>
             </div>
         <?php else: ?>

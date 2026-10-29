@@ -31,14 +31,7 @@ if (!$authorization->canAccessAssetMaterialAreas()) {
     exit('Access denied. Asset reports are available to Asset Managers only.');
 }
 
-$departmentId = (int) ($user['department_id'] ?? 0);
-
-if ($departmentId <= 0) {
-    http_response_code(403);
-    exit('Access denied. Your account is not assigned to a department.');
-}
-
-$reportService = new AssetReportService($departmentId);
+$reportService = new AssetReportService();
 $referenceDataService = new ReferenceDataService();
 
 $filters = [

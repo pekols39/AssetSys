@@ -17,6 +17,7 @@ class AssetDisposalService
     private Asset $assetModel;
     private AssetDisposal $disposalModel;
     private AuthorizationService $authorization;
+    private NotificationService $notifications;
 
     private const STATUS_AVAILABLE = 1;
     private const STATUS_ASSIGNED = 2;
@@ -41,6 +42,7 @@ class AssetDisposalService
         $this->assetModel = new Asset();
         $this->disposalModel = new AssetDisposal();
         $this->authorization = new AuthorizationService();
+        $this->notifications = new NotificationService();
     }
 
     public function create(
@@ -69,8 +71,8 @@ class AssetDisposalService
         );
 
         if (
-            \App\Core\Auth::id() === null
-            || (int) \App\Core\Auth::id() !== $createdBy
+            Auth::id() === null
+            || (int) Auth::id() !== $createdBy
         ) {
             throw new RuntimeException(
                 'Invalid creating user.'
@@ -256,6 +258,31 @@ class AssetDisposalService
 
             $this->db->commit();
 
+
+            $notificationTitle =
+                'New Asset Disposal Request';
+
+            $notificationMessage =
+                'New disposal request for '
+                . (string) $asset['asset_code']
+                . ' — '
+                . (string) $asset['asset_name']
+                . '. Awaiting Asset Manager review.';
+
+            $this->notifications->notifyActiveAssetManagers(
+                'disposal_requested',
+                $notificationTitle,
+                $notificationMessage,
+                'disposal',
+                $disposalId
+            );
+
+            $this->notifications->emailActiveAssetManagers(
+                $notificationTitle,
+                $notificationMessage
+            );
+
+
             return $disposalId;
 
         } catch (\Throwable $e) {
@@ -394,6 +421,30 @@ class AssetDisposalService
 
             $this->db->commit();
 
+            $this->notifications->notifyUser(
+                (int) ($disposal['disposed_by'] ?? 0),
+                'disposal_approved',
+                'Asset Disposal Approved',
+                'Your disposal request for '
+                . (string) $asset['asset_code']
+                . ' — '
+                . (string) $asset['asset_name']
+                . ' has been approved.',
+                'disposal',
+                $disposalId
+            );
+
+            $this->notifications->emailUser(
+                (int) ($disposal['disposed_by'] ?? 0),
+                'Asset Disposal Approved',
+                'Your disposal request for '
+                . (string) $asset['asset_code']
+                . ' — '
+                . (string) $asset['asset_name']
+                . ' has been approved.'
+            );
+
+
         } catch (\Throwable $e) {
 
             if ($this->db->inTransaction()) {
@@ -490,7 +541,8 @@ class AssetDisposalService
             $updated =
                 $this->disposalModel->updateRejectionStatus(
                     $disposalId,
-                    $remarks
+                    $remarks,
+                    $rejectionReason
                 );
 
             if (!$updated) {
@@ -507,6 +559,31 @@ class AssetDisposalService
             );
 
             $this->db->commit();
+
+            $this->notifications->notifyUser(
+                (int) ($disposal['disposed_by'] ?? 0),
+                'disposal_rejected',
+                'Asset Disposal Rejected',
+                'Your disposal request for '
+                . (string) $asset['asset_code']
+                . ' — '
+                . (string) $asset['asset_name']
+                . ' has been rejected. Reason: '
+                . $rejectionReason,
+                'disposal',
+                $disposalId
+            );
+
+            $this->notifications->emailUser(
+                (int) ($disposal['disposed_by'] ?? 0),
+                'Asset Disposal Rejected',
+                'Your disposal request for '
+                . (string) $asset['asset_code']
+                . ' — '
+                . (string) $asset['asset_name']
+                . ' has been rejected. Reason: '
+                . $rejectionReason
+            );
 
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) {
@@ -533,6 +610,9 @@ class AssetDisposalService
                 'Disposal record not found.'
             );
         }
+
+        $originalRequesterId =
+            (int) ($disposal['disposed_by'] ?? 0);
 
         $asset =
             $this->assetModel->findById(
@@ -636,6 +716,32 @@ class AssetDisposalService
             );
 
             $this->db->commit();
+
+            if (
+                $originalRequesterId > 0
+                && $originalRequesterId !== $completedBy
+            ) {
+                $this->notifications->notifyUser(
+                    $originalRequesterId,
+                    'disposal_completed',
+                    'Asset Disposal Completed',
+                    'Your disposal request for '
+                    . (string) $asset['asset_code']
+                    . ' — '
+                    . (string) $asset['asset_name']
+                    . ' has been completed.',
+                    'disposal',
+                    $disposalId
+                );
+            }
+            $this->notifications->emailActiveAssetManagers(
+                'Asset Disposal Completed',
+                'Disposal completed for '
+                . (string) $asset['asset_code']
+                . ' — '
+                . (string) $asset['asset_name']
+                . '.'
+            );
 
         } catch (\Throwable $e) {
 

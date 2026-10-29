@@ -63,6 +63,9 @@ $roleName = $currentUser['role_name']
     <!-- Application CSS -->
     <link rel="stylesheet" href="<?= e(asset('css/app-layout.css')) ?>">
 
+    <!-- Notifications CSS -->
+    <link rel="stylesheet" href="<?= e(asset('css/notifications.css')) ?>">
+
     <?php if (!empty($pageStylesheet)): ?>
 
         <link rel="stylesheet" href="<?= e(asset($pageStylesheet)) ?>">
@@ -105,6 +108,61 @@ $roleName = $currentUser['role_name']
         </span>
     </a>
 
+
+    <div
+        class="notification-area"
+        id="mobileNotificationArea"
+        data-notifications-url="<?= e(base_url('/public/api/notifications.php')) ?>"
+        data-notification-read-url="<?= e(base_url('/public/api/notification_read.php')) ?>"
+        data-csrf-token="<?= e(\App\Helpers\Csrf::generate()) ?>"
+        data-csrf-name="<?= e(CSRF_TOKEN_NAME) ?>"
+    >
+
+        <button
+            type="button"
+            class="notification-bell"
+            id="mobileNotificationToggle"
+            aria-label="Notifications"
+            aria-expanded="false"
+            aria-controls="mobileNotificationPanel"
+        >
+            <i class="fa-regular fa-bell" aria-hidden="true"></i>
+            <span
+                class="notification-badge"
+                id="mobileNotificationBadge"
+                hidden
+            >0</span>
+        </button>
+
+        <section
+            class="notification-panel"
+            id="mobileNotificationPanel"
+            aria-label="Notifications"
+            hidden
+        >
+            <div class="notification-panel-header">
+                <h2 class="notification-panel-title">Notifications</h2>
+                <span
+                    class="notification-unread-label"
+                    id="mobileNotificationUnreadLabel"
+                >0 unread</span>
+            </div>
+
+            <div
+                class="notification-list"
+                id="mobileNotificationList"
+                aria-live="polite"
+            >
+                <div class="notification-loading">
+                    Notifications will load here.
+                </div>
+            </div>
+
+            <div class="notification-panel-footer">
+                Asset transfers and disposals
+            </div>
+        </section>
+    </div>
 </div>
 
 <div
@@ -112,5 +170,104 @@ $roleName = $currentUser['role_name']
     id="sidebarOverlay"
     aria-hidden="true"
 ></div>
+
+<header class="app-topbar" id="appTopbar">
+    <div class="app-topbar-welcome">
+        Welcome back, <?= e($firstName) ?>
+    </div>
+
+    <div class="app-topbar-actions">
+        <div class="app-topbar-datetime">
+            <span id="appTopbarDate"></span>
+            <span id="appTopbarTime"></span>
+        </div>
+
+        <div
+            class="notification-area app-topbar-notifications"
+            id="desktopNotificationArea"
+            data-notifications-url="<?= e(base_url('/public/api/notifications.php')) ?>"
+            data-notification-read-url="<?= e(base_url('/public/api/notification_read.php')) ?>"
+            data-csrf-token="<?= e(\App\Helpers\Csrf::generate()) ?>"
+            data-csrf-name="<?= e(CSRF_TOKEN_NAME) ?>"
+        >
+            <button
+                type="button"
+                class="notification-bell"
+                id="desktopNotificationToggle"
+                aria-label="Notifications"
+                aria-expanded="false"
+                aria-controls="desktopNotificationPanel"
+            >
+                <i class="fa-regular fa-bell" aria-hidden="true"></i>
+                <span
+                    class="notification-badge"
+                    id="desktopNotificationBadge"
+                    hidden
+                >0</span>
+            </button>
+
+            <section
+                class="notification-panel"
+                id="desktopNotificationPanel"
+                aria-label="Notifications"
+                hidden
+            >
+                <div class="notification-panel-header">
+                    <h2 class="notification-panel-title">Notifications</h2>
+                    <span
+                        class="notification-unread-label"
+                        id="desktopNotificationUnreadLabel"
+                    >0 unread</span>
+                </div>
+
+                <div
+                    class="notification-list"
+                    id="desktopNotificationList"
+                    aria-live="polite"
+                >
+                    <div class="notification-loading">
+                        Notifications will load here.
+                    </div>
+                </div>
+
+                <div class="notification-panel-footer">
+                    Asset transfers and disposals
+                </div>
+            </section>
+        </div>
+
+        <div class="dropdown app-topbar-user">
+            <button
+                type="button"
+                class="btn dropdown-toggle app-topbar-user-toggle"
+                id="appTopbarUserToggle"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+            >
+                <i class="fa-solid fa-circle-user" aria-hidden="true"></i>
+                <span><?= e($firstName) ?></span>
+            </button>
+
+            <ul
+                class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="appTopbarUserToggle"
+            >
+                <li>
+                    <span class="dropdown-item-text">
+                        <strong><?= e($firstName) ?></strong><br>
+                        <small class="text-muted"><?= e($roleName) ?></small>
+                    </span>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item text-danger" href="<?= e(base_url('/public/auth/logout.php')) ?>" id="topbarLogoutLink">
+                        <i class="fa-solid fa-right-from-bracket me-2 text-danger" aria-hidden="true"></i>
+                        Logout
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</header>
 
 <main class="app-main">

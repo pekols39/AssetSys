@@ -33,15 +33,6 @@ if (!$authorization->canAccessAssetMaterialAreas()) {
     );
 }
 
-$departmentId = (int) ($user['department_id'] ?? 0);
-
-if ($departmentId <= 0) {
-    http_response_code(403);
-    exit(
-        'Access denied. Your account is not assigned to a department.'
-    );
-}
-
 $year = filter_var(
     $_GET['year'] ?? date('Y'),
     FILTER_VALIDATE_INT
@@ -65,7 +56,7 @@ if (
 }
 
 try {
-    $reportService = new AssetReportService($departmentId);
+    $reportService = new AssetReportService();
 
     $entries = $reportService->getDepreciationReport(
         $year,

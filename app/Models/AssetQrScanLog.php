@@ -177,6 +177,15 @@ class AssetQrScanLog
         $conditions = [];
         $params = [];
 
+        $scannedByUserId = (int) (
+            $filters['scanned_by_user_id'] ?? 0
+        );
+
+        if ($scannedByUserId > 0) {
+            $conditions[] = 'logs.scanned_by = :scanned_by_user_id';
+            $params[':scanned_by_user_id'] = $scannedByUserId;
+        }
+
         $assetTag = trim((string) ($filters['asset_tag'] ?? ''));
 
         if ($assetTag !== '') {

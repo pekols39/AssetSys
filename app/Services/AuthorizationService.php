@@ -13,7 +13,6 @@ class AuthorizationService
     private User $userModel;
 
     private const OPERATIONAL_ROLE = 'Asset Manager';
-    private const OPERATIONAL_USERNAME = 'manager';
 
     public function __construct()
     {
@@ -110,19 +109,11 @@ class AuthorizationService
     }
 
     /**
-     * Only the active account named "manager" with the Asset Manager
-     * role may access the restricted manager-only areas.
+     * Only active Asset Manager accounts may access manager-only areas.
      */
     public function canAccessAssetMaterialAreas(): bool
     {
-        $user = $this->currentUser();
-
-        if ($user === null) {
-            return false;
-        }
-
-        return ($user['username'] ?? '') === self::OPERATIONAL_USERNAME
-            && ($user['role_name'] ?? '') === self::OPERATIONAL_ROLE;
+        return $this->isAssetManager();
     }
 
     /**

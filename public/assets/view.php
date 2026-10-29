@@ -65,7 +65,7 @@ if (!$authorization->canAccessAsset((int) $asset['id'])) {
 
 
 $canRequestDepartmentTransfer =
-    $authorization->canAccessAssetOperations()
+    $authorization->isPropertyCustodian()
     && empty($asset['assigned_to_user_id'])
     && !in_array(
         strtolower(trim((string) ($asset['status_name'] ?? ''))),
@@ -959,7 +959,7 @@ function displayDate(
             <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h2 class="h5 mb-0">
                     <i class="fa-solid fa-building-circle-arrow-right text-teal me-2"></i>
-                    Department Transfer History
+                    Asset Transfer History
                 </h2>
 
                 <?php if ($canRequestDepartmentTransfer): ?>
@@ -978,7 +978,7 @@ function displayDate(
             <div class="card-body">
                 <?php if (empty($departmentTransferHistory)): ?>
                     <p class="text-muted mb-0">
-                        No department transfers have been recorded for this asset.
+                        No asset transfers have been recorded for this asset.
                     </p>
                 <?php else: ?>
                     <div class="table-responsive">
@@ -1991,26 +1991,23 @@ function displayDate(
                                         </td>
 
                                         <td>
-                                            <?php if (
-                                                !empty(
-                                                $disposal[
-                                                    'disposal_reason'
-                                                ]
-                                            )
-                                            ): ?>
+                                            <?php
+                                            $historyReason = '';
 
-                                                <?= e(
-                                                    $disposal[
-                                                        'disposal_reason'
-                                                    ]
-                                                ) ?>
+                                            if (
+                                                ($disposal['disposal_status'] ?? '') === 'cancelled'
+                                                && !empty($disposal['rejection_reason'])
+                                            ) {
+                                                $historyReason = (string) $disposal['rejection_reason'];
+                                            } else {
+                                                $historyReason = (string) ($disposal['disposal_reason'] ?? '');
+                                            }
+                                            ?>
 
+                                            <?php if (trim($historyReason) !== ''): ?>
+                                                <?= e($historyReason) ?>
                                             <?php else: ?>
-
-                                                <span class="text-muted">
-                                                    —
-                                                </span>
-
+                                                <span class="text-muted">—</span>
                                             <?php endif; ?>
                                         </td>
 
@@ -2862,7 +2859,7 @@ function displayDate(
                                 </label>
 
                                 <input type="text" class="form-control" id="transfer_reason" name="transfer_reason"
-                                    maxlength="255" placeholder="e.g. Department transfer">
+                                    maxlength="255" placeholder="e.g. Asset transfer">
 
                             </div>
 
