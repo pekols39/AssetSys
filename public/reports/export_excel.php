@@ -36,13 +36,6 @@ if (!$authorization->canAccessAssetMaterialAreas()) {
     exit('Access denied. Asset reports are available to Asset Managers only.');
 }
 
-$departmentId = (int) ($user['department_id'] ?? 0);
-
-if ($departmentId <= 0) {
-    http_response_code(403);
-    exit('Access denied. Your account is not assigned to a department.');
-}
-
 $filters = [
     'search' => trim((string) ($_GET['search'] ?? '')),
     'category_id' => trim((string) ($_GET['category_id'] ?? '')),
@@ -54,7 +47,7 @@ $filters = [
 $spreadsheet = null;
 
 try {
-    $reportService = new AssetReportService($departmentId);
+    $reportService = new AssetReportService();
     $assets = $reportService->getAssetInventory($filters);
 
     $totalPurchaseCost = 0.0;

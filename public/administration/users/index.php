@@ -59,6 +59,15 @@ require_once dirname(__DIR__, 2)
 
         </div>
 
+        <div>
+            <a href="<?= e(
+                base_url('/public/administration/users/create.php')
+            ) ?>" class="btn btn-primary">
+                <i class="fa-solid fa-user-plus me-1"></i>
+                Add Account
+            </a>
+        </div>
+
     </div>
 
     <div class="card shadow-sm border-0">

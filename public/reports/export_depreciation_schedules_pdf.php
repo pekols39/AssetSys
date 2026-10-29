@@ -31,13 +31,6 @@ if (!$authorization->canAccessAssetMaterialAreas()) {
     );
 }
 
-$departmentId = (int) ($user['department_id'] ?? 0);
-
-if ($departmentId <= 0) {
-    http_response_code(403);
-    exit('Access denied. Your account is not assigned to a department.');
-}
-
 $allowedStatuses = [
     'active',
     'completed',
@@ -70,7 +63,7 @@ try {
 
     $headerImageUri = 'data:image/png;base64,' . $headerImageData;
 
-    $reportService = new AssetReportService($departmentId);
+    $reportService = new AssetReportService();
 
     /*
      * Export every matching schedule, not just the current page.

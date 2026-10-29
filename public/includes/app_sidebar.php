@@ -14,9 +14,15 @@ $isDepartmentTransfers = str_contains(
     '/assets/department_transfer'
 );
 
+$isDisposalRequests = str_ends_with(
+    $currentPath,
+    '/assets/disposal_requests.php'
+);
+
 $isAssets =
     str_contains($currentPath, '/assets/')
-    && !$isDepartmentTransfers;
+    && !$isDepartmentTransfers
+    && !$isDisposalRequests;
 
 $isInventoryReport =
     str_ends_with($currentPath, '/reports/index.php')
@@ -100,8 +106,18 @@ $isAdministrationSettings = str_ends_with(
                     <span class="app-sidebar-link-icon">
                         <i class="fa-solid fa-building-circle-arrow-right"></i>
                     </span>
-                    <span class="app-sidebar-link-text">Department Transfers</span>
+                    <span class="app-sidebar-link-text">Asset Transfers</span>
                 </a>
+
+                <?php if ($authorization->canAccessAssetOperations()): ?>
+                    <a href="<?= e(base_url('/public/assets/disposal_requests.php')) ?>"
+                        class="app-sidebar-link <?= $isDisposalRequests ? 'active' : '' ?>">
+                        <span class="app-sidebar-link-icon">
+                            <i class="fa-solid fa-clipboard-check"></i>
+                        </span>
+                        <span class="app-sidebar-link-text">Disposal Requests</span>
+                    </a>
+                <?php endif; ?>
 
                 <a href="<?= e(base_url('/public/materials/categories.php')) ?>" class="app-sidebar-link <?= str_contains(
                       $currentPath,
@@ -201,6 +217,31 @@ $isAdministrationSettings = str_ends_with(
                     </span>
                 </a>
 
+                <a href="<?= e(base_url('/public/reports/qr_scan_monitoring.php')) ?>"
+                    class="app-sidebar-link <?= $isQrScanMonitoring ? 'active' : '' ?>">
+                    <span class="app-sidebar-link-icon">
+                        <i class="fa-solid fa-qrcode"></i>
+                    </span>
+                    <span class="app-sidebar-link-text">
+                        QR Scan Monitoring
+                    </span>
+                </a>
+            </nav>
+        </div>
+
+    <?php endif; ?>
+
+    <?php if (
+        isset($authorization)
+        && $authorization->isPropertyCustodian()
+    ): ?>
+
+        <div class="app-sidebar-section">
+            <div class="app-sidebar-section-title">
+                MONITORING
+            </div>
+
+            <nav class="app-sidebar-nav">
                 <a href="<?= e(base_url('/public/reports/qr_scan_monitoring.php')) ?>"
                     class="app-sidebar-link <?= $isQrScanMonitoring ? 'active' : '' ?>">
                     <span class="app-sidebar-link-icon">

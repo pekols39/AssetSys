@@ -1,0 +1,203 @@
+/* ==========================================================
+   NOTIFICATIONS
+   ========================================================== */
+
+.notification-area {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.notification-bell {
+    position: relative;
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e0e9e9;
+    border-radius: 0.65rem;
+    background: #ffffff;
+    color: var(--assetsys-teal, #007472);
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.notification-bell:hover {
+    background: rgba(0, 116, 114, 0.06);
+    border-color: rgba(0, 116, 114, 0.25);
+}
+
+.notification-bell:focus-visible,
+.notification-item:focus-visible,
+.notification-mark-all:focus-visible {
+    outline: 2px solid var(--assetsys-teal, #007472);
+    outline-offset: 2px;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 19px;
+    height: 19px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    border: 2px solid #ffffff;
+    border-radius: 999px;
+    background: #dc3545;
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.notification-badge[hidden] {
+    display: none;
+}
+
+.notification-panel {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 1060;
+    width: min(380px, calc(100vw - 2rem));
+    max-height: min(480px, calc(100vh - 100px));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #e3ebeb;
+    border-radius: 0.85rem;
+    background: #ffffff;
+    box-shadow: 0 12px 36px rgba(20, 40, 40, 0.16);
+}
+
+.notification-panel[hidden] {
+    display: none;
+}
+
+.notification-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid #edf1f1;
+}
+
+.notification-panel-title {
+    margin: 0;
+    color: #212529;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.notification-unread-label {
+    color: var(--assetsys-teal, #007472);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.notification-list {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.notification-item {
+    display: block;
+    width: 100%;
+    padding: 0.9rem 1rem;
+    border: 0;
+    border-bottom: 1px solid #f0f3f3;
+    background: #ffffff;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.notification-item:hover {
+    background: #f7fbfb;
+}
+
+.notification-item.is-unread {
+    background: #f0f9f8;
+}
+
+.notification-item-title {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #212529;
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.notification-item-message {
+    display: block;
+    color: #5f6b6b;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.notification-item-time {
+    display: block;
+    margin-top: 0.4rem;
+    color: #7a8585;
+    font-size: 0.72rem;
+}
+
+.notification-empty,
+.notification-loading,
+.notification-error {
+    padding: 1.5rem 1rem;
+    color: #6c757d;
+    font-size: 0.84rem;
+    text-align: center;
+}
+
+.notification-panel-footer {
+    padding: 0.65rem 1rem;
+    border-top: 1px solid #edf1f1;
+    color: #6c757d;
+    font-size: 0.75rem;
+}
+
+@media (max-width: 991.98px) {
+    .app-mobile-header .notification-area {
+        margin-left: auto;
+    }
+
+    .app-mobile-header .notification-panel {
+        position: fixed;
+        top: 68px;
+        right: 0.75rem;
+        max-height: calc(100vh - 84px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .notification-bell {
+        transition: none;
+    }
+}
+/* Desktop notification bar */
+.notification-desktop-bar {
+    position: relative;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    min-height: 42px;
+    margin-bottom: 0.75rem;
+    z-index: 1020;
+}
+
+@media (max-width: 991.98px) {
+    .notification-desktop-bar {
+        display: none;
+    }
+}

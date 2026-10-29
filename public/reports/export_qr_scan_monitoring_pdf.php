@@ -14,7 +14,8 @@ use Dompdf\Options;
 AuthMiddleware::handle();
 
 try {
-    $user = Auth::user();
+    $authorization = new AuthorizationService();
+    $user = $authorization->currentUser();
 
     if (!$user) {
         Auth::logout();
@@ -22,9 +23,10 @@ try {
         exit;
     }
 
-    $authorization = new AuthorizationService();
-
-    if (!$authorization->canAccessAssetMaterialAreas()) {
+    if (
+        !$authorization->canAccessAssetMaterialAreas()
+        && !$authorization->isPropertyCustodian()
+    ) {
         http_response_code(403);
         exit('You do not have permission to export QR scan monitoring records.');
     }
@@ -71,6 +73,10 @@ try {
         'date_from' => $dateFrom,
         'date_to' => $dateTo,
     ];
+
+    if ($authorization->isPropertyCustodian()) {
+        $filters['scanned_by_user_id'] = (int) $user['user_id'];
+    }
 
     // Fetch every matching record, not just the current page.
     $scanLog = new AssetQrScanLog();

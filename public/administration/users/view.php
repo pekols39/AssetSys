@@ -103,12 +103,28 @@ $pageTitle = 'View User Account';
 
 $pageScript = 'js/administration-users.js';
 
+$accountCreated = (
+    isset($_GET['success'])
+    && $_GET['success'] === '1'
+);
+
 require_once dirname(__DIR__, 2)
     . '/includes/app_header.php';
 
 ?>
 
 <div class="container-fluid py-4">
+
+    <?php if ($accountCreated): ?>
+
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fa-solid fa-circle-check me-2"></i>
+            User account created successfully. The account is active
+            and must change its initial password at first login.
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+    <?php endif; ?>
 
     <div class="d-flex flex-column flex-md-row
                justify-content-between

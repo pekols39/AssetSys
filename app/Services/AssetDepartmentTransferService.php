@@ -8,6 +8,7 @@ use App\Core\Auth;
 use App\Core\Database;
 use App\Models\Asset;
 use App\Models\AssetDepartmentTransfer;
+use App\Services\NotificationService;
 use PDO;
 use RuntimeException;
 
@@ -21,12 +22,15 @@ class AssetDepartmentTransferService
 
     private AuthorizationService $authorization;
 
+    private NotificationService $notifications;
+
     public function __construct()
     {
         $this->db = Database::connection();
         $this->assetModel = new Asset();
         $this->transferModel = new AssetDepartmentTransfer();
         $this->authorization = new AuthorizationService();
+        $this->notifications = new NotificationService();
     }
 
     /**
@@ -73,7 +77,7 @@ class AssetDepartmentTransferService
 
         $this->requireActor(
             $requestedBy,
-            ['Asset Manager', 'Property Custodian']
+            ['Property Custodian']
         );
 
         $this->db->beginTransaction();
@@ -186,6 +190,32 @@ class AssetDepartmentTransferService
             }
 
             $this->db->commit();
+
+
+            $notificationTitle =
+                'New Asset Transfer Request';
+
+            $notificationMessage =
+                'Transfer requested for '
+                . (string) $asset['asset_code']
+                . ' — '
+                . (string) $asset['asset_name']
+                . '. Destination department: '
+                . (string) $destination['name']
+                . '. Awaiting Asset Manager review.';
+
+            $this->notifications->notifyActiveAssetManagers(
+                'department_transfer_requested',
+                $notificationTitle,
+                $notificationMessage,
+                'department_transfer',
+                $requestId
+            );
+
+            $this->notifications->emailActiveAssetManagers(
+                $notificationTitle,
+                $notificationMessage
+            );
 
             return $requestId;
         } catch (\Throwable $e) {
@@ -339,7 +369,33 @@ class AssetDepartmentTransferService
                 );
             }
 
+
             $this->db->commit();
+
+            $this->notifications->notifyUser(
+                (int) ($request['requested_by'] ?? 0),
+                'department_transfer_approved',
+                'Department Transfer Approved',
+                'The transfer request for '
+                . (string) $asset['asset_code']
+                . ' — '
+                . (string) $asset['asset_name']
+                . ' has been approved.',
+                'department_transfer',
+                $requestId
+            );
+
+            $this->notifications->emailUser(
+                (int) ($request['requested_by'] ?? 0),
+                'Department Transfer Approved',
+                'The transfer request for '
+                . (string) $asset['asset_code']
+                . ' — '
+                . (string) $asset['asset_name']
+                . ' has been approved.'
+            );
+
+
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
@@ -401,6 +457,16 @@ class AssetDepartmentTransferService
                 );
             }
 
+            $asset = $this->assetModel->findById(
+                (int) ($request['asset_id'] ?? 0)
+            );
+
+            if (!$asset) {
+                throw new RuntimeException(
+                    'The asset associated with this transfer request could not be found.'
+                );
+            }
+
             $updated = $this->transferModel->updateDecision(
                 $requestId,
                 $reviewedBy,
@@ -414,7 +480,35 @@ class AssetDepartmentTransferService
                 );
             }
 
+
             $this->db->commit();
+
+            $this->notifications->notifyUser(
+                (int) ($request['requested_by'] ?? 0),
+                'department_transfer_rejected',
+                'Department Transfer Rejected',
+                'The transfer request for '
+                . (string) $asset['asset_code']
+                . ' — '
+                . (string) $asset['asset_name']
+                . ' has been rejected. Reason: '
+                . $reviewNotes,
+                'department_transfer',
+                $requestId
+            );
+
+            $this->notifications->emailUser(
+                (int) ($request['requested_by'] ?? 0),
+                'Department Transfer Rejected',
+                'The transfer request for '
+                . (string) $asset['asset_code']
+                . ' — '
+                . (string) $asset['asset_name']
+                . ' has been rejected. Reason: '
+                . $reviewNotes
+            );
+
+
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
@@ -557,7 +651,7 @@ class AssetDepartmentTransferService
     /**
      * Reload the authenticated user and enforce the allowed role.
      *
-     * Asset Manager actions are restricted to the active manager account.
+     * Asset Manager accounts may review transfers.
      * Property Custodian accounts may submit requests and view their
      * own requests, but may not approve or reject transfers.
      */
@@ -588,21 +682,11 @@ class AssetDepartmentTransferService
             );
         }
 
-        $username = (string) ($user['username'] ?? '');
         $roleName = (string) ($user['role_name'] ?? '');
 
         if (!in_array($roleName, $allowedRoles, true)) {
             throw new RuntimeException(
                 'You do not have permission to perform this department-transfer action.'
-            );
-        }
-
-        if (
-            $roleName === 'Asset Manager'
-            && $username !== 'manager'
-        ) {
-            throw new RuntimeException(
-                'Only the designated Asset Manager account may perform this action.'
             );
         }
 

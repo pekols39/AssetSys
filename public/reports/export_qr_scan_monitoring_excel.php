@@ -27,9 +27,12 @@ if ($user === null) {
     exit;
 }
 
-if (!$authorization->canAccessAssetMaterialAreas()) {
+if (
+    !$authorization->canAccessAssetMaterialAreas()
+    && !$authorization->isPropertyCustodian()
+) {
     http_response_code(403);
-    exit('Access denied. QR scan monitoring is available to Asset Managers only.');
+    exit('Access denied. You do not have permission to export QR scan monitoring records.');
 }
 
 $assetTag = trim((string) ($_GET['asset_tag'] ?? ''));
@@ -69,6 +72,10 @@ $filters = [
     'date_from' => $dateFrom,
     'date_to' => $dateTo,
 ];
+
+if ($authorization->isPropertyCustodian()) {
+    $filters['scanned_by_user_id'] = (int) $user['user_id'];
+}
 
 $spreadsheet = null;
 

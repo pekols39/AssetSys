@@ -254,7 +254,8 @@ async function processDisposalAction(
         button.innerHTML;
 
     const form =
-        document.getElementById('disposalForm');
+        document.getElementById('disposalForm')
+        || document.getElementById('disposalRequestCsrfForm');
 
     /*
      * Use the actual configured CSRF field generated

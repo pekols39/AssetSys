@@ -10,33 +10,9 @@ use PDO;
 class DashboardService
 {
     private PDO $db;
-    private string $assetScopeColumn;
-    private int $assetScopeId;
 
-    public function __construct(
-        int $departmentId,
-        ?int $assignedToUserId = null
-    ) {
-        if ($assignedToUserId !== null) {
-            if ($assignedToUserId <= 0) {
-                throw new \InvalidArgumentException(
-                    'A valid assigned user is required for dashboard access.'
-                );
-            }
-
-            $this->assetScopeColumn = 'assigned_to_user_id';
-            $this->assetScopeId = $assignedToUserId;
-        } else {
-            if ($departmentId <= 0) {
-                throw new \InvalidArgumentException(
-                    'A valid department is required for dashboard access.'
-                );
-            }
-
-            $this->assetScopeColumn = 'department_id';
-            $this->assetScopeId = $departmentId;
-        }
-
+    public function __construct()
+    {
         $this->db = Database::connection();
     }
 
@@ -110,12 +86,10 @@ class DashboardService
                 ) AS current_book_value
 
             FROM assets a
-            WHERE a.{$this->assetScopeColumn} = :scope_id
         ";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'scope_id' => $this->assetScopeId,
         ]);
 
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -144,7 +118,6 @@ class DashboardService
             FROM asset_categories c
             LEFT JOIN assets a
                 ON a.category_id = c.id
-                AND a.{$this->assetScopeColumn} = :scope_id
             GROUP BY
                 c.id,
                 c.name
@@ -156,7 +129,6 @@ class DashboardService
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'scope_id' => $this->assetScopeId,
         ]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -174,7 +146,6 @@ class DashboardService
             FROM locations l
             LEFT JOIN assets a
                 ON a.location_id = l.id
-                AND a.{$this->assetScopeColumn} = :scope_id
             GROUP BY
                 l.id,
                 l.name
@@ -186,9 +157,7 @@ class DashboardService
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'scope_id' => $this->assetScopeId,
         ]);
-
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -204,7 +173,6 @@ class DashboardService
             FROM asset_statuses s
             LEFT JOIN assets a
                 ON a.status_id = s.id
-                AND a.{$this->assetScopeColumn} = :scope_id
             GROUP BY
                 s.id,
                 s.name
@@ -216,7 +184,6 @@ class DashboardService
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'scope_id' => $this->assetScopeId,
         ]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -238,14 +205,12 @@ class DashboardService
             INNER JOIN assets a
                 ON a.id = de.asset_id
             WHERE de.entry_status = 'posted'
-              AND a.{$this->assetScopeColumn} = :scope_id
             GROUP BY YEAR(de.period_end)
             ORDER BY depreciation_year ASC
         ";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'scope_id' => $this->assetScopeId,
         ]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -271,7 +236,6 @@ class DashboardService
             FROM maintenance_records m
             INNER JOIN assets a
                 ON a.id = m.asset_id
-            WHERE a.{$this->assetScopeColumn} = :scope_id
               AND m.cost IS NOT NULL
               AND cost > 0
               AND COALESCE(
@@ -290,7 +254,6 @@ class DashboardService
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'scope_id' => $this->assetScopeId,
         ]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -316,7 +279,6 @@ class DashboardService
             FROM repair_records r
             INNER JOIN assets a
                 ON a.id = r.asset_id
-            WHERE a.{$this->assetScopeColumn} = :scope_id
               AND r.cost IS NOT NULL
               AND cost > 0
               AND COALESCE(
@@ -335,7 +297,6 @@ class DashboardService
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'scope_id' => $this->assetScopeId,
         ]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -353,7 +314,6 @@ class DashboardService
             FROM asset_conditions c
             INNER JOIN assets a
                 ON a.condition_id = c.id
-                AND a.{$this->assetScopeColumn} = :scope_id
             WHERE c.is_active = 1
             GROUP BY
                 c.id,
@@ -366,7 +326,6 @@ class DashboardService
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'scope_id' => $this->assetScopeId,
         ]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -390,27 +349,26 @@ class DashboardService
                 m.scheduled_date,
                 m.next_maintenance_date,
                 m.maintenance_status,
-                    CASE
-                        WHEN COALESCE(
-                            m.next_maintenance_date,
-                            m.scheduled_date
-                        ) < CURDATE()
-                            THEN 'overdue'
-                        WHEN COALESCE(
-                            m.next_maintenance_date,
-                            m.scheduled_date
-                        ) = CURDATE()
-                            THEN 'due_today'
-                        ELSE 'upcoming'
-                    END AS attention_status
+                CASE
+                    WHEN COALESCE(
+                        m.next_maintenance_date,
+                        m.scheduled_date
+                    ) < CURDATE()
+                        THEN 'overdue'
+                    WHEN COALESCE(
+                        m.next_maintenance_date,
+                        m.scheduled_date
+                    ) = CURDATE()
+                        THEN 'due_today'
+                    ELSE 'upcoming'
+                END AS attention_status
             FROM maintenance_records m
             INNER JOIN assets a
                 ON a.id = m.asset_id
-            WHERE a.{$this->assetScopeColumn} = :scope_id
-              AND m.maintenance_status IN (
+            WHERE m.maintenance_status IN (
                 'scheduled',
                 'in_progress'
-              )
+            )
               AND (
                     (
                         m.next_maintenance_date IS NOT NULL
@@ -446,11 +404,6 @@ class DashboardService
         ";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->bindValue(
-            ':scope_id',
-            $this->assetScopeId,
-            PDO::PARAM_INT
-        );
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -468,7 +421,6 @@ class DashboardService
             FROM maintenance_records m
             INNER JOIN assets a
                 ON a.id = m.asset_id
-            WHERE a.{$this->assetScopeColumn} = :scope_id
               AND m.next_maintenance_date = :today
               AND m.maintenance_status != 'cancelled'
         ";
@@ -477,7 +429,6 @@ class DashboardService
 
         $stmt->execute([
             'today' => $today,
-            'scope_id' => $this->assetScopeId,
         ]);
 
         $maintenanceDue = (int) $stmt->fetchColumn();
@@ -487,7 +438,6 @@ class DashboardService
             FROM maintenance_records m
             INNER JOIN assets a
                 ON a.id = m.asset_id
-            WHERE a.{$this->assetScopeColumn} = :scope_id
               AND m.next_maintenance_date < :today
               AND m.maintenance_status != 'cancelled'
         ";
@@ -496,7 +446,6 @@ class DashboardService
 
         $stmt->execute([
             'today' => $today,
-            'scope_id' => $this->assetScopeId,
         ]);
 
         $overdueMaintenance = (int) $stmt->fetchColumn();
@@ -504,14 +453,11 @@ class DashboardService
         $repairSql = "
             SELECT COUNT(*)
             FROM assets
-            WHERE department_id = :department_id
-              AND status_id = 4
+            WHERE status_id = 4
         ";
 
         $stmt = $this->db->prepare($repairSql);
-        $stmt->execute([
-            'scope_id' => $this->assetScopeId,
-        ]);
+        $stmt->execute();
 
         $assetsUnderRepair = (int) $stmt->fetchColumn();
 
@@ -523,14 +469,12 @@ class DashboardService
             FROM repair_records r
             INNER JOIN assets a
                 ON a.id = r.asset_id
-            WHERE a.{$this->assetScopeColumn} = :scope_id
               AND r.cost IS NOT NULL
               AND r.cost > 0
         ";
 
         $stmt = $this->db->prepare($repairCostSql);
         $stmt->execute([
-            'scope_id' => $this->assetScopeId,
         ]);
 
         $repairCosts = (float) $stmt->fetchColumn();
@@ -538,8 +482,7 @@ class DashboardService
         $warrantySql = "
             SELECT COUNT(*)
             FROM assets
-            WHERE department_id = :department_id
-              AND warranty_end IS NOT NULL
+            WHERE warranty_end IS NOT NULL
               AND warranty_end >= :today_start
               AND warranty_end <= DATE_ADD(
                     :today_end,
@@ -550,7 +493,6 @@ class DashboardService
         $stmt = $this->db->prepare($warrantySql);
 
         $stmt->execute([
-            'scope_id' => $this->assetScopeId,
             'today_start' => $today,
             'today_end' => $today,
         ]);

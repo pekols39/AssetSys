@@ -22,26 +22,23 @@ if ($user === null) {
 
 
 $roleName = $user['role_name'] ?? '';
-$departmentId = (int) ($user['department_id'] ?? 0);
 
-$isAuthorizedDashboardUser =
-    (
-        ($user['username'] ?? '') === 'manager'
-        && $roleName === 'Asset Manager'
-    )
-    || $roleName === 'Property Custodian';
+$isAuthorizedDashboardUser = in_array(
+    $roleName,
+    [
+        'Asset Manager',
+        'Property Custodian',
+    ],
+    true
+);
 
 if (!$isAuthorizedDashboardUser) {
     http_response_code(403);
     exit('Access denied. The dashboard is unavailable for your account.');
 }
 
-if ($departmentId <= 0) {
-    http_response_code(403);
-    exit('Access denied. Your account has no assigned department.');
-}
 
-$dashboardService = new DashboardService($departmentId);
+$dashboardService = new DashboardService();
 $summary = $dashboardService->getSummary();
 
 $assetsByCategory =
