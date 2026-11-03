@@ -36,7 +36,8 @@ class MaterialService
         ?string $description = null,
         float $minimumStockLevel = 0.0,
         float $reorderLevel = 0.0,
-        bool $isReturnable = false
+        bool $isReturnable = false,
+        float $initialStockQuantity = 0.0
     ): int {
         $this->authorizeManagement();
 
@@ -74,6 +75,11 @@ class MaterialService
             'Reorder level cannot be negative.'
         );
 
+        $initialStockQuantity = $this->validateNonNegativeQuantity(
+            $initialStockQuantity,
+            'Initial stock quantity cannot be negative.'
+        );
+
         if ($reorderLevel < $minimumStockLevel) {
             throw new RuntimeException(
                 'Reorder level cannot be lower than the minimum stock level.'
@@ -96,8 +102,11 @@ class MaterialService
             );
         }
 
-        $stmt = $this->db->prepare(
-            'INSERT INTO materials (
+        $this->db->beginTransaction();
+
+        try {
+            $stmt = $this->db->prepare(
+                'INSERT INTO materials (
                 category_id,
                 code,
                 name,
@@ -121,21 +130,51 @@ class MaterialService
                 1,
                 :created_by
             )'
-        );
+            );
 
-        $stmt->execute([
-            'category_id' => $categoryId,
-            'code' => $code,
-            'name' => $name,
-            'description' => $description,
-            'unit' => $unit,
-            'minimum_stock_level' => $minimumStockLevel,
-            'reorder_level' => $reorderLevel,
-            'is_returnable' => $isReturnable ? 1 : 0,
-            'created_by' => $userId,
-        ]);
+            $stmt->execute([
+                'category_id' => $categoryId,
+                'code' => $code,
+                'name' => $name,
+                'description' => $description,
+                'unit' => $unit,
+                'minimum_stock_level' => $minimumStockLevel,
+                'reorder_level' => $reorderLevel,
+                'is_returnable' => $isReturnable ? 1 : 0,
+                'created_by' => $userId,
+            ]);
 
-        return (int) $this->db->lastInsertId();
+            $materialId = (int) $this->db->lastInsertId();
+
+            $stockStmt = $this->db->prepare(
+                'INSERT INTO material_stocks (
+                material_id,
+                department_id,
+                quantity
+            )
+            VALUES (
+                :material_id,
+                NULL,
+                :quantity
+            )'
+            );
+
+            $stockStmt->execute([
+                'material_id' => $materialId,
+                'quantity' => $initialStockQuantity,
+            ]);
+
+            $this->db->commit();
+
+            return $materialId;
+
+        } catch (Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $e;
+        }
     }
 
     public function update(
@@ -147,7 +186,8 @@ class MaterialService
         ?string $description = null,
         float $minimumStockLevel = 0.0,
         float $reorderLevel = 0.0,
-        bool $isReturnable = false
+        bool $isReturnable = false,
+        float $stockQuantity = 0.0
     ): bool {
         $this->authorizeManagement();
 
@@ -190,6 +230,11 @@ class MaterialService
             'Reorder level cannot be negative.'
         );
 
+        $stockQuantity = $this->validateNonNegativeQuantity(
+            $stockQuantity,
+            'Current stock cannot be negative.'
+        );
+
         if ($reorderLevel < $minimumStockLevel) {
             throw new RuntimeException(
                 'Reorder level cannot be lower than the minimum stock level.'
@@ -221,31 +266,72 @@ class MaterialService
             );
         }
 
-        $stmt = $this->db->prepare(
-            'UPDATE materials
-             SET
-                category_id = :category_id,
-                code = :code,
-                name = :name,
-                description = :description,
-                unit = :unit,
-                minimum_stock_level = :minimum_stock_level,
-                reorder_level = :reorder_level,
-                is_returnable = :is_returnable
-             WHERE id = :id'
-        );
+        $this->db->beginTransaction();
 
-        return $stmt->execute([
-            'category_id' => $categoryId,
-            'code' => $code,
-            'name' => $name,
-            'description' => $description,
-            'unit' => $unit,
-            'minimum_stock_level' => $minimumStockLevel,
-            'reorder_level' => $reorderLevel,
-            'is_returnable' => $isReturnable ? 1 : 0,
-            'id' => $materialId,
-        ]);
+        try {
+            $stmt = $this->db->prepare(
+                'UPDATE materials
+                 SET
+                    category_id = :category_id,
+                    code = :code,
+                    name = :name,
+                    description = :description,
+                    unit = :unit,
+                    minimum_stock_level = :minimum_stock_level,
+                    reorder_level = :reorder_level,
+                    is_returnable = :is_returnable
+                 WHERE id = :id'
+            );
+
+            $updated = $stmt->execute([
+                'category_id' => $categoryId,
+                'code' => $code,
+                'name' => $name,
+                'description' => $description,
+                'unit' => $unit,
+                'minimum_stock_level' => $minimumStockLevel,
+                'reorder_level' => $reorderLevel,
+                'is_returnable' => $isReturnable ? 1 : 0,
+                'id' => $materialId,
+            ]);
+
+            if (!$updated) {
+                throw new RuntimeException(
+                    'Unable to update material.'
+                );
+            }
+
+            $stockStmt = $this->db->prepare(
+                'INSERT INTO material_stocks (
+                    material_id,
+                    department_id,
+                    quantity
+                )
+                VALUES (
+                    :material_id,
+                    NULL,
+                    :quantity
+                )
+                ON DUPLICATE KEY UPDATE
+                    quantity = VALUES(quantity)'
+            );
+
+            $stockStmt->execute([
+                'material_id' => $materialId,
+                'quantity' => $stockQuantity,
+            ]);
+
+            $this->db->commit();
+
+            return true;
+
+        } catch (Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $e;
+        }
     }
 
     public function deactivate(int $materialId): bool

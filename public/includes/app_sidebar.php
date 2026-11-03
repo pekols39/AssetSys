@@ -115,7 +115,7 @@ $isAdministrationSettings = str_ends_with(
                         <span class="app-sidebar-link-icon">
                             <i class="fa-solid fa-clipboard-check"></i>
                         </span>
-                        <span class="app-sidebar-link-text">Disposal Requests</span>
+                        <span class="app-sidebar-link-text">Asset Disposal</span>
                     </a>
                 <?php endif; ?>
 
@@ -138,6 +138,16 @@ $isAdministrationSettings = str_ends_with(
                   ) ? 'active' : '' ?>">
                     <i class="fas fa-boxes"></i>
                     <span>Materials</span>
+                </a>
+
+                <a href="<?= e(base_url('/public/materials/physical_stock_audits.php')) ?>"
+                    class="app-sidebar-link <?= str_contains($currentPath, '/materials/physical_stock_audits.php') ? 'active' : '' ?>">
+                    <span class="app-sidebar-link-icon">
+                        <i class="fa-solid fa-clipboard-list"></i>
+                    </span>
+                    <span class="app-sidebar-link-text">
+                        Physical Stock Audit
+                    </span>
                 </a>
 
                 <!-- Stock navigation temporarily hidden for Fixed Asset Management.

@@ -181,7 +181,7 @@ class StockMovement
                 m.code AS material_code,
                 m.name AS material_name,
                 m.unit AS material_unit,
-                d.name AS department_name,
+                \'Organization-wide\' AS department_name,
                 v.name AS vendor_name,
                 COALESCE(
                     NULLIF(sm.issued_to_name, \'\'),
@@ -190,7 +190,7 @@ class StockMovement
                             COALESCE(u.first_name, \'\'),
                             CASE
                                 WHEN u.first_name IS NOT NULL
-                                 AND u.last_name IS NOT NULL
+                                AND u.last_name IS NOT NULL
                                 THEN \' \'
                                 ELSE \'\'
                             END,
@@ -203,7 +203,7 @@ class StockMovement
                     COALESCE(r.first_name, \'\'),
                     CASE
                         WHEN r.first_name IS NOT NULL
-                         AND r.last_name IS NOT NULL
+                        AND r.last_name IS NOT NULL
                         THEN \' \'
                         ELSE \'\'
                     END,
@@ -214,21 +214,17 @@ class StockMovement
                 ON ms.id = sm.material_stock_id
             INNER JOIN materials m
                 ON m.id = ms.material_id
-            INNER JOIN departments d
-                ON d.id = ms.department_id
             LEFT JOIN vendors v
                 ON v.id = sm.vendor_id
             LEFT JOIN users u
                 ON u.id = sm.issued_to_user_id
             INNER JOIN users r
                 ON r.id = sm.recorded_by
-            WHERE ms.department_id = :department_id
+            WHERE ms.department_id IS NULL
             ORDER BY sm.moved_at DESC, sm.id DESC'
         );
 
-        $stmt->execute([
-            'department_id' => $departmentId,
-        ]);
+        $stmt->execute();
 
         return $stmt->fetchAll();
     }
@@ -272,8 +268,8 @@ class StockMovement
             $movementType = 'all';
         }
 
-        $where = ['ms.department_id = :department_id'];
-        $params = ['department_id' => $departmentId];
+        $where = ['ms.department_id IS NULL'];
+        $params = [];
 
         if ($search !== '') {
             $where[] = "(
@@ -363,7 +359,7 @@ class StockMovement
                 m.code AS material_code,
                 m.name AS material_name,
                 m.unit AS material_unit,
-                d.name AS department_name,
+                'Organization-wide' AS department_name,
                 v.name AS vendor_name,
                 COALESCE(
                     NULLIF(sm.issued_to_name, ''),
@@ -396,8 +392,6 @@ class StockMovement
                 ON ms.id = sm.material_stock_id
              INNER JOIN materials m
                 ON m.id = ms.material_id
-             INNER JOIN departments d
-                ON d.id = ms.department_id
              LEFT JOIN vendors v
                 ON v.id = sm.vendor_id
              LEFT JOIN users u
@@ -429,7 +423,7 @@ class StockMovement
         int $departmentId
     ): array {
         $stmt = $this->db->prepare(
-            'SELECT
+                'SELECT
                 sm.id AS movement_id,
                 sm.material_stock_id,
                 ms.material_id,
@@ -445,19 +439,19 @@ class StockMovement
                 sm.purpose,
                 sm.reference_number,
                 sm.moved_at
-             FROM stock_movements sm
-             INNER JOIN material_stocks ms
+            FROM stock_movements sm
+            INNER JOIN material_stocks ms
                 ON ms.id = sm.material_stock_id
-             INNER JOIN materials m
+            INNER JOIN materials m
                 ON m.id = ms.material_id
-             LEFT JOIN stock_movements ret
+            LEFT JOIN stock_movements ret
                 ON ret.related_movement_id = sm.id
-               AND ret.movement_type = \'return\'
-             WHERE ms.department_id = :department_id
-               AND sm.movement_type = \'out\'
-               AND m.is_active = 1
-               AND m.is_returnable = 1
-             GROUP BY
+            AND ret.movement_type = \'return\'
+            WHERE ms.department_id IS NULL
+            AND sm.movement_type = \'out\'
+            AND m.is_active = 1
+            AND m.is_returnable = 1
+            GROUP BY
                 sm.id,
                 sm.material_stock_id,
                 ms.material_id,
@@ -469,13 +463,11 @@ class StockMovement
                 sm.purpose,
                 sm.reference_number,
                 sm.moved_at
-             HAVING remaining_quantity > 0
-             ORDER BY sm.moved_at DESC, sm.id DESC'
-        );
+            HAVING remaining_quantity > 0
+            ORDER BY sm.moved_at DESC, sm.id DESC'
+            );
 
-        $stmt->execute([
-            'department_id' => $departmentId,
-        ]);
+        $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }

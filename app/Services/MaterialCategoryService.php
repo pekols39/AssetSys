@@ -233,7 +233,21 @@ class MaterialCategoryService
             $categoryId
         );
     }
+    public function getPaginated(
+        string $search = '',
+        string $status = '',
+        int $page = 1,
+        int $perPage = 10
+    ): array {
+        $this->authorizeManagement();
 
+        return $this->categoryModel->getPaginated(
+            trim($search),
+            $status,
+            max(1, $page),
+            $perPage
+        );
+    }
     public function getAll(): array
     {
         $this->authorizeManagement();

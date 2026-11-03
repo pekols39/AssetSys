@@ -33,37 +33,53 @@ if ((int) ($user['department_id'] ?? 0) <= 0) {
 
 $transferService = new AssetDepartmentTransferService();
 
-$departmentHistory = $transferService->getDepartmentHistory();
+$search = trim((string) ($_GET['search'] ?? ''));
+$status = trim((string) ($_GET['status'] ?? ''));
+
+$allowedStatuses = [
+    '',
+    'pending',
+    'approved',
+    'rejected',
+    'cancelled',
+    'completed',
+];
+
+if (!in_array($status, $allowedStatuses, true)) {
+    $status = '';
+}
+
+$page = max(1, (int) ($_GET['page'] ?? 1));
+
+$perPage = (int) ($_GET['per_page'] ?? 10);
+
+if (!in_array($perPage, [10, 25, 50, 100], true)) {
+    $perPage = 10;
+}
+
+$historyResult = $transferService->getPaginatedDepartmentHistory(
+    $search,
+    $status,
+    $page,
+    $perPage
+);
+
+$departmentHistory = $historyResult['data'];
+$historyPage = $historyResult['page'];
+$historyPerPage = $historyResult['per_page'];
+$historyTotal = $historyResult['total'];
+$historyTotalPages = $historyResult['total_pages'];
+
+$historySummary = $transferService->getDepartmentHistorySummary();
+
+$totalTransfers = $historySummary['total_transfers'];
+$completedCount = $historySummary['completed_count'];
+$approvedCount = $historySummary['approved_count'];
+$rejectedCount = $historySummary['rejected_count'];
 
 $pendingRequests = $roleName === 'Asset Manager'
     ? $transferService->getPendingRequests()
     : [];
-
-$totalTransfers = count($departmentHistory);
-
-$completedCount = count(
-    array_filter(
-        $departmentHistory,
-        static fn(array $request): bool =>
-            ($request['request_status'] ?? '') === 'completed'
-    )
-);
-
-$approvedCount = count(
-    array_filter(
-        $departmentHistory,
-        static fn(array $request): bool =>
-            ($request['request_status'] ?? '') === 'approved'
-    )
-);
-
-$rejectedCount = count(
-    array_filter(
-        $departmentHistory,
-        static fn(array $request): bool =>
-            ($request['request_status'] ?? '') === 'rejected'
-    )
-);
 
 
 $pageTitle = 'Asset Transfers';
@@ -73,12 +89,8 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 ?>
 
 <?php if ($roleName === 'Asset Manager'): ?>
-    <form
-        id="departmentTransferDecisionForm"
-        action="<?= e(base_url('/public/assets/department_transfer_decision_process.php')) ?>"
-        method="post"
-        class="d-none"
-    >
+    <form id="departmentTransferDecisionForm"
+        action="<?= e(base_url('/public/assets/department_transfer_decision_process.php')) ?>" method="post" class="d-none">
         <?= \App\Helpers\Csrf::field() ?>
         <input type="hidden" name="request_id" value="">
         <input type="hidden" name="decision" value="">
@@ -90,8 +102,15 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     <div>
         <div class="text-muted small mb-1">Asset Lifecycle</div>
         <h1 class="h3 mb-1">Asset Transfers</h1>
+
         <p class="text-muted mb-0">
-            Submit asset transfer requests and track their approval status.
+            <?php if ($authorization->canAccessAssetMaterialAreas()): ?>
+                Review asset transfer requests, approve or reject proposed
+                transfers, and monitor asset movement between departments.
+            <?php else: ?>
+                Submit asset transfer requests for approval and track the
+                status of transfers involving your department.
+            <?php endif; ?>
         </p>
     </div>
 
@@ -237,7 +256,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     </div>
 <?php endif; ?>
 
-<div class="card border-0 shadow-sm">
+<div class="card border-0 shadow-sm" id="transfer-history">
     <div class="card-header bg-white py-3">
         <h2 class="h5 mb-0">
             <i class="fa-solid fa-clock-rotate-left me-2 text-teal"></i>
@@ -246,6 +265,68 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     </div>
 
     <div class="card-body">
+        <form method="GET"
+        action="<?= e(base_url('/public/assets/department_transfers.php')) ?>#transfer-history"
+        class="row g-2 align-items-end mb-4">
+
+            <div class="col-md-5">
+                <label for="historySearch" class="form-label">
+                    Search transfers
+                </label>
+                <input type="search" class="form-control" id="historySearch" name="search" value="<?= e($search) ?>"
+                    placeholder="Asset, department, requester, or reason">
+            </div>
+
+            <div class="col-md-3">
+                <label for="historyStatus" class="form-label">
+                    Status
+                </label>
+                <select class="form-select" id="historyStatus" name="status">
+                    <option value="">All statuses</option>
+                    <option value="pending" <?= $status === 'pending' ? 'selected' : '' ?>>
+                        Pending
+                    </option>
+                    <option value="approved" <?= $status === 'approved' ? 'selected' : '' ?>>
+                        Approved
+                    </option>
+                    <option value="rejected" <?= $status === 'rejected' ? 'selected' : '' ?>>
+                        Rejected
+                    </option>
+                    <option value="cancelled" <?= $status === 'cancelled' ? 'selected' : '' ?>>
+                        Cancelled
+                    </option>
+                    <option value="completed" <?= $status === 'completed' ? 'selected' : '' ?>>
+                        Completed
+                    </option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label for="historyPerPage" class="form-label">
+                    Rows
+                </label>
+                <select class="form-select" id="historyPerPage" name="per_page">
+                    <?php foreach ([10, 25, 50, 100] as $option): ?>
+                        <option value="<?= $option ?>" <?= $historyPerPage === $option ? 'selected' : '' ?>>
+                            <?= $option ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">
+                    <i class="fa-solid fa-filter me-1"></i>
+                    Filter
+                </button>
+
+                <a href="<?= e(base_url('/public/assets/department_transfers.php#transfer-history')) ?>"
+                    class="btn btn-outline-secondary" title="Clear filters">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </a>
+            </div>
+        </form>
+
         <?php if ($departmentHistory === []): ?>
             <div class="text-center text-muted py-4">
                 <i class="fa-regular fa-folder-open fs-2 mb-3"></i>
@@ -326,6 +407,83 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+            </div>
+
+            <?php
+            $historyStart = $historyTotal > 0
+                ? (($historyPage - 1) * $historyPerPage) + 1
+                : 0;
+
+            $historyEnd = min(
+                $historyPage * $historyPerPage,
+                $historyTotal
+            );
+
+            $historyQuery = [
+                'search' => $search,
+                'status' => $status,
+                'per_page' => $historyPerPage,
+            ];
+
+            $previousUrl = base_url(
+                '/public/assets/department_transfers.php?'
+                . http_build_query(
+                    $historyQuery + [
+                        'page' => max(1, $historyPage - 1),
+                    ]
+                )
+            );
+
+            $nextUrl = base_url(
+                '/public/assets/department_transfers.php?'
+                . http_build_query(
+                    $historyQuery + [
+                        'page' => min(
+                            $historyTotalPages,
+                            $historyPage + 1
+                        ),
+                    ]
+                )
+            );
+            ?>
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mt-3">
+                <small class="text-muted">
+                    Showing <?= number_format($historyStart) ?>
+                    to <?= number_format($historyEnd) ?>
+                    of <?= number_format($historyTotal) ?> transfers
+                </small>
+
+                <nav aria-label="Asset transfer history pagination">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item <?= $historyPage <= 1 ? 'disabled' : '' ?>">
+                            <a
+                                class="page-link"
+                                href="<?= e($previousUrl) ?>"
+                                <?= $historyPage <= 1 ? 'aria-disabled="true" tabindex="-1"' : '' ?>
+                            >
+                                Previous
+                            </a>
+                        </li>
+
+                        <li class="page-item disabled">
+                            <span class="page-link">
+                                Page <?= number_format($historyPage) ?>
+                                of <?= number_format($historyTotalPages) ?>
+                            </span>
+                        </li>
+
+                        <li class="page-item <?= $historyPage >= $historyTotalPages ? 'disabled' : '' ?>">
+                            <a
+                                class="page-link"
+                                href="<?= e($nextUrl) ?>"
+                                <?= $historyPage >= $historyTotalPages ? 'aria-disabled="true" tabindex="-1"' : '' ?>
+                            >
+                                Next
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
             </div>
         <?php endif; ?>
     </div>

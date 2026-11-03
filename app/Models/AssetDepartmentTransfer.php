@@ -300,6 +300,164 @@ class AssetDepartmentTransfer
     }
 
     /**
+     * Retrieve filtered department-transfer history with pagination.
+     *
+     * Search and status filters are applied before pagination.
+     */
+    public function getPaginatedRequests(
+        ?int $requesterId,
+        string $search,
+        string $status,
+        int $page,
+        int $perPage
+    ): array {
+        $page = max(1, $page);
+        $perPage = in_array($perPage, [10, 25, 50, 100], true)
+            ? $perPage
+            : 10;
+
+        $where = [];
+        $params = [];
+
+        if ($requesterId !== null) {
+            $where[] = 't.requested_by = :requester_id';
+            $params['requester_id'] = $requesterId;
+        }
+
+        if (
+            $status !== '' && in_array(
+                $status,
+                ['pending', 'approved', 'rejected', 'cancelled', 'completed'],
+                true
+            )
+        ) {
+            $where[] = 't.request_status = :request_status';
+            $params['request_status'] = $status;
+        }
+
+        $search = trim($search);
+
+        if ($search !== '') {
+            $searchFields = [
+                'a.asset_code',
+                'a.asset_tag',
+                'a.asset_name',
+                'source_department.name',
+                'destination_department.name',
+                't.destination_department_name',
+                't.request_reason',
+                'requester.first_name',
+                'requester.last_name',
+                'requester.username',
+            ];
+
+            $searchConditions = [];
+
+            foreach ($searchFields as $index => $field) {
+                $placeholder = ':search_' . $index;
+
+                $searchConditions[] = $field . ' LIKE ' . $placeholder;
+
+                $params['search_' . $index] = '%' . $search . '%';
+            }
+
+            $where[] = '(' . implode(' OR ', $searchConditions) . ')';
+        }
+
+        $whereSql = $where !== []
+            ? ' WHERE ' . implode(' AND ', $where)
+            : '';
+
+        $countStmt = $this->db->prepare(
+            'SELECT COUNT(*)
+             FROM asset_department_transfers t
+             INNER JOIN assets a ON a.id = t.asset_id
+             LEFT JOIN departments source_department
+                ON source_department.id = t.source_department_id
+             LEFT JOIN departments destination_department
+                ON destination_department.id = t.destination_department_id
+             LEFT JOIN users requester
+                ON requester.id = t.requested_by'
+            . $whereSql
+        );
+
+        $countStmt->execute($params);
+        $totalRecords = (int) $countStmt->fetchColumn();
+
+        $totalPages = max(
+            1,
+            (int) ceil($totalRecords / $perPage)
+        );
+
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+
+        $stmt = $this->db->prepare(
+            $this->detailsSelect()
+            . $whereSql
+            . ' ORDER BY t.requested_at DESC, t.id DESC
+                LIMIT :limit OFFSET :offset'
+        );
+
+        foreach ($params as $name => $value) {
+            $stmt->bindValue(
+                ':' . $name,
+                $value,
+                $name === 'requester_id'
+                ? PDO::PARAM_INT
+                : PDO::PARAM_STR
+            );
+        }
+
+        $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return [
+            'data' => $stmt->fetchAll(PDO::FETCH_ASSOC),
+            'total' => $totalRecords,
+            'page' => $page,
+            'per_page' => $perPage,
+            'total_pages' => $totalPages,
+        ];
+    }
+    /**
+     * Retrieve transfer-history summary counts.
+     *
+     * Optionally restrict counts to one requesting user.
+     */
+    public function getRequestSummary(?int $requesterId = null): array
+    {
+        $sql = "
+        SELECT
+            COUNT(*) AS total_transfers,
+            COALESCE(SUM(request_status = 'completed'), 0) AS completed_count,
+            COALESCE(SUM(request_status = 'approved'), 0) AS approved_count,
+            COALESCE(SUM(request_status = 'rejected'), 0) AS rejected_count
+        FROM asset_department_transfers
+    ";
+
+        $params = [];
+
+        if ($requesterId !== null) {
+            $sql .= ' WHERE requested_by = :requester_id';
+            $params['requester_id'] = $requesterId;
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        $summary = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return [
+            'total_transfers' => (int) ($summary['total_transfers'] ?? 0),
+            'completed_count' => (int) ($summary['completed_count'] ?? 0),
+            'approved_count' => (int) ($summary['approved_count'] ?? 0),
+            'rejected_count' => (int) ($summary['rejected_count'] ?? 0),
+        ];
+    }
+
+    /**
      * Retrieve all department-transfer requests for the Finance asset register.
      */
     public function getAllRequests(): array

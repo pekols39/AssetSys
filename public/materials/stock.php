@@ -7,6 +7,7 @@ require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
 use App\Services\AuthorizationService;
 use App\Services\StockService;
+use App\Services\MaterialReplenishmentService;
 
 AuthMiddleware::handle();
 
@@ -18,12 +19,46 @@ if ($currentUser === null) {
     exit('Authentication required.');
 }
 
-if (!$authorization->canAccessAssetMaterialAreas()) {
+if (!$authorization->canAccessAssetOperations()) {
     http_response_code(403);
     exit('You do not have permission to access this area.');
 }
 
 $stockService = new StockService();
+$replenishmentService = new MaterialReplenishmentService();
+
+$replenishmentFilters = [
+    'search' => trim((string) ($_GET['replenishment_search'] ?? '')),
+    'date_from' => trim((string) ($_GET['replenishment_date_from'] ?? '')),
+    'date_to' => trim((string) ($_GET['replenishment_date_to'] ?? '')),
+];
+
+$replenishmentPageNumber = max(
+    1,
+    (int) ($_GET['replenishment_page'] ?? 1)
+);
+
+$replenishmentPerPage = (int) (
+    $_GET['replenishment_per_page'] ?? 10
+);
+
+if (!in_array($replenishmentPerPage, [10, 25, 50, 100], true)) {
+    $replenishmentPerPage = 10;
+}
+
+$replenishmentMaterials =
+    $replenishmentService->getMaterialOptions();
+
+$replenishmentPage = $replenishmentService->getHistory(
+    $replenishmentFilters,
+    $replenishmentPageNumber,
+    $replenishmentPerPage
+);
+
+$replenishmentHistory = $replenishmentPage['items'];
+$replenishmentTotal = $replenishmentPage['total'];
+$replenishmentPageNumber = $replenishmentPage['page'];
+$replenishmentTotalPages = $replenishmentPage['total_pages'];
 
 $filters = [
     'search' => trim((string) ($_GET['search'] ?? '')),
@@ -381,6 +416,504 @@ $paginationUrl = static function (int $targetPage) use (
             </div>
         </div>
     <?php endif; ?>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3">
+        <h2 class="h5 mb-0">Record Material Replenishment</h2>
+    </div>
+
+    <div class="card-body">
+        <p class="text-muted">
+            Record a replenishment for audit history. This will not change
+            your department's available stock quantity.
+        </p>
+
+        <?php if (empty($replenishmentMaterials)): ?>
+            <div class="alert alert-info mb-0">
+                No active materials with stock records are available
+                for your department.
+            </div>
+        <?php else: ?>
+            <form id="replenishmentForm">
+                <?= \App\Helpers\Csrf::field() ?>
+
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label for="replenishment-material" class="form-label">
+                            Material <span class="text-danger">*</span>
+                        </label>
+                            <select
+                                id="replenishment-material"
+                                name="material_id"
+                                class="form-select"
+                                required
+                            >
+                                <option value="">Select material</option>
+
+                                <?php foreach ($replenishmentMaterials as $material): ?>
+                                    <option value="<?= (int) $material['material_id'] ?>">
+                                        <?= e((string) $material['material_code']) ?>
+                                        —
+                                        <?= e((string) $material['material_name']) ?>
+                                        (<?= e((string) $material['material_unit']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="replenishment-quantity" class="form-label">
+                            Replenished Quantity
+                            <span class="text-danger">*</span>
+                        </label>
+
+                        <input
+                            type="number"
+                            id="replenishment-quantity"
+                            name="quantity"
+                            class="form-control"
+                            min="0.001"
+                            step="0.001"
+                            required
+                            placeholder="Enter quantity"
+                        >
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="replenishment-date" class="form-label">
+                            Replenishment Date and Time
+                            <span class="text-danger">*</span>
+                        </label>
+
+                        <input
+                            type="datetime-local"
+                            id="replenishment-date"
+                            name="replenished_at"
+                            class="form-control"
+                            value="<?= e(date('Y-m-d\TH:i')) ?>"
+                            required
+                        >
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="replenishment-reference" class="form-label">
+                            Reference Number
+                        </label>
+
+                        <input
+                            type="text"
+                            id="replenishment-reference"
+                            name="reference_number"
+                            class="form-control"
+                            maxlength="100"
+                            placeholder="Optional reference"
+                        >
+                    </div>
+
+                    <div class="col-12">
+                        <label for="replenishment-notes" class="form-label">
+                            Notes
+                        </label>
+
+                        <textarea
+                            id="replenishment-notes"
+                            name="notes"
+                            class="form-control"
+                            rows="3"
+                            placeholder="Optional replenishment notes"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-end">
+                    <button
+                        type="submit"
+                        id="replenishmentSubmit"
+                        class="btn btn-primary"
+                    >
+                        <i class="fa-solid fa-clipboard-list me-1"></i>
+                        Save History Record
+                    </button>
+                </div>
+            </form>
+        <?php endif; ?>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('replenishmentForm');
+
+    if (!form) {
+        return;
+    }
+
+    const submitButton = document.getElementById('replenishmentSubmit');
+
+    form.addEventListener('submit', async function (event) {
+        event.preventDefault();
+
+        if (!form.reportValidity()) {
+            return;
+        }
+
+        const confirmed = await Swal.fire({
+            icon: 'question',
+            title: 'Save Replenishment History?',
+            text: 'This will create an audit history record only. Stock balances will not change.',
+            showCancelButton: true,
+            confirmButtonText: 'Save Record',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#007472'
+        });
+
+        if (!confirmed.isConfirmed) {
+            return;
+        }
+
+        submitButton.disabled = true;
+
+        const originalButtonText = submitButton.innerHTML;
+
+        submitButton.innerHTML =
+            '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+        try {
+            const response = await fetch(
+                <?= json_encode(
+                    base_url('/public/api/material_replenishment_create.php'),
+                    JSON_HEX_TAG
+                    | JSON_HEX_APOS
+                    | JSON_HEX_QUOT
+                    | JSON_HEX_AMP
+                ) ?>,
+                {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(
+                    data.message || 'Unable to save replenishment history.'
+                );
+            }
+
+            await Swal.fire({
+                icon: 'success',
+                title: 'History Recorded',
+                text: data.message,
+                confirmButtonColor: '#007472'
+            });
+
+            window.location.reload();
+
+        } catch (error) {
+            await Swal.fire({
+                icon: 'error',
+                title: 'Unable to Save Record',
+                text: error.message || 'Please try again.',
+                confirmButtonColor: '#007472'
+            });
+        } finally {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
+    });
+});
+</script>
+
+<div class="card border-0 shadow-sm mb-4" id="replenishment-history">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h2 class="h5 mb-0">Replenishment History</h2>
+        <span class="text-muted small">
+            <?= number_format($replenishmentTotal) ?> record(s)
+        </span>
+    </div>
+
+    <div class="card-body">
+        <form
+            method="GET"
+            action="<?= e(base_url('/public/materials/stock.php#replenishment-history')) ?>"
+            class="row g-3 mb-4"
+        >
+            <input
+                type="hidden"
+                name="search"
+                value="<?= e((string) ($_GET['search'] ?? '')) ?>"
+            >
+            <input
+                type="hidden"
+                name="category_id"
+                value="<?= e((string) ($_GET['category_id'] ?? '')) ?>"
+            >
+            <input
+                type="hidden"
+                name="status"
+                value="<?= e((string) ($_GET['status'] ?? '')) ?>"
+            >
+            <input
+                type="hidden"
+                name="sort"
+                value="<?= e((string) ($_GET['sort'] ?? 'name')) ?>"
+            >
+            <input
+                type="hidden"
+                name="direction"
+                value="<?= e((string) ($_GET['direction'] ?? 'asc')) ?>"
+            >
+            <input
+                type="hidden"
+                name="page"
+                value="<?= (int) ($_GET['page'] ?? 1) ?>"
+            >
+            <input
+                type="hidden"
+                name="per_page"
+                value="<?= (int) ($_GET['per_page'] ?? 10) ?>"
+            >
+
+            <div class="col-12 col-md-4">
+                <label for="replenishment-search" class="form-label">
+                    Search
+                </label>
+                <input
+                    type="search"
+                    id="replenishment-search"
+                    name="replenishment_search"
+                    class="form-control"
+                    value="<?= e($replenishmentFilters['search']) ?>"
+                    placeholder="Material, code, reference..."
+                >
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label for="replenishment-date-from" class="form-label">
+                    Date From
+                </label>
+                <input
+                    type="date"
+                    id="replenishment-date-from"
+                    name="replenishment_date_from"
+                    class="form-control"
+                    value="<?= e($replenishmentFilters['date_from']) ?>"
+                >
+            </div>
+
+            <div class="col-12 col-md-3">
+                <label for="replenishment-date-to" class="form-label">
+                    Date To
+                </label>
+                <input
+                    type="date"
+                    id="replenishment-date-to"
+                    name="replenishment_date_to"
+                    class="form-control"
+                    value="<?= e($replenishmentFilters['date_to']) ?>"
+                >
+            </div>
+
+            <div class="col-12 col-md-2">
+                <label for="replenishment-per-page" class="form-label">
+                    Rows
+                </label>
+                <select
+                    id="replenishment-per-page"
+                    name="replenishment_per_page"
+                    class="form-select"
+                >
+                    <?php foreach ([10, 25, 50, 100] as $size): ?>
+                        <option
+                            value="<?= $size ?>"
+                            <?= $replenishmentPerPage === $size ? 'selected' : '' ?>
+                        >
+                            <?= $size ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="col-12 d-flex justify-content-end gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-filter me-1"></i>
+                    Filter
+                </button>
+
+                <a
+                    href="<?= e(base_url('/public/materials/stock.php#replenishment-history')) ?>"
+                    class="btn btn-outline-secondary"
+                    title="Clear replenishment filters"
+                    aria-label="Clear replenishment filters"
+                >
+                    <i class="fa-solid fa-rotate-left"></i>
+                </a>
+            </div>
+        </form>
+
+        <?php if (empty($replenishmentHistory)): ?>
+            <div class="text-center py-5">
+                <i class="fa-solid fa-clipboard-list fa-2x text-muted mb-3"></i>
+
+                <h3 class="h6">
+                    <?= $replenishmentFilters['search'] !== ''
+                        || $replenishmentFilters['date_from'] !== ''
+                        || $replenishmentFilters['date_to'] !== ''
+                            ? 'No matching replenishment records'
+                            : 'No replenishment history yet' ?>
+                </h3>
+
+                <p class="text-muted mb-0">
+                    Replenishment records will appear here once they are saved.
+                </p>
+            </div>
+        <?php else: ?>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Material</th>
+                            <th>Quantity</th>
+                            <th>Replenished At</th>
+                            <th>Reference</th>
+                            <th>Notes</th>
+                            <th>Recorded By</th>
+                            <th>Logged At</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <?php foreach ($replenishmentHistory as $record): ?>
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">
+                                        <?= e((string) $record['material_name']) ?>
+                                    </div>
+                                    <small class="text-muted">
+                                        <?= e((string) $record['material_code']) ?>
+                                    </small>
+                                </td>
+
+                                <td class="text-nowrap">
+                                    <?= number_format(
+                                        (float) $record['quantity'],
+                                        3
+                                    ) ?>
+                                    <?= e((string) $record['material_unit']) ?>
+                                </td>
+
+                                <td class="text-nowrap">
+                                    <?= e(date(
+                                        'M d, Y h:i A',
+                                        strtotime((string) $record['replenished_at'])
+                                    )) ?>
+                                </td>
+
+                                <td>
+                                    <?= e((string) ($record['reference_number'] ?? '—')) ?>
+                                </td>
+
+                                <td>
+                                    <?= e((string) ($record['notes'] ?? '—')) ?>
+                                </td>
+
+                                <td>
+                                    <?= e((string) ($record['recorded_by_name'] ?: 'Unknown')) ?>
+                                </td>
+
+                                <td class="text-nowrap">
+                                    <?= e(date(
+                                        'M d, Y h:i A',
+                                        strtotime((string) $record['created_at'])
+                                    )) ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <?php
+            $replenishmentStart =
+                (($replenishmentPageNumber - 1) * $replenishmentPerPage) + 1;
+
+            $replenishmentEnd = min(
+                $replenishmentStart + count($replenishmentHistory) - 1,
+                $replenishmentTotal
+            );
+
+            $replenishmentQuery = [
+                'replenishment_search' => $replenishmentFilters['search'],
+                'replenishment_date_from' => $replenishmentFilters['date_from'],
+                'replenishment_date_to' => $replenishmentFilters['date_to'],
+                'replenishment_per_page' => $replenishmentPerPage,
+            ];
+
+            $previousReplenishmentUrl = base_url(
+                '/public/materials/stock.php?'
+                . http_build_query(
+                    array_merge(
+                        $replenishmentQuery,
+                        ['replenishment_page' => max(1, $replenishmentPageNumber - 1)]
+                    )
+                )
+                . '#replenishment-history'
+            );
+
+            $nextReplenishmentUrl = base_url(
+                '/public/materials/stock.php?'
+                . http_build_query(
+                    array_merge(
+                        $replenishmentQuery,
+                        ['replenishment_page' => min(
+                            $replenishmentTotalPages,
+                            $replenishmentPageNumber + 1
+                        )]
+                    )
+                )
+                . '#replenishment-history'
+            );
+            ?>
+
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <small class="text-muted">
+                    Showing <?= number_format($replenishmentStart) ?>
+                    to <?= number_format($replenishmentEnd) ?>
+                    of <?= number_format($replenishmentTotal) ?> records
+                </small>
+
+                <div class="d-flex align-items-center gap-2">
+                    <a
+                        href="<?= e($previousReplenishmentUrl) ?>"
+                        class="btn btn-outline-secondary btn-sm <?= $replenishmentPageNumber <= 1 ? 'disabled' : '' ?>"
+                        <?= $replenishmentPageNumber <= 1 ? 'aria-disabled="true" tabindex="-1"' : '' ?>
+                    >
+                        Previous
+                    </a>
+
+                    <span class="small text-muted">
+                        Page <?= number_format($replenishmentPageNumber) ?>
+                        of <?= number_format(max(1, $replenishmentTotalPages)) ?>
+                    </span>
+
+                    <a
+                        href="<?= e($nextReplenishmentUrl) ?>"
+                        class="btn btn-outline-secondary btn-sm <?= $replenishmentPageNumber >= $replenishmentTotalPages ? 'disabled' : '' ?>"
+                        <?= $replenishmentPageNumber >= $replenishmentTotalPages ? 'aria-disabled="true" tabindex="-1"' : '' ?>
+                    >
+                        Next
+                    </a>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
 </div>
 
 <?php

@@ -91,6 +91,17 @@ try {
         ? (float) $_POST['reorder_level']
         : 0.0;
 
+    if (
+        !isset($_POST['stock_quantity'])
+        || !is_numeric($_POST['stock_quantity'])
+    ) {
+        throw new InvalidArgumentException(
+            'A valid current stock quantity is required.'
+        );
+    }
+
+    $stockQuantity = (float) $_POST['stock_quantity'];
+
     $isReturnable =
         isset($_POST['is_returnable'])
         && (string) $_POST['is_returnable'] === '1';
@@ -106,7 +117,8 @@ try {
         description: $description,
         minimumStockLevel: $minimumStockLevel,
         reorderLevel: $reorderLevel,
-        isReturnable: $isReturnable
+        isReturnable: $isReturnable,
+        stockQuantity: $stockQuantity
     );
 
     if (!$updated) {
