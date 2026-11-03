@@ -272,6 +272,30 @@ require_once dirname(__DIR__)
 
                     </div>
 
+                    <div class="col-md-4">
+
+                        <label
+                            for="initial_stock_quantity"
+                            class="form-label"
+                        >
+                            Initial Stock Quantity
+                        </label>
+
+                        <input
+                            type="number"
+                            id="initial_stock_quantity"
+                            name="initial_stock_quantity"
+                            class="form-control"
+                            min="0"
+                            step="0.001"
+                            value="0"
+                        >
+
+                        <div class="form-text">
+                            Starting quantity currently available for this material.
+                        </div>
+
+                    </div>
 
                     <div class="col-md-4">
 

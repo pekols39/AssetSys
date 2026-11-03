@@ -203,7 +203,9 @@ class StockService
         float $quantityDelta,
         string $reason,
         ?string $referenceNumber = null,
-        ?string $notes = null
+        ?string $notes = null,
+        ?int $physicalStockAuditItemId = null,
+        ?float $expectedBalance = null
     ): int {
         $departmentId = $this->authorizeStockOperation();
 
@@ -237,10 +239,81 @@ class StockService
             reason: $reason,
             issuedToUserId: null,
             material: $material,
-            quantityDeltaOverride: $quantityDelta
+            quantityDeltaOverride: $quantityDelta,
+            physicalStockAuditItemId: $physicalStockAuditItemId,
+            expectedBalance: $expectedBalance
         );
     }
+    /**
+     * Apply an approved physical-audit adjustment to the audited
+     * department, rather than the reviewer's own department.
+     *
+     * Asset Manager access is required. The stock balance is checked
+     * against the value recorded during the audit.
+     */
+    public function adjustStockForPhysicalAudit(
+        int $departmentId,
+        int $materialId,
+        float $quantityDelta,
+        float $expectedBalance,
+        int $physicalStockAuditItemId,
+        string $referenceNumber,
+        ?string $notes = null
+    ): int {
+        $user = $this->authorization->currentUser();
 
+        if ($user === null) {
+            throw new RuntimeException(
+                'Authentication required.'
+            );
+        }
+
+        if (!$this->authorization->canAccessAssetMaterialAreas()) {
+            throw new RuntimeException(
+                'Only an Asset Manager may approve physical-audit adjustments.'
+            );
+        }
+
+        if ($departmentId <= 0 || $physicalStockAuditItemId <= 0) {
+            throw new RuntimeException(
+                'Invalid physical-audit adjustment details.'
+            );
+        }
+
+        if (
+            !is_finite($quantityDelta)
+            || $quantityDelta == 0.0
+            || !is_finite($expectedBalance)
+            || $expectedBalance < 0
+            || round($quantityDelta, 3) != $quantityDelta
+            || round($expectedBalance, 3) != $expectedBalance
+        ) {
+            throw new RuntimeException(
+                'Invalid physical-audit quantities.'
+            );
+        }
+
+        $material = $this->getActiveMaterial($materialId);
+
+        return $this->recordMovement(
+            materialId: $materialId,
+            departmentId: $departmentId,
+            movementType: 'adjustment',
+            quantity: abs($quantityDelta),
+            vendorId: null,
+            referenceNumber: $this->normalizeOptionalString(
+                $referenceNumber
+            ),
+            notes: $this->normalizeOptionalString($notes),
+            purpose: null,
+            reason: 'Physical stock audit adjustment',
+            issuedToUserId: null,
+            material: $material,
+            quantityDeltaOverride: $quantityDelta,
+            physicalStockAuditItemId: $physicalStockAuditItemId,
+            expectedBalance: $expectedBalance
+        );
+    }
     /**
      * Get the authenticated user's department stock.
      */
@@ -349,7 +422,9 @@ class StockService
         array $material,
         ?float $quantityDeltaOverride = null,
         ?string $issuedToName = null,
-        ?int $relatedMovementId = null
+        ?int $relatedMovementId = null,
+        ?int $physicalStockAuditItemId = null,
+        ?float $expectedBalance = null
     ): int {
         $this->validateMovementType(
             $movementType
@@ -377,64 +452,106 @@ class StockService
                 ),
             };
 
-        $this->db->beginTransaction();
+        $ownsTransaction = !$this->db->inTransaction();
+
+        if ($ownsTransaction) {
+            $this->db->beginTransaction();
+        }
 
         try {
             /*
-             * Create the department/material balance row when
-             * it does not exist yet.
-             *
-             * The unique constraint on
-             * (material_id, department_id) prevents duplicates.
+             * Physical-audit adjustments use the audited department's
+             * balance. Other movements retain the existing shared-stock
+             * behavior.
              */
-            $stmt = $this->db->prepare(
-                'INSERT INTO material_stocks (
-                    material_id,
-                    department_id,
-                    quantity
-                )
-                VALUES (
-                    :material_id,
-                    :department_id,
-                    0
-                )
-                ON DUPLICATE KEY UPDATE
-                    id = LAST_INSERT_ID(id)'
-            );
+            $isPhysicalAuditAdjustment =
+                $physicalStockAuditItemId !== null;
 
-            $stmt->execute([
-                'material_id' => $materialId,
-                'department_id' => $departmentId,
-            ]);
+            $stockDepartmentId =
+                $isPhysicalAuditAdjustment
+                ? $departmentId
+                : null;
 
-            /*
-             * Lock the balance row until this transaction commits.
-             */
-            $stmt = $this->db->prepare(
-                'SELECT
-                    id,
-                    quantity
-                FROM material_stocks
-                WHERE material_id = :material_id
-                  AND department_id = :department_id
-                LIMIT 1
-                FOR UPDATE'
-            );
+            if ($isPhysicalAuditAdjustment) {
+                $stmt = $this->db->prepare(
+                    'SELECT
+                        id,
+                        quantity
+                    FROM material_stocks
+                    WHERE material_id = :material_id
+                    AND department_id = :department_id
+                    LIMIT 1
+                    FOR UPDATE'
+                );
 
-            $stmt->execute([
-                'material_id' => $materialId,
-                'department_id' => $departmentId,
-            ]);
+                $stmt->execute([
+                    'material_id' => $materialId,
+                    'department_id' => $stockDepartmentId,
+                ]);
+            } else {
+                /*
+                 * Preserve the existing shared-stock creation behavior.
+                 */
+                $stmt = $this->db->prepare(
+                    'INSERT INTO material_stocks (
+                        material_id,
+                        department_id,
+                        quantity
+                    )
+                    VALUES (
+                        :material_id,
+                        NULL,
+                        0
+                    )
+                    ON DUPLICATE KEY UPDATE
+                        id = LAST_INSERT_ID(id)'
+                );
 
-            $stock = $stmt->fetch();
+                $stmt->execute([
+                    'material_id' => $materialId,
+                ]);
+
+                $stmt = $this->db->prepare(
+                    'SELECT
+                        id,
+                        quantity
+                    FROM material_stocks
+                    WHERE material_id = :material_id
+                    AND department_id IS NULL
+                    LIMIT 1
+                    FOR UPDATE'
+                );
+
+                $stmt->execute([
+                    'material_id' => $materialId,
+                ]);
+            }
+
+            $stock = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!is_array($stock)) {
                 throw new RuntimeException(
-                    'Unable to create or retrieve stock balance.'
+                    'Unable to retrieve the correct stock balance.'
                 );
             }
 
             $currentBalance = (float) $stock['quantity'];
+
+            /*
+             * Physical audit adjustments must use the same
+             * system balance that was recorded during the audit.
+             */
+            if (
+                $expectedBalance !== null
+                && round($currentBalance, 3)
+                !== round($expectedBalance, 3)
+            ) {
+                throw new RuntimeException(
+                    'The current stock balance has changed since this '
+                    . 'audit was conducted. Please conduct a new audit '
+                    . 'before approving this adjustment.'
+                );
+            }
 
             $newBalance =
                 $currentBalance + $quantityDelta;
@@ -556,6 +673,7 @@ class StockService
                     issued_to_user_id,
                     issued_to_name,
                     related_movement_id,
+                    physical_stock_audit_item_id,
                     reference_number,
                     purpose,
                     reason,
@@ -573,6 +691,7 @@ class StockService
                     :issued_to_user_id,
                     :issued_to_name,
                     :related_movement_id,
+                    :physical_stock_audit_item_id,
                     :reference_number,
                     :purpose,
                     :reason,
@@ -592,6 +711,7 @@ class StockService
                 'issued_to_user_id' => $issuedToUserId,
                 'issued_to_name' => $issuedToName,
                 'related_movement_id' => $relatedMovementId,
+                'physical_stock_audit_item_id' => $physicalStockAuditItemId,
                 'reference_number' => $referenceNumber,
                 'purpose' => $purpose,
                 'reason' => $reason,
@@ -601,11 +721,16 @@ class StockService
 
             $movementId = (int) $this->db->lastInsertId();
 
-            $this->db->commit();
+            if ($ownsTransaction) {
+                $this->db->commit();
+            }
 
             return $movementId;
         } catch (Throwable $e) {
-            if ($this->db->inTransaction()) {
+            if (
+                $ownsTransaction
+                && $this->db->inTransaction()
+            ) {
                 $this->db->rollBack();
             }
 
@@ -626,10 +751,7 @@ class StockService
             );
         }
 
-        if (
-            !$this->authorization->isAssetManager()
-            && !$this->authorization->isAssetCustodian()
-        ) {
+        if (!$this->authorization->canAccessAssetOperations()) {
             throw new RuntimeException(
                 'You do not have permission to manage stock.'
             );
@@ -680,7 +802,7 @@ class StockService
     }
 
     /**
-     * Ensure a user belongs to the same department as the stock.
+     * Ensure the selected recipient is an active organization user.
      */
     private function validateUserForDepartment(
         int $userId,
@@ -688,22 +810,20 @@ class StockService
     ): void {
         $stmt = $this->db->prepare(
             'SELECT id
-             FROM users
-             WHERE id = :id
-               AND department_id = :department_id
-               AND account_status = "active"
-               AND is_active = 1
-             LIMIT 1'
+         FROM users
+         WHERE id = :id
+           AND account_status = "active"
+           AND is_active = 1
+         LIMIT 1'
         );
 
         $stmt->execute([
             'id' => $userId,
-            'department_id' => $departmentId,
         ]);
 
         if (!$stmt->fetch()) {
             throw new RuntimeException(
-                'The selected recipient does not belong to your department.'
+                'The selected recipient does not exist or is inactive.'
             );
         }
     }

@@ -27,7 +27,33 @@ if (!$authorization->canAccessAssetOperations()) {
 
 $categoryService = new MaterialCategoryService();
 
-$categories = $categoryService->getAll();
+$search = trim((string) ($_GET['search'] ?? ''));
+$status = trim((string) ($_GET['status'] ?? ''));
+
+if (!in_array($status, ['', 'active', 'inactive'], true)) {
+    $status = '';
+}
+
+$page = max(1, (int) ($_GET['page'] ?? 1));
+
+$perPage = (int) ($_GET['per_page'] ?? 10);
+
+if (!in_array($perPage, [10, 25, 50, 100], true)) {
+    $perPage = 10;
+}
+
+$categoryResult = $categoryService->getPaginated(
+    $search,
+    $status,
+    $page,
+    $perPage
+);
+
+$categories = $categoryResult['data'];
+$categoryTotal = $categoryResult['total'];
+$categoryPage = $categoryResult['page'];
+$categoryPerPage = $categoryResult['per_page'];
+$categoryTotalPages = $categoryResult['total_pages'];
 
 $pageTitle = 'Material Categories';
 
@@ -145,7 +171,7 @@ require_once dirname(__DIR__)
     <!-- Categories -->
     <div class="col-12 col-lg-8">
 
-        <div class="card border-0 shadow-sm">
+        <div class="card border-0 shadow-sm" id="categories-list">
 
             <div class="card-header bg-white py-3">
 
@@ -160,7 +186,7 @@ require_once dirname(__DIR__)
                     <span class="text-muted small">
 
                         <?= e(
-                            (string) count($categories)
+                            number_format($categoryTotal)
                         ) ?>
 
                         category(s)
@@ -174,6 +200,59 @@ require_once dirname(__DIR__)
 
             <div class="card-body p-0">
 
+                <div class="p-3 border-bottom">
+                    <form method="GET" action="<?= e(base_url('/public/materials/categories.php')) ?>#categories-list"
+                        class="row g-2 align-items-end">
+                        <div class="col-12 col-md-5">
+                            <label for="categorySearch" class="form-label">
+                                Search categories
+                            </label>
+                            <input type="search" class="form-control" id="categorySearch" name="search"
+                                value="<?= e($search) ?>" placeholder="Name, code, or description">
+                        </div>
+
+                        <div class="col-6 col-md-3">
+                            <label for="categoryStatus" class="form-label">
+                                Status
+                            </label>
+                            <select class="form-select" id="categoryStatus" name="status">
+                                <option value="">All statuses</option>
+                                <option value="active" <?= $status === 'active' ? 'selected' : '' ?>>
+                                    Active
+                                </option>
+                                <option value="inactive" <?= $status === 'inactive' ? 'selected' : '' ?>>
+                                    Inactive
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="col-6 col-md-2">
+                            <label for="categoryPerPage" class="form-label">
+                                Rows
+                            </label>
+                            <select class="form-select" id="categoryPerPage" name="per_page">
+                                <?php foreach ([10, 25, 50, 100] as $option): ?>
+                                    <option value="<?= $option ?>" <?= $categoryPerPage === $option ? 'selected' : '' ?>>
+                                        <?= $option ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-2 d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                <i class="fa-solid fa-filter me-1"></i>
+                                Filter
+                            </button>
+
+                            <a href="<?= e(base_url('/public/materials/categories.php#categories-list')) ?>"
+                                class="btn btn-outline-secondary" title="Clear filters">
+                                <i class="fa-solid fa-rotate-left"></i>
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
                 <?php if (empty($categories)): ?>
 
                     <div class="text-center py-5 px-3">
@@ -185,14 +264,17 @@ require_once dirname(__DIR__)
                         </div>
 
                         <h3 class="h5">
-                            No material categories
+                            <?= $search !== '' || $status !== ''
+                                ? 'No matching material categories'
+                                : 'No material categories' ?>
                         </h3>
 
                         <p class="text-muted mb-0">
-
-                            Add the first material category
-                            using the form.
-
+                            <?php if ($search !== '' || $status !== ''): ?>
+                                Try changing your search term or status filter.
+                            <?php else: ?>
+                                Add the first material category using the form.
+                            <?php endif; ?>
                         </p>
 
                     </div>
@@ -324,6 +406,85 @@ require_once dirname(__DIR__)
 
                         </table>
 
+                    </div>
+
+                    <?php
+                    $categoryStart = $categoryTotal > 0
+                        ? (($categoryPage - 1) * $categoryPerPage) + 1
+                        : 0;
+
+                    $categoryEnd = min(
+                        $categoryPage * $categoryPerPage,
+                        $categoryTotal
+                    );
+
+                    $categoryQuery = [
+                        'search' => $search,
+                        'status' => $status,
+                        'per_page' => $categoryPerPage,
+                    ];
+
+                    $previousUrl = base_url(
+                        '/public/materials/categories.php?'
+                        . http_build_query(
+                            $categoryQuery + [
+                                'page' => max(1, $categoryPage - 1),
+                            ]
+                        )
+                        . '#categories-list'
+                    );
+
+                    $nextUrl = base_url(
+                        '/public/materials/categories.php?'
+                        . http_build_query(
+                            $categoryQuery + [
+                                'page' => min(
+                                    $categoryTotalPages,
+                                    $categoryPage + 1
+                                ),
+                            ]
+                        )
+                        . '#categories-list'
+                    );
+                    ?>
+
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 p-3 border-top">
+                        <small class="text-muted">
+                            Showing <?= number_format($categoryStart) ?>
+                            to <?= number_format($categoryEnd) ?>
+                            of <?= number_format($categoryTotal) ?> categories
+                        </small>
+
+                        <nav aria-label="Material category pagination">
+                            <ul class="pagination pagination-sm mb-0">
+                                <li class="page-item <?= $categoryPage <= 1 ? 'disabled' : '' ?>">
+                                    <a
+                                        class="page-link"
+                                        href="<?= e($previousUrl) ?>"
+                                        <?= $categoryPage <= 1 ? 'aria-disabled="true" tabindex="-1"' : '' ?>
+                                    >
+                                        Previous
+                                    </a>
+                                </li>
+
+                                <li class="page-item disabled">
+                                    <span class="page-link">
+                                        Page <?= number_format($categoryPage) ?>
+                                        of <?= number_format($categoryTotalPages) ?>
+                                    </span>
+                                </li>
+
+                                <li class="page-item <?= $categoryPage >= $categoryTotalPages ? 'disabled' : '' ?>">
+                                    <a
+                                        class="page-link"
+                                        href="<?= e($nextUrl) ?>"
+                                        <?= $categoryPage >= $categoryTotalPages ? 'aria-disabled="true" tabindex="-1"' : '' ?>
+                                    >
+                                        Next
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
                     </div>
 
                 <?php endif; ?>

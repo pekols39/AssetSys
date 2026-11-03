@@ -175,7 +175,231 @@ class AssetDisposal
             ? $result
             : null;
     }
+    public function getPaginated(
+        string $search = '',
+        string $status = '',
+        int $page = 1,
+        int $perPage = 10
+    ): array {
+        $allowedPerPage = [10, 25, 50, 100];
 
+        if (!in_array($perPage, $allowedPerPage, true)) {
+            $perPage = 10;
+        }
+
+        $allowedStatuses = [
+            'pending',
+            'approved',
+            'completed',
+            'cancelled',
+        ];
+
+        if (!in_array($status, $allowedStatuses, true)) {
+            $status = '';
+        }
+
+        $page = max(1, $page);
+        $search = trim($search);
+
+        $where = [];
+        $params = [];
+
+        if ($status !== '') {
+            $where[] = 'd.disposal_status = :status';
+            $params['status'] = $status;
+        }
+
+        if ($search !== '') {
+            $searchableFields = [
+                'a.asset_code',
+                'a.asset_name',
+                'a.serial_number',
+                'd.disposal_type',
+                'd.disposal_reason',
+                'd.description',
+                'd.disposal_reference',
+                'disposer.employee_number',
+                'disposer.first_name',
+                'disposer.last_name',
+            ];
+
+            $searchConditions = [];
+
+            foreach ($searchableFields as $index => $field) {
+                $placeholder = ':search_' . $index;
+
+                $searchConditions[] =
+                    $field . ' LIKE ' . $placeholder;
+
+                $params[$placeholder] = '%' . $search . '%';
+            }
+
+            $where[] = '(' . implode(' OR ', $searchConditions) . ')';
+        }
+
+        $whereSql = $where !== []
+            ? 'WHERE ' . implode(' AND ', $where)
+            : '';
+
+        $countStmt = $this->db->prepare(
+            'SELECT COUNT(*)
+         FROM asset_disposals d
+         INNER JOIN assets a
+            ON a.id = d.asset_id
+         INNER JOIN users disposer
+            ON disposer.id = d.disposed_by
+         ' . $whereSql
+        );
+
+        $countStmt->execute($params);
+
+        $total = (int) $countStmt->fetchColumn();
+
+        $totalPages = max(
+            1,
+            (int) ceil($total / $perPage)
+        );
+
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
+
+        $stmt = $this->db->prepare(
+            'SELECT
+            d.*,
+            a.asset_code,
+            a.asset_name,
+            a.serial_number,
+
+            approver.employee_number
+                AS approved_by_employee_id,
+            approver.first_name
+                AS approved_by_first_name,
+            approver.last_name
+                AS approved_by_last_name,
+
+            disposer.employee_number
+                AS disposed_by_employee_id,
+            disposer.first_name
+                AS disposed_by_first_name,
+            disposer.last_name
+                AS disposed_by_last_name
+
+        FROM asset_disposals d
+
+        INNER JOIN assets a
+            ON a.id = d.asset_id
+
+        LEFT JOIN users approver
+            ON approver.id = d.approved_by
+
+        INNER JOIN users disposer
+            ON disposer.id = d.disposed_by
+
+        ' . $whereSql . '
+
+        ORDER BY
+            d.disposal_date DESC,
+            d.id DESC
+
+        LIMIT :limit
+        OFFSET :offset'
+        );
+
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value, PDO::PARAM_STR);
+        }
+
+        $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+
+        $stmt->execute();
+
+        return [
+            'data' => $stmt->fetchAll(),
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage,
+            'total_pages' => $totalPages,
+        ];
+    }
+    public function getPending(): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT
+            d.*,
+            a.asset_code,
+            a.asset_name,
+            a.serial_number,
+
+            approver.employee_number
+                AS approved_by_employee_id,
+            approver.first_name
+                AS approved_by_first_name,
+            approver.last_name
+                AS approved_by_last_name,
+
+            disposer.employee_number
+                AS disposed_by_employee_id,
+            disposer.first_name
+                AS disposed_by_first_name,
+            disposer.last_name
+                AS disposed_by_last_name
+
+        FROM asset_disposals d
+
+        INNER JOIN assets a
+            ON a.id = d.asset_id
+
+        LEFT JOIN users approver
+            ON approver.id = d.approved_by
+
+        INNER JOIN users disposer
+            ON disposer.id = d.disposed_by
+
+        WHERE d.disposal_status = :status
+
+        ORDER BY
+            d.disposal_date DESC,
+            d.id DESC'
+        );
+
+        $stmt->execute([
+            'status' => 'pending',
+        ]);
+
+        return $stmt->fetchAll();
+    }
+
+    public function getSummary(): array
+    {
+        $stmt = $this->db->query(
+            "SELECT
+            COUNT(*) AS total,
+            COALESCE(
+                SUM(disposal_status = 'completed'),
+                0
+            ) AS completed,
+            COALESCE(
+                SUM(disposal_status = 'approved'),
+                0
+            ) AS approved,
+            COALESCE(
+                SUM(
+                    disposal_status = 'cancelled'
+                    AND COALESCE(rejection_reason, '') <> ''
+                ),
+                0
+            ) AS rejected
+        FROM asset_disposals"
+        );
+
+        return $stmt->fetch() ?: [
+            'total' => 0,
+            'completed' => 0,
+            'approved' => 0,
+            'rejected' => 0,
+        ];
+    }
     public function getAll(): array
     {
         $stmt = $this->db->query(

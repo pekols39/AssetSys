@@ -267,6 +267,38 @@ require_once dirname(__DIR__)
 
                 </div>
 
+                <div class="col-md-4">
+
+                    <label
+                        for="stock_quantity"
+                        class="form-label"
+                    >
+                        Current Stock
+                    </label>
+
+                    <input
+                        type="number"
+                        id="stock_quantity"
+                        name="stock_quantity"
+                        class="form-control"
+                        min="0"
+                        step="0.001"
+                        value="<?= e(
+                            number_format(
+                                (float) $material['stock_quantity'],
+                                3,
+                                '.',
+                                ''
+                            )
+                        ) ?>"
+                        required
+                    >
+
+                    <div class="form-text">
+                        Enter the current available quantity.
+                    </div>
+
+                </div>
 
                 <div class="col-12">
 

@@ -87,6 +87,12 @@ try {
         ? (float) $_POST['reorder_level']
         : 0.0;
 
+    $initialStockQuantity = isset(
+        $_POST['initial_stock_quantity']
+    )
+        ? (float) $_POST['initial_stock_quantity']
+        : 0.0;
+
     $isReturnable =
         isset($_POST['is_returnable'])
         && (string) $_POST['is_returnable'] === '1';
@@ -101,7 +107,8 @@ try {
         description: $description,
         minimumStockLevel: $minimumStockLevel,
         reorderLevel: $reorderLevel,
-        isReturnable: $isReturnable
+        isReturnable: $isReturnable,
+        initialStockQuantity: $initialStockQuantity
     );
 
     http_response_code(201);

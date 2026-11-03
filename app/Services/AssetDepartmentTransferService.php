@@ -570,6 +570,67 @@ class AssetDepartmentTransferService
     }
 
     /**
+     * Get filtered and paginated department-transfer history
+     * for the authenticated Asset Manager or Property Custodian.
+     */
+    public function getPaginatedDepartmentHistory(
+        string $search = '',
+        string $status = '',
+        int $page = 1,
+        int $perPage = 10
+    ): array {
+        $actorId = Auth::id();
+
+        if ($actorId === null) {
+            throw new RuntimeException(
+                'Authentication required.'
+            );
+        }
+
+        $actor = $this->requireActor(
+            (int) $actorId,
+            ['Asset Manager', 'Property Custodian']
+        );
+
+        $requesterId = ($actor['role_name'] ?? '') === 'Property Custodian'
+            ? (int) $actorId
+            : null;
+
+        return $this->transferModel->getPaginatedRequests(
+            $requesterId,
+            trim($search),
+            $status,
+            max(1, $page),
+            $perPage
+        );
+    }
+    /**
+     * Get transfer-history summary counts for the authenticated user.
+     */
+    public function getDepartmentHistorySummary(): array
+    {
+        $actorId = Auth::id();
+
+        if ($actorId === null) {
+            throw new RuntimeException(
+                'Authentication required.'
+            );
+        }
+
+        $actor = $this->requireActor(
+            (int) $actorId,
+            ['Asset Manager', 'Property Custodian']
+        );
+
+        $requesterId = ($actor['role_name'] ?? '') === 'Property Custodian'
+            ? (int) $actorId
+            : null;
+
+        return $this->transferModel->getRequestSummary(
+            $requesterId
+        );
+    }
+    /**
      * Get one department-transfer record for the authenticated
      * Asset Manager/Property Custodian.
      */

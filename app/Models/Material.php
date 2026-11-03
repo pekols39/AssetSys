@@ -26,6 +26,7 @@ class Material
                 m.name,
                 m.description,
                 m.unit,
+                COALESCE(ms.quantity, 0) AS stock_quantity,
                 m.minimum_stock_level,
                 m.reorder_level,
                 m.is_returnable,
@@ -48,6 +49,10 @@ class Material
 
             LEFT JOIN users u
                 ON u.id = m.created_by
+
+            LEFT JOIN material_stocks ms
+                ON ms.material_id = m.id
+                AND ms.department_id IS NULL
 
             WHERE m.id = :id
             LIMIT 1'
@@ -282,6 +287,7 @@ class Material
                 m.name,
                 m.description,
                 m.unit,
+                COALESCE(ms.quantity, 0) AS stock_quantity,
                 m.minimum_stock_level,
                 m.reorder_level,
                 m.is_returnable,
@@ -291,7 +297,11 @@ class Material
                 m.updated_at,
                 c.name AS category_name,
                 c.code AS category_code
-            ' . $fromSql . $whereSql . '
+            ' . $fromSql . '
+            LEFT JOIN material_stocks ms
+                ON ms.material_id = m.id
+                AND ms.department_id IS NULL
+            ' . $whereSql . '
             ORDER BY ' . $sortColumn . ' ' . $direction . ',
                      m.id DESC
             LIMIT :limit OFFSET :offset

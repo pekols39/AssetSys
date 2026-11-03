@@ -295,6 +295,10 @@ require_once dirname(__DIR__)
                             </th>
 
                             <th class="text-end">
+                                Stock
+                            </th>
+
+                            <th class="text-end">
                                 Minimum Stock
                             </th>
 
@@ -408,6 +412,18 @@ require_once dirname(__DIR__)
 
                                 </td>
 
+                                <td class="text-end">
+
+                                    <?= e(
+                                        number_format(
+                                            (float) $material[
+                                                'stock_quantity'
+                                            ],
+                                            3
+                                        )
+                                    ) ?>
+
+                                </td>
 
                                 <td class="text-end">
 
