@@ -1,0 +1,55 @@
+.material-borrowing-page .text-teal {
+    color: #007472 !important;
+}
+
+.material-borrow-primary,
+.material-borrow-primary:hover,
+.material-borrow-primary:focus {
+    background-color: #007472;
+    border-color: #007472;
+    color: #fff;
+}
+
+.material-borrow-primary:hover {
+    background-color: #005f5d;
+    border-color: #005f5d;
+}
+
+.material-borrowing-tabs .nav-link {
+    color: #52616b;
+}
+
+.material-borrowing-tabs .nav-link.active {
+    color: #007472;
+    border-bottom-color: #007472;
+    font-weight: 600;
+}
+
+.material-borrowing-table thead th {
+    background: #f8fafb;
+    color: #52616b;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .025em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.material-borrowing-table td {
+    font-size: .9rem;
+}
+
+#borrowingDetailsContent .table th {
+    color: #52616b;
+    font-size: .78rem;
+}
+
+@media (max-width: 767.98px) {
+    .material-borrowing-page .card-body {
+        padding: 1rem;
+    }
+
+    .material-borrowing-table {
+        min-width: 980px;
+    }
+}

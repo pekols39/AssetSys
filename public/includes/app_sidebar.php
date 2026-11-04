@@ -37,6 +37,10 @@ $isDepreciationSchedules =
 $isQrScanMonitoring =
     str_ends_with($currentPath, '/reports/qr_scan_monitoring.php');
 
+$isMaterialBorrow = str_ends_with($currentPath, '/materials/borrow.php');
+
+$isMaterialBorrowings = str_ends_with($currentPath, '/materials/borrowings.php');
+
 $isAdministrationDashboard = str_ends_with(
     $currentPath,
     '/administration/index.php'
@@ -149,6 +153,26 @@ $isAdministrationSettings = str_ends_with(
                         Physical Stock Audit
                     </span>
                 </a>
+
+                <?php if ($authorization->isPropertyCustodian()): ?>
+
+                    <a href="<?= e(base_url('/public/materials/borrow.php')) ?>"
+                        class="app-sidebar-link <?= $isMaterialBorrow ? 'active' : '' ?>">
+                        <span class="app-sidebar-link-icon">
+                            <i class="fa-solid fa-hand-holding"></i>
+                        </span>
+                        <span class="app-sidebar-link-text">Borrow Materials</span>
+                    </a>
+
+                    <a href="<?= e(base_url('/public/materials/borrowings.php')) ?>"
+                        class="app-sidebar-link <?= $isMaterialBorrowings ? 'active' : '' ?>">
+                        <span class="app-sidebar-link-icon">
+                            <i class="fa-solid fa-clipboard-check"></i>
+                        </span>
+                        <span class="app-sidebar-link-text">Borrowing Records</span>
+                    </a>
+
+                <?php endif; ?>
 
                 <!-- Stock navigation temporarily hidden for Fixed Asset Management.
                 <a href="<?= base_url('/public/materials/stock.php') ?>"
