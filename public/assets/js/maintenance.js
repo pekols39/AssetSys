@@ -50,13 +50,8 @@
         || '';
 
     const maintenanceUpdateUrl =
-        maintenanceForm
-            ? maintenanceForm.dataset.updateAction
-                || (
-                    window.location.origin
-                    + '/AssetSys/public/assets/maintenance_update_process.php'
-                )
-            : '';
+        maintenanceForm?.dataset.updateAction
+        || '';
 
     /*
      * Convert MySQL DATETIME into
@@ -422,7 +417,7 @@
                     completedAt
                     && startedAt
                     && new Date(completedAt)
-                        < new Date(startedAt)
+                    < new Date(startedAt)
                 ) {
 
                     await Swal.fire({
@@ -445,7 +440,7 @@
                     nextMaintenanceDate
                     && scheduledDate
                     && nextMaintenanceDate
-                        < scheduledDate
+                    < scheduledDate
                 ) {
 
                     await Swal.fire({

@@ -15,8 +15,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit('Method not allowed.');
 }
 
-$loginUrl = APP_URL . '/public/login.php';
-$forgotUrl = APP_URL . '/public/forgot_password.php';
+$loginUrl = base_url('/public/login.php');
+$forgotUrl = base_url('/public/forgot_password.php');
 
 $genericMessage =
     'If an eligible account matches that email address, '
@@ -145,8 +145,8 @@ try {
         ->modify('+' . $ttlMinutes . ' minutes')
         ->format('Y-m-d H:i:s');
 
-    $resetUrl = APP_URL
-        . '/public/reset_password.php?token='
+    $resetUrl = base_url('/public/reset_password.php')
+        . '?token='
         . rawurlencode($rawToken);
 
     /*

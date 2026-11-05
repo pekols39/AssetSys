@@ -43,7 +43,7 @@ if (!Auth::check()) {
  * Redirect authenticated users to the dashboard.
  */
 if (Auth::check()) {
-    header('Location: ' . APP_URL . '/public/dashboard/');
+    header('Location: ' . base_url('/public/dashboard/'));
     exit;
 }
 

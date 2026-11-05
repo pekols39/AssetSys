@@ -90,7 +90,7 @@
             window.location.href =
                 result.redirect
                 || listUrl
-                || '/AssetSys/public/assets/';
+                || window.location.href;
 
         } catch (error) {
 

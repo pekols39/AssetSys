@@ -19,6 +19,14 @@ define('APP_NAME', $_ENV['APP_NAME'] ?? 'Company Asset Management System');
 define('APP_ENV', $_ENV['APP_ENV'] ?? 'local');
 define('APP_DEBUG', filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN));
 define('APP_URL', rtrim($_ENV['APP_URL'] ?? 'http://localhost/AssetSys', '/'));
+define(
+    'APP_PUBLIC_PATH',
+    rtrim(
+        $_ENV['APP_PUBLIC_PATH']
+            ?? (APP_ENV === 'production' ? '' : '/public'),
+        '/'
+    )
+);
 
 define('DB_HOST', $_ENV['DB_HOST'] ?? '127.0.0.1');
 define('DB_PORT', $_ENV['DB_PORT'] ?? '3306');

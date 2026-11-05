@@ -121,9 +121,7 @@ try {
     if (
         (int) ($user['must_change_password'] ?? 0) === 1
     ) {
-        $redirect =
-            APP_URL
-            . '/public/auth/change_password.php';
+        $redirect = base_url('/public/auth/change_password.php');
     }
 
     echo json_encode([

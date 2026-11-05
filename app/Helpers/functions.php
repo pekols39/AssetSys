@@ -62,9 +62,7 @@ if (!function_exists('asset')) {
             ? filemtime($fullPath)
             : time();
 
-        return APP_URL
-            . '/public/assets/'
-            . $relativePath
+        return base_url('/assets/' . $relativePath)
             . '?v='
             . $version;
     }
@@ -76,7 +74,18 @@ if (!function_exists('base_url')) {
      */
     function base_url(string $path = ''): string
     {
-        return APP_URL . '/' . ltrim($path, '/');
+        $relativePath = '/' . ltrim($path, '/');
+
+        // Remove an existing /public prefix to avoid duplicate paths.
+        if (str_starts_with($relativePath, '/public/')) {
+            $relativePath = substr($relativePath, 7);
+        } elseif ($relativePath === '/public') {
+            $relativePath = '/';
+        }
+
+        return APP_URL
+            . APP_PUBLIC_PATH
+            . ($relativePath === '/' ? '/' : $relativePath);
     }
 }
 

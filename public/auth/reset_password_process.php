@@ -25,7 +25,7 @@ function resetPasswordRedirect(
         'text' => $message,
     ]);
 
-    header('Location: ' . APP_URL . $destination);
+    header('Location: ' . base_url($destination));
     exit;
 }
 

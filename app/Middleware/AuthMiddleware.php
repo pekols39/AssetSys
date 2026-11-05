@@ -20,7 +20,7 @@ class AuthMiddleware
 
         if (!Auth::check()) {
             header(
-                'Location: ' . APP_URL . '/public/login.php'
+                'Location: ' . base_url('/public/login.php')
             );
             exit;
         }
@@ -29,7 +29,7 @@ class AuthMiddleware
 
         if (!Auth::check()) {
             header(
-                'Location: ' . APP_URL . '/public/login.php'
+                'Location: ' . base_url('/public/login.php')
             );
             exit;
         }
@@ -40,7 +40,7 @@ class AuthMiddleware
             Auth::logout();
 
             header(
-                'Location: ' . APP_URL . '/public/login.php'
+                'Location: ' . base_url('/public/login.php')
             );
             exit;
         }
@@ -60,7 +60,7 @@ class AuthMiddleware
             Auth::logout();
 
             header(
-                'Location: ' . APP_URL . '/public/login.php'
+                'Location: ' . base_url('/public/login.php')
             );
             exit;
         }
@@ -71,12 +71,12 @@ class AuthMiddleware
         );
 
         $changePasswordPath = parse_url(
-            APP_URL . '/public/auth/change_password.php',
+            base_url('/public/auth/change_password.php'),
             PHP_URL_PATH
         );
 
         $changePasswordProcessPath = parse_url(
-            APP_URL . '/public/auth/change_password_process.php',
+            base_url('/public/auth/change_password_process.php'),
             PHP_URL_PATH
         );
 
@@ -86,7 +86,7 @@ class AuthMiddleware
             && $currentPath !== $changePasswordProcessPath
         ) {
             header(
-                'Location: ' . APP_URL . '/public/auth/change_password.php'
+                'Location: ' . base_url('/public/auth/change_password.php')
             );
             exit;
         }

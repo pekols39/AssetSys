@@ -1647,7 +1647,7 @@ function displayDate(
                                 <div class="card h-100 border">
 
                                     <div class="ratio ratio-4x3 bg-light">
-                                        <img src="<?= e(rtrim(APP_URL, '/') . '/public/download.php?type=photo&id=' . (int) $photo['id']) ?>"
+                                        <img src="<?= e(base_url('/public/download.php') . '?type=photo&id=' . (int) $photo['id']) ?>"
                                             alt="<?= e($photo['caption'] ?: $photo['original_name']) ?>"
                                             class="card-img-top object-fit-cover">
                                     </div>
@@ -1810,8 +1810,8 @@ function displayDate(
                                                 ): ?>
 
                                                     <a href="<?= e(
-                                                        rtrim(APP_URL, '/')
-                                                        . '/public/download.php?type=document&id='
+                                                        base_url('/public/download.php')
+                                                        . '?type=document&id='
                                                         . (int) $document['id']
                                                         . '&preview=1'
                                                     ) ?>" class="btn btn-sm preview-document-button" target="_blank"
@@ -1823,8 +1823,8 @@ function displayDate(
                                                 <?php endif; ?>
 
                                                 <a href="<?= e(
-                                                    rtrim(APP_URL, '/')
-                                                    . '/public/download.php?type=document&id='
+                                                    base_url('/public/download.php')
+                                                    . '?type=document&id='
                                                     . (int) $document['id']
                                                 ) ?>" class="btn btn-sm download-document-button">
                                                     <i class="fa-solid fa-download me-1"></i>
@@ -3016,7 +3016,8 @@ function displayDate(
                         <?php if ($depreciationSchedule): ?>
 
                             <?php if (
-                                strtolower(
+                                $authorization->canAccessAssetMaterialAreas()
+                                && strtolower(
                                     (string) (
                                         $depreciationSchedule['schedule_status']
                                         ?? ''
@@ -3063,17 +3064,21 @@ function displayDate(
 
                         <?php else: ?>
 
-                            <button type="button" class="btn btn-sm btn-primary" id="createDepreciationButton"
-                                data-asset-id="<?= e(
-                                    (string) $asset['id']
-                                ) ?>" data-start-date="<?= e(
-                                     (string) (
-                                         $asset['purchase_date'] ?? ''
-                                     )
-                                 ) ?>">
-                                <i class="fa-solid fa-plus me-1"></i>
-                                Create Schedule
-                            </button>
+                            <?php if ($authorization->canAccessAssetMaterialAreas()): ?>
+
+                                <button type="button" class="btn btn-sm btn-primary" id="createDepreciationButton"
+                                    data-asset-id="<?= e(
+                                        (string) $asset['id']
+                                    ) ?>" data-start-date="<?= e(
+                                         (string) (
+                                             $asset['purchase_date'] ?? ''
+                                         )
+                                     ) ?>">
+                                    <i class="fa-solid fa-plus me-1"></i>
+                                    Create Schedule
+                                </button>
+
+                            <?php endif; ?>
 
                         <?php endif; ?>
 

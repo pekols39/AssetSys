@@ -84,7 +84,7 @@ require_once __DIR__ . '/includes/guest_header.php';
 
                             <form
                                 method="POST"
-                                action="<?= e(APP_URL) ?>/public/auth/reset_password_process.php"
+                                action="<?= e(base_url('/public/auth/reset_password_process.php')) ?>"
                                 autocomplete="off"
                             >
                                 <?= Csrf::field() ?>
@@ -207,7 +207,7 @@ require_once __DIR__ . '/includes/guest_header.php';
                             <?php if (!$serverError): ?>
                                 <a
                                     class="btn btn-primary w-100"
-                                    href="<?= e(APP_URL) ?>/public/forgot_password.php"
+                                    href="<?= e(base_url('/public/forgot_password.php')) ?>"
                                 >
                                     Request a New Link
                                 </a>
@@ -216,7 +216,7 @@ require_once __DIR__ . '/includes/guest_header.php';
                         <?php endif; ?>
 
                         <div class="text-center mt-4">
-                            <a href="<?= e(APP_URL) ?>/public/login.php">
+                            <a href="<?= e(base_url('/public/login.php')) ?>">
                                 Back to Sign In
                             </a>
                         </div>

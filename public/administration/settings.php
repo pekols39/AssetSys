@@ -75,7 +75,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
             <form
                 method="post"
                 action="<?= htmlspecialchars(
-                    APP_URL . '/public/administration/update_process.php',
+                    base_url('/public/administration/update_process.php'),
                     ENT_QUOTES,
                     'UTF-8'
                 ) ?>"

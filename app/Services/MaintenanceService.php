@@ -406,14 +406,14 @@ class MaintenanceService
             );
         }
 
-        if (!$this->authorization->canAccessAssetMaterialAreas()) {
+        if (!$this->authorization->canAccessAssetOperations()) {
             throw new RuntimeException(
                 'You do not have permission to manage maintenance records.'
             );
         }
 
-        // The authorized Asset Manager may manage maintenance
-        // records for assets across departments.
+        // Authorized Asset Managers and Property Custodians
+        // may manage maintenance records for assets.
     }
 
     private function validateMaintenanceStartStatus(

@@ -25,7 +25,7 @@ if (!$user || !isset($user['user_id'])) {
     Auth::logout();
 
     header(
-        'Location: ' . APP_URL . '/public/login.php'
+        'Location: ' . base_url('/public/login.php')
     );
 
     exit;
@@ -33,7 +33,7 @@ if (!$user || !isset($user['user_id'])) {
 
 if ((int) ($user['must_change_password'] ?? 0) !== 1) {
     header(
-        'Location: ' . APP_URL . '/public/dashboard/'
+        'Location: ' . base_url('/public/dashboard/')
     );
     exit;
 }
@@ -96,7 +96,7 @@ try {
         Auth::logout();
 
         header(
-            'Location: ' . APP_URL . '/public/login.php'
+            'Location: ' . base_url('/public/login.php')
         );
 
         exit;
@@ -163,7 +163,7 @@ try {
         );
 
         header(
-            'Location: ' . APP_URL . '/public/login.php'
+            'Location: ' . base_url('/public/login.php')
         );
 
         exit;
@@ -175,7 +175,7 @@ try {
     );
 
     header(
-        'Location: ' . APP_URL . '/public/dashboard/'
+        'Location: ' . base_url('/public/dashboard/')
     );
 
     exit;

@@ -530,12 +530,14 @@ class NotificationService
 
         if (defined('APP_URL') && APP_URL !== '') {
             if (stripos($subject, 'transfer') !== false) {
-                $actionUrl = APP_URL
-                    . '/public/assets/department_transfers.php';
+                $actionUrl = base_url(
+                    '/public/assets/department_transfers.php'
+                );
                 $actionLabel = 'View Asset Transfers';
             } elseif (stripos($subject, 'disposal') !== false) {
-                $actionUrl = APP_URL
-                    . '/public/assets/disposal_requests.php';
+                $actionUrl = base_url(
+                    '/public/assets/disposal_requests.php'
+                );
                 $actionLabel = 'View Disposal Requests';
             }
         }

@@ -13,13 +13,13 @@ AuthMiddleware::handle();
 $user = Auth::user();
 
 if (!$user) {
-    header('Location: ' . APP_URL . '/public/login.php');
+    header('Location: ' . base_url('/public/login.php'));
     exit;
 }
 
 if ((int) ($user['must_change_password'] ?? 0) !== 1) {
     header(
-        'Location: ' . APP_URL . '/public/dashboard/'
+        'Location: ' . base_url('/public/dashboard/')
     );
     exit;
 }
@@ -48,7 +48,7 @@ require_once dirname(__DIR__) . '/includes/guest_header.php';
                             </p>
                         </div>
 
-                        <form method="POST" action="<?= e(APP_URL . '/public/auth/change_password_process.php') ?>">
+                        <form method="POST" action="<?= e(base_url('/public/auth/change_password_process.php')) ?>">
 
                             <?= Csrf::field() ?>
 

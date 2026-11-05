@@ -1,0 +1,7 @@
+Options -Indexes
+
+RewriteEngine On
+
+# Support existing application URLs containing /public/
+# when this directory is the web document root.
+RewriteRule ^public/(.*)$ $1 [L]

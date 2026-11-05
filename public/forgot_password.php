@@ -44,7 +44,7 @@ Session::remove('password_reset_request_message');
 
                         <form
                             method="POST"
-                            action="<?= e(APP_URL) ?>/public/auth/forgot_password_process.php"
+                            action="<?= e(base_url('/public/auth/forgot_password_process.php')) ?>"
                             autocomplete="on"
                         >
                             <?= Csrf::field() ?>
@@ -75,7 +75,7 @@ Session::remove('password_reset_request_message');
                         </form>
 
                         <div class="text-center mt-4">
-                            <a href="<?= e(APP_URL) ?>/public/login.php">
+                            <a href="<?= e(base_url('/public/login.php')) ?>">
                                 Back to Sign In
                             </a>
                         </div>

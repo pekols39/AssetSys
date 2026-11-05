@@ -61,7 +61,7 @@ if (!is_string($csrfToken) || !Csrf::validate($csrfToken)) {
 $submittedSettings = $_POST['settings'] ?? null;
 
 if (!is_array($submittedSettings)) {
-    header('Location: ' . APP_URL . '/public/administration/index.php?error=1');
+    header('Location: ' . base_url('/public/administration/index.php?error=1'));
     exit;
 }
 
@@ -192,7 +192,7 @@ try {
 
     if ($userId === null) {
         Auth::logout();
-        header('Location: ' . APP_URL . '/public/login.php');
+        header('Location: ' . base_url('/public/login.php'));
         exit;
     }
 
@@ -211,15 +211,13 @@ try {
 
     header(
         'Location: '
-        . APP_URL
-        . '/public/administration/index.php?error=1'
+        . base_url('/public/administration/index.php?error=1')
     );
     exit;
 }
 
 header(
     'Location: '
-    . APP_URL
-    . '/public/administration/index.php?success=1'
+    . base_url('/public/administration/index.php?success=1')
 );
 exit;

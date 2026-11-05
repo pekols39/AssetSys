@@ -14,7 +14,7 @@ $rememberMeService->clearToken();
 Auth::logout();
 
 header(
-    'Location: ' . APP_URL . '/public/login.php'
+    'Location: ' . base_url('/public/login.php')
 );
 
 exit;

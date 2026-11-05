@@ -74,8 +74,15 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href
         );
 
-        const apiMarker = '/public/api/notifications.php';
-        const markerIndex = apiUrl.pathname.lastIndexOf(apiMarker);
+        const apiMarker = '/api/notifications.php';
+        const legacyApiMarker = '/public/api/notifications.php';
+
+        const legacyMarkerIndex =
+            apiUrl.pathname.lastIndexOf(legacyApiMarker);
+
+        const markerIndex = legacyMarkerIndex >= 0
+            ? legacyMarkerIndex
+            : apiUrl.pathname.lastIndexOf(apiMarker);
 
         if (markerIndex < 0) {
             console.error('Unable to determine the application base path.');
