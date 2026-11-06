@@ -2,6 +2,6 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/fqhr3kloyrrj/public_html/inventory.mmgcci-taladesk.com/
-    - /bin/cp -R app "$DEPLOYPATH"
-    - /bin/cp -R public "$DEPLOYPATH"
-    - /bin/cp -R scripts "$DEPLOYPATH"
+    - /bin/cp -R app/. "$DEPLOYPATH/app/"
+    - /bin/cp -R public/. "$DEPLOYPATH/public/"
+    - /bin/cp -R scripts/. "$DEPLOYPATH/scripts/"
