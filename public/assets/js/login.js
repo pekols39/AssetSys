@@ -1,6 +1,39 @@
 document.addEventListener("DOMContentLoaded", () => {
 
     // ==========================================================
+    // SweetAlert2 Login Notifications
+    // ==========================================================
+
+    const showLoginAlert = async (
+        title,
+        message,
+        icon = "error"
+    ) => {
+
+        if (window.Swal && typeof window.Swal.fire === "function") {
+
+            return await Swal.fire({
+                icon: icon,
+                title: title,
+                text: message,
+                confirmButtonText: "Okay",
+                confirmButtonColor: "#007472",
+                allowOutsideClick: false,
+                customClass: {
+                    confirmButton: "px-4"
+                }
+            });
+
+        }
+
+        // Fallback only if the SweetAlert2 CDN fails to load.
+        console.error("SweetAlert2 is unavailable:", title, message);
+        window.alert(`${title}\n\n${message}`);
+
+    };
+
+
+    // ==========================================================
     // Toggle Password
     // ==========================================================
 
@@ -31,6 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
     }
+
 
     // ==========================================================
     // Login Form
@@ -82,7 +116,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const result = await response.json();
 
-            if (result.success) {
+            // Successful login
+            if (response.ok && result.success) {
 
                 window.location.href =
                     result.redirect || "dashboard/";
@@ -91,44 +126,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
             }
 
-            const message =
+            // Failed login
+            await showLoginAlert(
+                "Login Failed",
                 result.message ||
-                "Invalid username or password.";
-
-            if (typeof showError === "function") {
-
-                await showError(
-                    message,
-                    "Login Failed"
-                );
-
-            } else {
-
-                alert(message);
-
-            }
+                "Invalid username or password.",
+                "error"
+            );
 
         } catch (error) {
 
-            console.error(
-                "Login request failed:",
-                error
+            console.error("Login request failed:", error);
+
+            await showLoginAlert(
+                "Connection Error",
+                "Unable to connect to the server. Please check your connection and try again.",
+                "warning"
             );
-
-            if (typeof showError === "function") {
-
-                await showError(
-                    "Unable to connect to the server.",
-                    "Connection Error"
-                );
-
-            } else {
-
-                alert(
-                    "Unable to connect to the server."
-                );
-
-            }
 
         } finally {
 

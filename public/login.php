@@ -262,12 +262,12 @@ if (Auth::check()) {
 
 </div>
 
+<!-- SWEETALERT2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <!-- SWEETALERT2 ONE-TIME SESSION MESSAGE -->
 
 <?php if ($swalAlert !== null): ?>
-
-    <!-- Load SweetAlert2 before calling Swal.fire(). -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
         if (typeof Swal !== 'undefined') {
