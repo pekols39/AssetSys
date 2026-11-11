@@ -80,7 +80,23 @@ class MaterialCategoryService
             'description' => $description,
         ]);
 
-        return (int) $this->db->lastInsertId();
+        $categoryId = (int) $this->db->lastInsertId();
+
+        (new AuditLogService())->log(
+            action: 'create_material_category',
+            module: 'materials',
+            entityType: 'material_category',
+            entityId: $categoryId,
+            description: 'Material category created.',
+            newValues: [
+                'name' => $name,
+                'code' => $code,
+                'description' => $description,
+                'is_active' => 1,
+            ]
+        );
+
+        return $categoryId;
     }
 
     public function update(
@@ -155,12 +171,34 @@ class MaterialCategoryService
              WHERE id = :id'
         );
 
-        return $stmt->execute([
+        $success = $stmt->execute([
             'name' => $name,
             'code' => $code,
             'description' => $description,
             'id' => $categoryId,
         ]);
+
+        if ($success) {
+            (new AuditLogService())->log(
+                action: 'update_material_category',
+                module: 'materials',
+                entityType: 'material_category',
+                entityId: $categoryId,
+                description: 'Material category updated.',
+                oldValues: [
+                    'name' => $existing['name'] ?? null,
+                    'code' => $existing['code'] ?? null,
+                    'description' => $existing['description'] ?? null,
+                ],
+                newValues: [
+                    'name' => $name,
+                    'code' => $code,
+                    'description' => $description,
+                ]
+            );
+        }
+
+        return $success;
     }
 
     public function deactivate(int $categoryId): bool
@@ -173,7 +211,9 @@ class MaterialCategoryService
             );
         }
 
-        if (!$this->categoryModel->findById($categoryId)) {
+        $existing = $this->categoryModel->findById($categoryId);
+
+        if (!$existing) {
             throw new RuntimeException(
                 'Material category not found.'
             );
@@ -185,13 +225,33 @@ class MaterialCategoryService
          */
         $stmt = $this->db->prepare(
             'UPDATE material_categories
-             SET is_active = 0
-             WHERE id = :id'
+     SET is_active = 0
+     WHERE id = :id'
         );
 
-        return $stmt->execute([
+        $success = $stmt->execute([
             'id' => $categoryId,
         ]);
+
+        if ($success) {
+            (new AuditLogService())->log(
+                action: 'deactivate_material_category',
+                module: 'materials',
+                entityType: 'material_category',
+                entityId: $categoryId,
+                description: 'Material category deactivated.',
+                oldValues: [
+                    'name' => $existing['name'] ?? null,
+                    'is_active' => $existing['is_active'] ?? null,
+                ],
+                newValues: [
+                    'name' => $existing['name'] ?? null,
+                    'is_active' => 0,
+                ]
+            );
+        }
+
+        return $success;
     }
 
     public function activate(int $categoryId): bool
@@ -204,7 +264,9 @@ class MaterialCategoryService
             );
         }
 
-        if (!$this->categoryModel->findById($categoryId)) {
+        $existing = $this->categoryModel->findById($categoryId);
+
+        if (!$existing) {
             throw new RuntimeException(
                 'Material category not found.'
             );
@@ -212,13 +274,33 @@ class MaterialCategoryService
 
         $stmt = $this->db->prepare(
             'UPDATE material_categories
-             SET is_active = 1
-             WHERE id = :id'
+     SET is_active = 1
+     WHERE id = :id'
         );
 
-        return $stmt->execute([
+        $success = $stmt->execute([
             'id' => $categoryId,
         ]);
+
+        if ($success) {
+            (new AuditLogService())->log(
+                action: 'activate_material_category',
+                module: 'materials',
+                entityType: 'material_category',
+                entityId: $categoryId,
+                description: 'Material category activated.',
+                oldValues: [
+                    'name' => $existing['name'] ?? null,
+                    'is_active' => $existing['is_active'] ?? null,
+                ],
+                newValues: [
+                    'name' => $existing['name'] ?? null,
+                    'is_active' => 1,
+                ]
+            );
+        }
+
+        return $success;
     }
 
     public function get(int $categoryId): array|false
@@ -229,9 +311,21 @@ class MaterialCategoryService
             return false;
         }
 
-        return $this->categoryModel->findById(
+        $category = $this->categoryModel->findById(
             $categoryId
         );
+
+        if (is_array($category)) {
+            (new AuditLogService())->log(
+                action: 'view_material_category_details',
+                module: 'materials',
+                entityType: 'material_category',
+                entityId: $categoryId,
+                description: 'Material category details viewed.'
+            );
+        }
+
+        return $category;
     }
     public function getPaginated(
         string $search = '',
@@ -241,25 +335,66 @@ class MaterialCategoryService
     ): array {
         $this->authorizeManagement();
 
-        return $this->categoryModel->getPaginated(
+        $result = $this->categoryModel->getPaginated(
             trim($search),
             $status,
             max(1, $page),
             $perPage
         );
+
+        (new AuditLogService())->log(
+            action: 'view_material_category_list',
+            module: 'materials',
+            entityType: 'material_category',
+            description: 'Paginated material category list viewed.',
+            newValues: [
+                'search' => trim($search),
+                'status' => $status,
+                'page' => max(1, $page),
+                'per_page' => $perPage,
+                'result_count' => count($result['data'] ?? []),
+                'total' => $result['total'] ?? null,
+            ]
+        );
+
+        return $result;
     }
     public function getAll(): array
     {
         $this->authorizeManagement();
 
-        return $this->categoryModel->getAll();
+        $categories = $this->categoryModel->getAll();
+
+        (new AuditLogService())->log(
+            action: 'view_all_material_categories',
+            module: 'materials',
+            entityType: 'material_category',
+            description: 'All material categories viewed.',
+            newValues: [
+                'result_count' => count($categories),
+            ]
+        );
+
+        return $categories;
     }
 
     public function getActive(): array
     {
         $this->authorizeManagement();
 
-        return $this->categoryModel->getActive();
+        $categories = $this->categoryModel->getActive();
+
+        (new AuditLogService())->log(
+            action: 'view_active_material_categories',
+            module: 'materials',
+            entityType: 'material_category',
+            description: 'Active material categories viewed.',
+            newValues: [
+                'result_count' => count($categories),
+            ]
+        );
+
+        return $categories;
     }
 
     private function authorizeManagement(): void

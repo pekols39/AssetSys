@@ -164,6 +164,27 @@ class MaterialService
                 'quantity' => $initialStockQuantity,
             ]);
 
+            (new AuditLogService())->log(
+                action: 'create_material',
+                module: 'materials',
+                entityType: 'material',
+                entityId: $materialId,
+                description: 'Material created successfully.',
+                newValues: [
+                    'category_id' => $categoryId,
+                    'code' => $code,
+                    'name' => $name,
+                    'unit' => $unit,
+                    'description' => $description,
+                    'minimum_stock_level' => $minimumStockLevel,
+                    'reorder_level' => $reorderLevel,
+                    'is_returnable' => $isReturnable,
+                    'is_active' => true,
+                    'initial_stock_quantity' => $initialStockQuantity,
+                    'created_by' => $userId,
+                ]
+            );
+
             $this->db->commit();
 
             return $materialId;
@@ -245,6 +266,24 @@ class MaterialService
             $materialId
         );
 
+        $stockBeforeStmt = $this->db->prepare(
+            'SELECT quantity
+                FROM material_stocks
+                WHERE material_id = :material_id
+                AND department_id IS NULL
+                LIMIT 1'
+        );
+
+        $stockBeforeStmt->execute([
+            'material_id' => $materialId,
+        ]);
+
+        $previousStockQuantity = $stockBeforeStmt->fetchColumn();
+
+        $previousStockQuantity = $previousStockQuantity === false
+            ? 0.0
+            : (float) $previousStockQuantity;
+
         if (!is_array($existing)) {
             throw new RuntimeException(
                 'Material not found.'
@@ -321,6 +360,36 @@ class MaterialService
                 'quantity' => $stockQuantity,
             ]);
 
+            (new AuditLogService())->log(
+                action: 'update_material',
+                module: 'materials',
+                entityType: 'material',
+                entityId: $materialId,
+                description: 'Material details updated successfully.',
+                oldValues: [
+                    'category_id' => $existing['category_id'] ?? null,
+                    'code' => $existing['code'] ?? null,
+                    'name' => $existing['name'] ?? null,
+                    'unit' => $existing['unit'] ?? null,
+                    'description' => $existing['description'] ?? null,
+                    'minimum_stock_level' => $existing['minimum_stock_level'] ?? null,
+                    'reorder_level' => $existing['reorder_level'] ?? null,
+                    'is_returnable' => $existing['is_returnable'] ?? null,
+                    'stock_quantity' => $previousStockQuantity,
+                ],
+                newValues: [
+                    'category_id' => $categoryId,
+                    'code' => $code,
+                    'name' => $name,
+                    'unit' => $unit,
+                    'description' => $description,
+                    'minimum_stock_level' => $minimumStockLevel,
+                    'reorder_level' => $reorderLevel,
+                    'is_returnable' => $isReturnable,
+                    'stock_quantity' => $stockQuantity,
+                ]
+            );
+
             $this->db->commit();
 
             return true;
@@ -343,7 +412,9 @@ class MaterialService
             'Invalid material.'
         );
 
-        if (!$this->materialModel->findById($materialId)) {
+        $existing = $this->materialModel->findById($materialId);
+
+        if (!$existing) {
             throw new RuntimeException(
                 'Material not found.'
             );
@@ -351,13 +422,31 @@ class MaterialService
 
         $stmt = $this->db->prepare(
             'UPDATE materials
-             SET is_active = 0
-             WHERE id = :id'
+         SET is_active = 0
+         WHERE id = :id'
         );
 
-        return $stmt->execute([
+        $updated = $stmt->execute([
             'id' => $materialId,
         ]);
+
+        if ($updated) {
+            (new AuditLogService())->log(
+                action: 'deactivate_material',
+                module: 'materials',
+                entityType: 'material',
+                entityId: $materialId,
+                description: 'Material deactivated successfully.',
+                oldValues: [
+                    'is_active' => $existing['is_active'] ?? null,
+                ],
+                newValues: [
+                    'is_active' => false,
+                ]
+            );
+        }
+
+        return $updated;
     }
 
     public function activate(int $materialId): bool
@@ -369,7 +458,9 @@ class MaterialService
             'Invalid material.'
         );
 
-        if (!$this->materialModel->findById($materialId)) {
+        $existing = $this->materialModel->findById($materialId);
+
+        if (!$existing) {
             throw new RuntimeException(
                 'Material not found.'
             );
@@ -377,29 +468,71 @@ class MaterialService
 
         $stmt = $this->db->prepare(
             'UPDATE materials
-             SET is_active = 1
-             WHERE id = :id'
+         SET is_active = 1
+         WHERE id = :id'
         );
 
-        return $stmt->execute([
+        $updated = $stmt->execute([
             'id' => $materialId,
         ]);
+
+        if ($updated) {
+            (new AuditLogService())->log(
+                action: 'activate_material',
+                module: 'materials',
+                entityType: 'material',
+                entityId: $materialId,
+                description: 'Material activated successfully.',
+                oldValues: [
+                    'is_active' => $existing['is_active'] ?? null,
+                ],
+                newValues: [
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        return $updated;
     }
 
     public function get(int $materialId): array|false
     {
         $this->authorizeRead();
 
-        return $this->materialModel->findById(
+        $material = $this->materialModel->findById(
             $materialId
         );
+
+        if ($material !== false) {
+            (new AuditLogService())->log(
+                action: 'view_material_details',
+                module: 'materials',
+                entityType: 'material',
+                entityId: $materialId,
+                description: 'Material details viewed.'
+            );
+        }
+
+        return $material;
     }
 
     public function getAll(): array
     {
         $this->authorizeRead();
 
-        return $this->materialModel->getAll();
+        $materials = $this->materialModel->getAll();
+
+        (new AuditLogService())->log(
+            action: 'view_material_list',
+            module: 'materials',
+            entityType: 'material',
+            description: 'Complete material list viewed.',
+            newValues: [
+                'materials_count' => count($materials),
+            ]
+        );
+
+        return $materials;
     }
     /**
      * Get a paginated list of materials.
@@ -409,18 +542,45 @@ class MaterialService
         int $page = 1,
         int $perPage = 10
     ): array {
-        return $this->materialModel->getPage(
+        $this->authorizeRead();
+
+        $result = $this->materialModel->getPage(
             $filters,
             $page,
             $perPage
         );
+
+        (new AuditLogService())->log(
+            action: 'view_material_list',
+            module: 'materials',
+            entityType: 'material',
+            description: 'Paginated material list viewed.',
+            newValues: [
+                'page' => $page,
+                'per_page' => $perPage,
+            ]
+        );
+
+        return $result;
     }
 
     public function getActive(): array
     {
         $this->authorizeRead();
 
-        return $this->materialModel->getActive();
+        $materials = $this->materialModel->getActive();
+
+        (new AuditLogService())->log(
+            action: 'view_active_materials',
+            module: 'materials',
+            entityType: 'material',
+            description: 'Active materials list viewed.',
+            newValues: [
+                'materials_count' => count($materials),
+            ]
+        );
+
+        return $materials;
     }
 
     private function validateCategory(int $categoryId): void

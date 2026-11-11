@@ -140,6 +140,61 @@ class AssetService
 
             $data = $this->validateAndNormalize($data);
 
+            /*
+             * Determine the selected asset status.
+             */
+            $statusStmt = $this->db->prepare(
+                'SELECT name
+     FROM asset_statuses
+     WHERE id = :status_id
+     LIMIT 1'
+            );
+
+            $statusStmt->execute([
+                'status_id' => (int) $data['status_id'],
+            ]);
+
+            $statusName = $statusStmt->fetchColumn();
+
+            if ($statusName === false) {
+                throw new RuntimeException(
+                    'The selected asset status does not exist.'
+                );
+            }
+
+            $isAssignedStatus = strcasecmp(
+                trim((string) $statusName),
+                'Assigned'
+            ) === 0;
+
+            /*
+             * An asset marked as Assigned must have complete
+             * assignment and location information.
+             */
+            if ($isAssignedStatus) {
+                if (empty($data['location_id'])) {
+                    throw new RuntimeException(
+                        'Location is required when the asset status is Assigned.'
+                    );
+                }
+
+                if (empty($data['condition_id'])) {
+                    throw new RuntimeException(
+                        'Condition is required when the asset status is Assigned.'
+                    );
+                }
+
+                if (empty($data['assigned_to_name'])) {
+                    throw new RuntimeException(
+                        'Assign To is required when the asset status is Assigned.'
+                    );
+                }
+            } elseif (!empty($data['assigned_to_name'])) {
+                throw new RuntimeException(
+                    'Select Assigned status when providing an assignee.'
+                );
+            }
+
             $this->validateUniqueFields($data);
 
             $data['created_by'] = $createdBy;
@@ -151,29 +206,13 @@ class AssetService
                 $data['current_book_value'] = $data['purchase_cost'];
             }
 
-            /*
-             * If a manual assignee was entered, set the asset status to
-             * Assigned before inserting the asset.
-             */
-            if (!empty($data['assigned_to_name'])) {
-                $assignedStatusId = $this->getStatusId('Assigned');
-
-                if ($assignedStatusId === null) {
-                    throw new RuntimeException(
-                        'Assigned asset status is not configured or inactive.'
-                    );
-                }
-
-                $data['status_id'] = $assignedStatusId;
-            }
-
             $assetId = $this->assetModel->create($data);
 
             /*
              * Record the initial assignment in the same transaction as
              * the asset creation.
              */
-            if (!empty($data['assigned_to_name'])) {
+            if ($isAssignedStatus) {
                 $this->assignmentModel->create(
                     $assetId,
                     null,
@@ -184,6 +223,56 @@ class AssetService
                     $data['assigned_to_name']
                 );
             }
+
+            /*
+             * Record successful asset creation in the audit trail.
+             * Only explicitly selected asset fields are recorded.
+             */
+            $auditFields = [
+                'asset_code',
+                'asset_tag',
+                'serial_number',
+                'category_id',
+                'department_id',
+                'asset_name',
+                'description',
+                'manufacturer',
+                'model',
+                'model_number',
+                'purchase_date',
+                'purchase_cost',
+                'supplier_id',
+                'invoice_number',
+                'purchase_order_number',
+                'warranty_start',
+                'warranty_end',
+                'useful_life_years',
+                'salvage_value',
+                'depreciation_method',
+                'current_book_value',
+                'status_id',
+                'location_id',
+                'condition_id',
+                'assigned_to_user_id',
+                'assigned_to_name',
+            ];
+
+            $auditValues = array_intersect_key(
+                $data,
+                array_flip($auditFields)
+            );
+
+            $auditLog = new AuditLogService();
+
+            $auditLog->log(
+                action: 'create',
+                module: 'assets',
+                entityType: 'asset',
+                entityId: $assetId,
+                description: 'Asset created successfully.',
+                oldValues: null,
+                newValues: $auditValues
+            );
 
             $this->db->commit();
 
@@ -436,6 +525,7 @@ class AssetService
         if (
             $requestedStatus === 'assigned'
             && !$isAssigned
+            && $requestedStatus !== $currentStatus
         ) {
             throw new RuntimeException(
                 'Use the Assign Asset workflow before setting the status to Assigned.'
@@ -447,10 +537,86 @@ class AssetService
             $id
         );
 
-        return $this->assetModel->update(
-            $id,
-            $data
+        /*
+         * Capture the asset's original and normalized values
+         * for the audit trail.
+         */
+        $auditFields = [
+            'asset_code',
+            'asset_tag',
+            'serial_number',
+            'category_id',
+            'department_id',
+            'asset_name',
+            'description',
+            'manufacturer',
+            'model',
+            'model_number',
+            'purchase_date',
+            'purchase_cost',
+            'supplier_id',
+            'invoice_number',
+            'purchase_order_number',
+            'warranty_start',
+            'warranty_end',
+            'useful_life_years',
+            'salvage_value',
+            'depreciation_method',
+            'current_book_value',
+            'status_id',
+            'location_id',
+            'condition_id',
+            'assigned_to_user_id',
+            'assigned_to_name',
+        ];
+
+        $auditOldValues = array_intersect_key(
+            $existing,
+            array_flip($auditFields)
         );
+
+        $auditNewValues = array_intersect_key(
+            $data,
+            array_flip($auditFields)
+        );
+
+        $this->db->beginTransaction();
+
+        try {
+            $updated = $this->assetModel->update(
+                $id,
+                $data
+            );
+
+            if (!$updated) {
+                $this->db->rollBack();
+
+                return false;
+            }
+
+            $auditLog = new AuditLogService();
+
+            $auditLog->log(
+                action: 'update',
+                module: 'assets',
+                entityType: 'asset',
+                entityId: $id,
+                description: 'Asset information updated successfully.',
+                oldValues: $auditOldValues,
+                newValues: $auditNewValues
+            );
+
+            $this->db->commit();
+
+            return true;
+
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $e;
+        }
     }
 
     /**

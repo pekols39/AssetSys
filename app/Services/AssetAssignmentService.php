@@ -131,6 +131,27 @@ class AssetAssignmentService
                 );
             }
 
+            // Record the successful asset assignment.
+            (new AuditLogService())->log(
+                action: 'assign_asset',
+                module: 'assets',
+                entityType: 'asset_assignment',
+                entityId: $assignmentId,
+                description: 'Asset assigned successfully.',
+                oldValues: [
+                    'asset_id' => $assetId,
+                    'asset_status' => 'Available',
+                    'assignment_status' => null,
+                ],
+                newValues: [
+                    'asset_id' => $assetId,
+                    'assigned_to_name' => $assignedToName,
+                    'assigned_by' => $assignedBy,
+                    'assignment_status' => 'active',
+                    'asset_status' => 'Assigned',
+                ]
+            );
+
             $this->db->commit();
 
             return $assignmentId;
@@ -258,6 +279,28 @@ class AssetAssignmentService
                 );
             }
 
+            // Record the successful asset return.
+            (new AuditLogService())->log(
+                action: 'return_asset',
+                module: 'assets',
+                entityType: 'asset_assignment',
+                entityId: $assignmentId,
+                description: 'Asset returned successfully.',
+                oldValues: [
+                    'asset_id' => $assetId,
+                    'assigned_to_name' => $assignment['assigned_to_name'] ?? null,
+                    'assignment_status' => $assignment['assignment_status'] ?? 'active',
+                    'asset_status' => $assignment['asset_status_name'] ?? null,
+                ],
+                newValues: [
+                    'asset_id' => $assetId,
+                    'assigned_to_name' => $assignment['assigned_to_name'] ?? null,
+                    'assignment_status' => 'returned',
+                    'returned_to' => $returnedTo,
+                    'asset_status' => 'Available',
+                ]
+            );
+
             $this->db->commit();
 
             return true;
@@ -285,12 +328,19 @@ class AssetAssignmentService
                 aa.id,
                 aa.asset_id,
                 aa.assigned_to_user_id,
-                a.department_id
+                aa.assigned_to_name,
+                aa.assigned_by,
+                aa.assigned_at,
+                aa.assignment_status,
+                a.department_id,
+                s.name AS asset_status_name
             FROM asset_assignments aa
             INNER JOIN assets a
                 ON a.id = aa.asset_id
+            INNER JOIN asset_statuses s
+                ON s.id = a.status_id
             WHERE aa.id = :id
-              AND aa.assignment_status = :status
+            AND aa.assignment_status = :status
             LIMIT 1';
 
         if ($forUpdate) {

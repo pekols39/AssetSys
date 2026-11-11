@@ -10,6 +10,7 @@ use App\Helpers\Csrf;
 use App\Middleware\AuthMiddleware;
 use App\Services\AdministrationUserService;
 use App\Services\AuthorizationService;
+use App\Services\AuditLogService;
 
 AuthMiddleware::handle();
 
@@ -40,6 +41,27 @@ if (!is_string($csrfToken) || !Csrf::validate($csrfToken)) {
     http_response_code(403);
     exit('Invalid security token.');
 }
+
+$logFailedAccountCreation = static function (string $reason): void {
+    try {
+        (new AuditLogService())->log(
+            action: 'create_user_account_failed',
+            module: 'administration',
+            entityType: 'user',
+            description: $reason,
+            newValues: [
+                'operation' => 'create_user_account',
+                'status' => 'failed',
+            ],
+            result: 'failure'
+        );
+    } catch (\Throwable $e) {
+        error_log(
+            'Failed account-creation audit logging error: '
+            . $e->getMessage()
+        );
+    }
+};
 
 /**
  * Read a scalar POST value without accepting arrays.
@@ -75,6 +97,10 @@ if (
     || $initialPassword === null
     || $confirmPassword === null
 ) {
+    $logFailedAccountCreation(
+        'Account creation rejected because required fields were missing.'
+    );
+
     http_response_code(422);
     exit('Please complete all required fields.');
 }
@@ -84,6 +110,10 @@ if (
     || $roleId === null
     || $roleId <= 0
 ) {
+    $logFailedAccountCreation(
+        'Account creation rejected because the selected role was invalid.'
+    );
+
     http_response_code(422);
     exit('Please select a valid role.');
 }
@@ -96,11 +126,19 @@ if (
     || strlen($email) > 150
     || mb_strlen($position) > 150
 ) {
+    $logFailedAccountCreation(
+        'Account creation rejected because one or more fields exceeded the allowed length.'
+    );
+
     http_response_code(422);
     exit('One or more fields exceed the allowed length.');
 }
 
 if (!preg_match('/^[A-Za-z0-9._-]+$/', $username)) {
+    $logFailedAccountCreation(
+        'Account creation rejected because the username format was invalid.'
+    );
+
     http_response_code(422);
     exit(
         'Username may only contain letters, numbers, dots, '
@@ -109,6 +147,10 @@ if (!preg_match('/^[A-Za-z0-9._-]+$/', $username)) {
 }
 
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $logFailedAccountCreation(
+        'Account creation rejected because the email format was invalid.'
+    );
+
     http_response_code(422);
     exit('Please provide a valid email address.');
 }
@@ -117,6 +159,10 @@ if (
     strlen($initialPassword) < 12
     || strlen($initialPassword) > 72
 ) {
+    $logFailedAccountCreation(
+        'Account creation rejected because the initial password did not meet the length requirement.'
+    );
+
     http_response_code(422);
     exit(
         'The initial password must be between 12 and 72 bytes long.'
@@ -124,6 +170,10 @@ if (
 }
 
 if ($initialPassword !== $confirmPassword) {
+    $logFailedAccountCreation(
+        'Account creation rejected because the password confirmation did not match.'
+    );
+
     http_response_code(422);
     exit('The initial password and confirmation do not match.');
 }
@@ -150,6 +200,10 @@ $stmt->execute([
 ]);
 
 if ($stmt->fetchColumn() === false) {
+    $logFailedAccountCreation(
+        'Account creation rejected because the selected role was not permitted or active.'
+    );
+
     http_response_code(422);
     exit('Only Asset Manager and Property Custodian roles are allowed.');
 }
@@ -173,6 +227,10 @@ $stmt->execute([
 ]);
 
 if ($stmt->fetchColumn() === false) {
+    $logFailedAccountCreation(
+        'Account creation could not proceed because the active Finance department was unavailable.'
+    );
+
     http_response_code(500);
     exit('The active Finance department could not be found.');
 }
@@ -195,6 +253,10 @@ $stmt->execute([
 ]);
 
 if ($stmt->fetchColumn() !== false) {
+    $logFailedAccountCreation(
+        'Account creation rejected because a username or email address was already in use.'
+    );
+
     http_response_code(409);
     exit(
         'Another account already uses this username or email address.'
@@ -217,6 +279,10 @@ try {
         'initial_password' => $initialPassword,
     ]);
 } catch (\PDOException $e) {
+
+    $logFailedAccountCreation(
+        'Account creation failed because of a database error.'
+    );
     error_log(
         'Administration account creation database error: '
         . $e->getMessage()
@@ -233,6 +299,9 @@ try {
     http_response_code(500);
     exit('Unable to create the user account.');
 } catch (\Throwable $e) {
+    $logFailedAccountCreation(
+        'Account creation failed because of a server-side processing error.'
+    );
     error_log(
         'Administration account creation error: '
         . $e->getMessage()

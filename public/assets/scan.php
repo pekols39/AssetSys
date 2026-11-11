@@ -10,6 +10,8 @@ use App\Models\AssetQrScanLog;
 use App\Services\AssetQrCodeService;
 use App\Services\AuthorizationService;
 use App\Core\Auth;
+use App\Core\Database;
+use App\Services\AuditLogService;
 
 // Require a valid authenticated session.
 AuthMiddleware::handle();
@@ -73,17 +75,40 @@ try {
     $scannedBy = Auth::id() ?? 0;
 
     if ($qrCodeId <= 0 || $scannedBy <= 0) {
-        throw new \RuntimeException(
-            'Unable to identify the QR code or scanning user.'
-        );
+        throw new RuntimeException('Invalid QR code or scanning user.');
     }
 
+    $pdo = Database::connection();
     $scanLog = new AssetQrScanLog();
 
-    if (!$scanLog->create($qrCodeId, $assetId, $scannedBy)) {
-        throw new \RuntimeException(
-            'Unable to record the QR scan.'
+    $pdo->beginTransaction();
+
+    try {
+        // Preserve the existing QR scan history.
+        if (!$scanLog->create($qrCodeId, $assetId, $scannedBy)) {
+            throw new RuntimeException('Unable to record the QR scan.');
+        }
+
+        // Record the successful scan in the centralized audit trail.
+        (new AuditLogService())->log(
+            action: 'qr_scan',
+            module: 'assets',
+            entityType: 'asset',
+            entityId: $assetId,
+            description: 'Asset QR code scanned successfully.',
+            newValues: [
+                'qr_code_id' => $qrCodeId,
+            ]
         );
+
+        $pdo->commit();
+
+    } catch (\Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $e;
     }
 
 } catch (\Throwable $e) {

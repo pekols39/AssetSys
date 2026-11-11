@@ -7,8 +7,39 @@ use App\Core\Session;
 use App\Helpers\Csrf;
 use App\Models\User;
 use App\Services\RememberMeService;
+use App\Services\AuditLogService;
 
 require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
+
+/**
+ * Record password-reset activity without exposing credentials or tokens.
+ */
+function logPasswordResetEvent(
+    string $action,
+    string $description,
+    string $result = 'success',
+    ?int $actorUserId = null
+): void {
+    try {
+        (new AuditLogService())->log(
+            action: $action,
+            module: 'authentication',
+            entityType: 'user',
+            entityId: $actorUserId,
+            description: $description,
+            newValues: [
+                'password_reset_status' => $result,
+            ],
+            result: $result,
+            actorUserId: $actorUserId
+        );
+    } catch (Throwable $e) {
+        error_log(
+            'AssetSys password-reset audit logging error: '
+            . $e->getMessage()
+        );
+    }
+}
 
 /**
  * Redirect with a one-time SweetAlert2 message.
@@ -76,6 +107,11 @@ $newPassword = is_string($newPassword) ? $newPassword : '';
 $confirmPassword = is_string($confirmPassword) ? $confirmPassword : '';
 
 if (!preg_match('/\A[a-f0-9]{64}\z/', $token)) {
+    logPasswordResetEvent(
+        'password_reset_failed',
+        'Password reset rejected because the submitted reset token was malformed.',
+        'failure'
+    );
     resetPasswordRedirect(
         'error',
         'Reset Link Unavailable',
@@ -123,6 +159,7 @@ if ($newPassword !== $confirmPassword) {
 }
 
 $db = null;
+$userId = null;
 
 try {
     $db = Database::connection();
@@ -150,6 +187,12 @@ try {
 
     if (!$resetRecord) {
         $db->rollBack();
+
+        logPasswordResetEvent(
+            'password_reset_failed',
+            'Password reset rejected because the reset token was invalid, expired, or already used.',
+            'failure'
+        );
 
         resetPasswordRedirect(
             'error',
@@ -247,6 +290,13 @@ try {
 
     $db->commit();
 
+    logPasswordResetEvent(
+        'password_reset',
+        'User password was successfully reset using a password-reset link.',
+        'success',
+        $userId
+    );
+
     /**
      * Show the success alert after redirecting to Sign In.
      */
@@ -260,6 +310,15 @@ try {
 } catch (Throwable $e) {
     if ($db instanceof PDO && $db->inTransaction()) {
         $db->rollBack();
+    }
+
+    if ($userId !== null && $userId > 0) {
+        logPasswordResetEvent(
+            'password_reset_failed',
+            'Password reset processing failed after the reset account was identified.',
+            'failure',
+            $userId
+        );
     }
 
     if (defined('APP_DEBUG') && APP_DEBUG === true) {

@@ -256,8 +256,37 @@ class AssetDisposalService
                 self::STATUS_FOR_DISPOSAL
             );
 
-            $this->db->commit();
+            (new AuditLogService())->log(
+                action: 'create_disposal_request',
+                module: 'disposals',
+                entityType: 'asset_disposal',
+                entityId: $disposalId,
+                description: 'Asset disposal request submitted successfully.',
+                oldValues: [
+                    'asset_id' => $assetId,
+                    'asset_status_id' => (int) $asset['status_id'],
+                ],
+                newValues: [
+                    'asset_id' => $assetId,
+                    'disposal_type' => $disposalType,
+                    'disposal_reason' => $disposalReason !== ''
+                        ? $disposalReason
+                        : null,
+                    'disposal_date' => $disposalDate,
+                    'disposal_reference' => $reference !== ''
+                        ? $reference
+                        : null,
+                    'disposal_value' => $disposalValue,
+                    'book_value_at_disposal' => $bookValue,
+                    'proceeds' => $proceeds,
+                    'disposal_status' => 'pending',
+                    'previous_status_id' => (int) $asset['status_id'],
+                    'new_asset_status_id' => self::STATUS_FOR_DISPOSAL,
+                    'requested_by' => $createdBy,
+                ]
+            );
 
+            $this->db->commit();
 
             $notificationTitle =
                 'New Asset Disposal Request';
@@ -414,9 +443,22 @@ class AssetDisposalService
                 );
             }
 
-            $this->setAssetStatus(
-                (int) $disposal['asset_id'],
-                self::STATUS_FOR_DISPOSAL
+            (new AuditLogService())->log(
+                action: 'approve_disposal',
+                module: 'disposals',
+                entityType: 'asset_disposal',
+                entityId: $disposalId,
+                description: 'Asset disposal request approved successfully.',
+                oldValues: [
+                    'asset_id' => (int) $disposal['asset_id'],
+                    'disposal_status' => 'pending',
+                ],
+                newValues: [
+                    'asset_id' => (int) $disposal['asset_id'],
+                    'disposal_status' => 'approved',
+                    'approved_by' => $approvedBy,
+                    'asset_status_id' => self::STATUS_FOR_DISPOSAL,
+                ]
             );
 
             $this->db->commit();
@@ -556,6 +598,26 @@ class AssetDisposalService
                 isset($disposal['previous_status_id'])
                 ? (int) $disposal['previous_status_id']
                 : null
+            );
+
+            (new AuditLogService())->log(
+                action: 'reject_disposal',
+                module: 'disposals',
+                entityType: 'asset_disposal',
+                entityId: $disposalId,
+                description: 'Asset disposal request rejected successfully.',
+                oldValues: [
+                    'asset_id' => (int) $disposal['asset_id'],
+                    'disposal_status' => 'pending',
+                    'asset_status_id' => (int) $disposal['previous_status_id'],
+                ],
+                newValues: [
+                    'asset_id' => (int) $disposal['asset_id'],
+                    'disposal_status' => 'cancelled',
+                    'rejected_by' => $rejectedBy,
+                    'rejection_reason' => $rejectionReason,
+                    'restored_asset_status_id' => (int) $disposal['previous_status_id'],
+                ]
             );
 
             $this->db->commit();
@@ -713,6 +775,26 @@ class AssetDisposalService
             $this->setAssetStatus(
                 (int) $disposal['asset_id'],
                 self::STATUS_DISPOSED
+            );
+
+            (new AuditLogService())->log(
+                action: 'complete_disposal',
+                module: 'disposals',
+                entityType: 'asset_disposal',
+                entityId: $disposalId,
+                description: 'Asset disposal completed successfully.',
+                oldValues: [
+                    'asset_id' => (int) $disposal['asset_id'],
+                    'disposal_status' => 'approved',
+                    'asset_status_id' => self::STATUS_FOR_DISPOSAL,
+                    'disposed_by' => $originalRequesterId,
+                ],
+                newValues: [
+                    'asset_id' => (int) $disposal['asset_id'],
+                    'disposal_status' => 'completed',
+                    'asset_status_id' => self::STATUS_DISPOSED,
+                    'disposed_by' => $completedBy,
+                ]
             );
 
             $this->db->commit();
@@ -874,6 +956,27 @@ class AssetDisposalService
                 isset($disposal['previous_status_id'])
                 ? (int) $disposal['previous_status_id']
                 : null
+            );
+
+            (new AuditLogService())->log(
+                action: 'cancel_disposal',
+                module: 'disposals',
+                entityType: 'asset_disposal',
+                entityId: $disposalId,
+                description: 'Asset disposal request cancelled successfully.',
+                oldValues: [
+                    'asset_id' => (int) $disposal['asset_id'],
+                    'disposal_status' => 'pending',
+                    'asset_status_id' => self::STATUS_FOR_DISPOSAL,
+                ],
+                newValues: [
+                    'asset_id' => (int) $disposal['asset_id'],
+                    'disposal_status' => 'cancelled',
+                    'cancelled_by' => $cancelledBy,
+                    'restored_asset_status_id' => isset($disposal['previous_status_id'])
+                        ? (int) $disposal['previous_status_id']
+                        : null,
+                ]
             );
 
             $this->db->commit();

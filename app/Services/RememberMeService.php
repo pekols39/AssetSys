@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Core\Database;
+use App\Core\Auth;
 use PDO;
 
 class RememberMeService
@@ -86,6 +87,16 @@ class RememberMeService
                 ),
                 'httponly' => true,
                 'samesite' => 'Lax',
+            ]
+        );
+        (new AuditLogService())->log(
+            action: 'remember_me_enabled',
+            module: 'authentication',
+            entityType: 'user',
+            entityId: $userId,
+            description: 'Remember Me was enabled for this account.',
+            newValues: [
+                'remember_me_status' => 'enabled',
             ]
         );
     }
@@ -182,6 +193,18 @@ class RememberMeService
                 $validatorHash
             )
         ) {
+            (new AuditLogService())->log(
+                action: 'remember_me_validation_failed',
+                module: 'authentication',
+                entityType: 'user',
+                entityId: (int) $token['user_id'],
+                description: 'Remember Me token validation failed.',
+                newValues: [
+                    'remember_me_status' => 'validation_failed',
+                ],
+                result: 'failure'
+            );
+
             $this->revokeSelector($selector);
             $this->expireCookie();
 
@@ -213,7 +236,19 @@ class RememberMeService
             (int) $token['user_id']
         );
 
-        \App\Core\Auth::login($user);
+        Auth::login($user);
+
+        (new AuditLogService())->log(
+            action: 'remembered_login',
+            module: 'authentication',
+            entityType: 'user',
+            entityId: (int) $token['user_id'],
+            description: 'User successfully signed in using Remember Me.',
+            newValues: [
+                'authentication_method' => 'remember_me',
+                'login_status' => 'success',
+            ]
+        );
 
         return true;
     }

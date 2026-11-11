@@ -19,6 +19,7 @@ use App\Models\AssetPhoto;
 use App\Models\AssetDocument;
 use App\Models\AssetDisposal;
 use App\Services\AuthorizationService;
+use App\Services\AuditLogService;
 
 AuthMiddleware::handle();
 
@@ -62,6 +63,17 @@ if (!$authorization->canAccessAsset((int) $asset['id'])) {
     http_response_code(403);
     exit('You do not have permission to view this asset.');
 }
+
+/*
+ * Record successful access to the asset details page.
+ */
+(new AuditLogService())->log(
+    action: 'view_asset',
+    module: 'assets',
+    entityType: 'asset',
+    entityId: (int) $asset['id'],
+    description: 'Asset details viewed.'
+);
 
 
 $canRequestDepartmentTransfer =

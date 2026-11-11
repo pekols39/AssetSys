@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 namespace App\Core;
+use App\Services\AuditLogService;
+use Throwable;
 
 class Auth
 {
@@ -43,6 +45,32 @@ class Auth
 
     public static function logout(): void
     {
+        // Capture the authenticated user before destroying the session.
+        $user = self::user();
+
+        if ($user !== null) {
+            try {
+                (new AuditLogService())->log(
+                    action: 'logout',
+                    module: 'authentication',
+                    entityType: 'user',
+                    entityId: isset($user['user_id'])
+                    ? (int) $user['user_id']
+                    : null,
+                    description: 'User session ended.',
+                    newValues: [
+                        'logout_status' => 'successful',
+                    ]
+                );
+            } catch (Throwable $e) {
+                error_log(
+                    'Logout audit logging failed: '
+                    . $e->getMessage()
+                );
+            }
+        }
+
+        // Preserve the existing session destruction behavior.
         Session::destroy();
     }
 }

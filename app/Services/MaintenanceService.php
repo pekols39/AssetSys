@@ -115,6 +115,27 @@ class MaintenanceService
                 );
             }
 
+            // Record successful maintenance creation.
+            (new AuditLogService())->log(
+                action: 'create_maintenance',
+                module: 'maintenance',
+                entityType: 'maintenance_record',
+                entityId: $maintenanceId,
+                description: 'Maintenance record created successfully.',
+                newValues: [
+                    'asset_id' => (int) $data['asset_id'],
+                    'maintenance_type' => $data['maintenance_type'],
+                    'title' => $data['title'],
+                    'maintenance_status' => $data['maintenance_status'],
+                    'scheduled_date' => $data['scheduled_date'],
+                    'started_at' => $data['started_at'],
+                    'completed_at' => $data['completed_at'],
+                    'service_provider_id' => $data['service_provider_id'],
+                    'cost' => $data['cost'],
+                    'created_by' => $createdBy,
+                ]
+            );
+
             $this->db->commit();
 
             return $maintenanceId;
@@ -381,6 +402,80 @@ class MaintenanceService
                     1
                 );
             }
+
+            // Determine the appropriate audit action.
+            $auditAction = 'update_maintenance';
+
+            if (
+                $oldStatus !== 'in_progress'
+                && $newStatus === 'in_progress'
+            ) {
+                $auditAction = 'start_maintenance';
+            } elseif (
+                $oldStatus === 'in_progress'
+                && $newStatus === 'completed'
+            ) {
+                $auditAction = 'complete_maintenance';
+            } elseif (
+                $oldStatus === 'in_progress'
+                && $newStatus === 'cancelled'
+            ) {
+                $auditAction = 'cancel_maintenance';
+            }
+
+            // Retrieve the asset's resulting status.
+            $statusStmt = $this->db->prepare(
+                'SELECT
+        a.status_id,
+        s.name AS status_name
+     FROM assets a
+     INNER JOIN asset_statuses s
+        ON s.id = a.status_id
+     WHERE a.id = :asset_id
+     LIMIT 1'
+            );
+
+            $statusStmt->execute([
+                'asset_id' => $assetId,
+            ]);
+
+            $currentAssetStatus = $statusStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$currentAssetStatus) {
+                throw new RuntimeException(
+                    'Unable to retrieve the updated asset status.'
+                );
+            }
+
+            // Record the maintenance update or status transition.
+            (new AuditLogService())->log(
+                action: $auditAction,
+                module: 'maintenance',
+                entityType: 'maintenance_record',
+                entityId: $id,
+                description: 'Maintenance record updated successfully.',
+                oldValues: [
+                    'asset_id' => $assetId,
+                    'maintenance_type' => $existing['maintenance_type'] ?? null,
+                    'title' => $existing['title'] ?? null,
+                    'maintenance_status' => $oldStatus,
+                    'asset_status_id' => $asset['status_id'] ?? null,
+                    'cost' => $existing['cost'] ?? null,
+                    'scheduled_date' => $existing['scheduled_date'] ?? null,
+                ],
+                newValues: [
+                    'asset_id' => $assetId,
+                    'maintenance_type' => $data['maintenance_type'],
+                    'title' => $data['title'],
+                    'maintenance_status' => $newStatus,
+                    'asset_status_id' => (int) $currentAssetStatus['status_id'],
+                    'asset_status' => $currentAssetStatus['status_name'],
+                    'cost' => $data['cost'],
+                    'scheduled_date' => $data['scheduled_date'],
+                    'completed_by' => $data['completed_by'],
+                    'updated_by' => $updatedBy,
+                ]
+            );
 
             $this->db->commit();
 

@@ -469,6 +469,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                     <label for="location_name" class="form-label">
                         Location
+                        <span class="text-danger d-none" id="locationRequiredMark">*</span>
                     </label>
 
                     <input type="text" class="form-control" id="location_name" name="location_name" maxlength="150"
@@ -480,6 +481,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                     <label for="condition_id" class="form-label">
                         Condition
+                        <span class="text-danger d-none" id="conditionRequiredMark">*</span>
                     </label>
 
                     <select class="form-select" id="condition_id" name="condition_id">
@@ -504,10 +506,11 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                     <label for="assigned_to_name" class="form-label">
                         Assign To
+                        <span class="text-danger d-none" id="assignedRequiredMark">*</span>
                     </label>
 
                     <input type="text" class="form-control" id="assigned_to_name" name="assigned_to_name"
-                        maxlength="150" placeholder="Enter employee name (optional)">
+                        maxlength="150" placeholder="Enter employee name">
 
                     <div class="form-text">
                         Enter the employee's name. A user account is not required.
@@ -543,6 +546,51 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     </div>
 
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const statusField = document.getElementById('status_id');
+    const locationField = document.getElementById('location_name');
+    const conditionField = document.getElementById('condition_id');
+    const assignedField = document.getElementById('assigned_to_name');
+
+    const locationMark = document.getElementById('locationRequiredMark');
+    const conditionMark = document.getElementById('conditionRequiredMark');
+    const assignedMark = document.getElementById('assignedRequiredMark');
+
+    function updateAssignmentRequirements() {
+        const selectedStatus = statusField.options[
+            statusField.selectedIndex
+        ];
+
+        const isAssigned = selectedStatus
+            && selectedStatus.text.trim().toLowerCase() === 'assigned';
+
+        locationField.required = isAssigned;
+        conditionField.required = isAssigned;
+        assignedField.required = isAssigned;
+
+        locationMark.classList.toggle('d-none', !isAssigned);
+        conditionMark.classList.toggle('d-none', !isAssigned);
+        assignedMark.classList.toggle('d-none', !isAssigned);
+
+        locationField.placeholder = isAssigned
+            ? 'Enter location (required)'
+            : 'Enter location (optional)';
+
+        assignedField.placeholder = isAssigned
+            ? 'Enter employee name (required)'
+            : 'Enter employee name (optional)';
+    }
+
+    statusField.addEventListener(
+        'change',
+        updateAssignmentRequirements
+    );
+
+    updateAssignmentRequirements();
+});
+</script>
 
 <?php
 

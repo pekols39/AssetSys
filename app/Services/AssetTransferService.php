@@ -454,6 +454,60 @@ class AssetTransferService
                 }
             }
 
+            // Retrieve the asset's resulting status after the transfer.
+            $statusStmt = $this->db->prepare(
+                'SELECT
+                    a.status_id,
+                    s.name AS status_name
+                FROM assets a
+                INNER JOIN asset_statuses s
+                    ON s.id = a.status_id
+                WHERE a.id = :asset_id
+                LIMIT 1'
+            );
+
+            $statusStmt->execute([
+                'asset_id' => $assetId,
+            ]);
+
+            $resultingAsset = $statusStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$resultingAsset) {
+                throw new RuntimeException(
+                    'Unable to retrieve the transferred asset status.'
+                );
+            }
+
+            // Record the successful asset transfer.
+            (new AuditLogService())->log(
+                action: 'transfer_asset',
+                module: 'assets',
+                entityType: 'asset_transfer',
+                entityId: $transferId,
+                description: 'Asset transferred successfully.',
+                oldValues: [
+                    'asset_id' => $assetId,
+                    'department_id' => $fromDepartmentId,
+                    'location_id' => $fromLocationId,
+                    'assigned_to_user_id' => $fromUserId,
+                    'assigned_to_name' => $fromAssignedToName,
+                    'asset_status' => $statusName,
+                ],
+                newValues: [
+                    'asset_id' => $assetId,
+                    'department_id' => $toDepartmentId,
+                    'location_id' => $toLocationId,
+                    'assigned_to_user_id' => $toUserId,
+                    'assigned_to_name' => $toAssignedToName,
+                    'asset_status_id' => (int) $resultingAsset['status_id'],
+                    'asset_status' => $resultingAsset['status_name'],
+                    'transfer_reason' => $transferReason,
+                    'transfer_reference' => $transferReference,
+                    'transferred_by' => $transferredBy,
+                    'transfer_id' => $transferId,
+                ]
+            );
+
             $this->db->commit();
 
             return $transferId;

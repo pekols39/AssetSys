@@ -102,6 +102,28 @@ class RepairService
                 $this->restoreAssetOperationalStatus($assetId);
             }
 
+            // Record successful repair creation.
+            (new AuditLogService())->log(
+                action: 'create_repair',
+                module: 'repairs',
+                entityType: 'repair_record',
+                entityId: $repairId,
+                description: 'Repair record created successfully.',
+                newValues: [
+                    'asset_id' => $assetId,
+                    'repair_type' => $normalized['repair_type'],
+                    'title' => $normalized['title'],
+                    'repair_status' => $normalized['repair_status'],
+                    'reported_at' => $normalized['reported_at'],
+                    'started_at' => $normalized['started_at'],
+                    'completed_at' => $normalized['completed_at'],
+                    'service_provider_id' => $normalized['service_provider_id'],
+                    'cost' => $normalized['cost'],
+                    'warranty_claim' => $normalized['warranty_claim'],
+                    'created_by' => $createdBy,
+                ]
+            );
+
             $this->db->commit();
 
             return $repairId;
@@ -242,6 +264,77 @@ class RepairService
                     (int) $existing['asset_id']
                 );
             }
+
+            // Determine the appropriate audit action.
+            $auditAction = 'update_repair';
+
+            if (
+                $oldStatus !== 'in_progress'
+                && $newStatus === 'in_progress'
+            ) {
+                $auditAction = 'start_repair';
+            } elseif (
+                $oldStatus !== 'completed'
+                && $newStatus === 'completed'
+            ) {
+                $auditAction = 'complete_repair';
+            } elseif (
+                $oldStatus !== 'cancelled'
+                && $newStatus === 'cancelled'
+            ) {
+                $auditAction = 'cancel_repair';
+            }
+
+            // Retrieve the asset's resulting status.
+            $statusStmt = $this->db->prepare(
+                'SELECT status_id
+                    FROM assets
+                    WHERE id = :asset_id
+                    LIMIT 1'
+            );
+
+            $statusStmt->execute([
+                'asset_id' => (int) $existing['asset_id'],
+            ]);
+
+            $currentAssetStatusId = $statusStmt->fetchColumn();
+
+            if ($currentAssetStatusId === false) {
+                throw new RuntimeException(
+                    'Unable to retrieve the updated asset status.'
+                );
+            }
+
+            // Record successful repair update.
+            (new AuditLogService())->log(
+                action: $auditAction,
+                module: 'repairs',
+                entityType: 'repair_record',
+                entityId: $id,
+                description: 'Repair record updated successfully.',
+                oldValues: [
+                    'asset_id' => (int) $existing['asset_id'],
+                    'repair_type' => $existing['repair_type'] ?? null,
+                    'title' => $existing['title'] ?? null,
+                    'repair_status' => $oldStatus,
+                    'asset_status_id' => $asset['status_id'] ?? null,
+                    'service_provider_id' => $existing['service_provider_id'] ?? null,
+                    'cost' => $existing['cost'] ?? null,
+                    'warranty_claim' => $existing['warranty_claim'] ?? null,
+                ],
+                newValues: [
+                    'asset_id' => (int) $existing['asset_id'],
+                    'repair_type' => $normalized['repair_type'],
+                    'title' => $normalized['title'],
+                    'repair_status' => $newStatus,
+                    'asset_status_id' => (int) $currentAssetStatusId,
+                    'service_provider_id' => $normalized['service_provider_id'],
+                    'cost' => $normalized['cost'],
+                    'warranty_claim' => $normalized['warranty_claim'],
+                    'completed_by' => $normalized['completed_by'],
+                    'updated_by' => $updatedBy,
+                ]
+            );
 
             $this->db->commit();
 

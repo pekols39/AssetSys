@@ -37,11 +37,24 @@ class PhysicalStockAuditService
 
         if ($auditType !== 'consumable') {
             throw new RuntimeException(
-                'Only consumable materials can be physically audited.'
+                'Unsupported physical stock audit type.'
             );
         }
 
-        return $this->auditModel->getConsumableCandidates();
+        $candidates = $this->auditModel->getConsumableCandidates();
+
+        (new AuditLogService())->log(
+            action: 'view_physical_audit_candidates',
+            module: 'physical_stock_audits',
+            entityType: 'physical_stock_audit',
+            description: 'Physical stock audit candidates viewed successfully.',
+            newValues: [
+                'audit_type' => $auditType,
+                'candidate_count' => count($candidates),
+            ]
+        );
+
+        return $candidates;
     }
 
     /**
@@ -177,7 +190,7 @@ class PhysicalStockAuditService
             strtoupper(bin2hex(random_bytes(3)))
         );
 
-        return $this->auditModel->createAudit(
+        $auditId = $this->auditModel->createAudit(
             auditReference: $reference,
             departmentId: $departmentId,
             auditType: 'consumable',
@@ -186,6 +199,25 @@ class PhysicalStockAuditService
             createdBy: $createdBy,
             items: $items
         );
+
+        (new AuditLogService())->log(
+            action: 'create_physical_stock_audit',
+            module: 'physical_stock_audits',
+            entityType: 'physical_stock_audit',
+            entityId: $auditId,
+            description: 'Physical stock audit created successfully.',
+            newValues: [
+                'audit_reference' => $reference,
+                'audit_type' => 'consumable',
+                'audit_date' => $auditDate,
+                'department_id' => $departmentId,
+                'item_count' => count($items),
+                'include_all' => $includeAll,
+                'created_by' => $createdBy,
+            ]
+        );
+
+        return $auditId;
     }
 
     /**
@@ -202,11 +234,7 @@ class PhysicalStockAuditService
     ): array {
         $this->authorizeAuditAccess();
 
-        /*
-         * Preserve legacy returnable records and statuses in history.
-         * The audit type and status filters are applied by the model.
-         */
-        return $this->auditModel->getPaginatedAudits(
+        $audits = $this->auditModel->getPaginatedAudits(
             null,
             $search,
             $status,
@@ -214,6 +242,21 @@ class PhysicalStockAuditService
             $page,
             $perPage
         );
+
+        (new AuditLogService())->log(
+            action: 'view_physical_audit_list',
+            module: 'physical_stock_audits',
+            description: 'Physical stock audit list viewed successfully.',
+            newValues: [
+                'search_filter_used' => $search !== '',
+                'status_filter' => $status,
+                'audit_type_filter' => $auditType,
+                'page' => $page,
+                'per_page' => $perPage,
+            ]
+        );
+
+        return $audits;
     }
 
 
@@ -236,7 +279,7 @@ class PhysicalStockAuditService
 
         if (!in_array($auditType, ['consumable', 'returnable'], true)) {
             throw new RuntimeException(
-                'Unsupported physical audit record.'
+                'Invalid physical stock audit type.'
             );
         }
 
@@ -249,6 +292,19 @@ class PhysicalStockAuditService
             $audit['return_history'] =
                 $this->auditModel->getReturnHistory($auditId);
         }
+
+        (new AuditLogService())->log(
+            action: 'view_physical_audit_details',
+            module: 'physical_stock_audits',
+            entityType: 'physical_stock_audit',
+            entityId: $auditId,
+            description: 'Physical stock audit details viewed successfully.',
+            newValues: [
+                'audit_reference' => (string) $audit['audit_reference'],
+                'audit_type' => $auditType,
+                'audit_status' => (string) $audit['audit_status'],
+            ]
+        );
 
         return $audit;
     }

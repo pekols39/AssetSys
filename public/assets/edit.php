@@ -49,6 +49,31 @@ $statuses = $referenceDataService->getAssetStatuses();
 $conditions = $referenceDataService->getAssetConditions();
 $vendors = $referenceDataService->getVendors();
 
+/*
+ * Determine whether this asset already has an assignee.
+ */
+$isCurrentlyAssigned = !empty($asset['assigned_to_user_id'])
+    || trim((string) ($asset['assigned_to_name'] ?? '')) !== '';
+
+/*
+ * Hide Assigned from the status dropdown when the asset
+ * has no existing assignment.
+ *
+ * The dedicated Assign Asset workflow handles new assignments.
+ */
+if (!$isCurrentlyAssigned) {
+    $statuses = array_values(
+        array_filter(
+            $statuses,
+            static fn(array $status): bool =>
+                strcasecmp(
+                    trim((string) $status['name']),
+                    'Assigned'
+                ) !== 0
+        )
+    );
+}
+
 $pageTitle = 'Edit Asset';
 $pageStylesheet = 'css/edit.css';
 $pageScript = 'js/edit.js';
@@ -206,6 +231,12 @@ $currentStatus = strtolower(
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <?php if (!$isCurrentlyAssigned): ?>
+                            <div class="form-text">
+                                To assign this asset, use the Assign Asset workflow
+                                from the asset details page.
+                            </div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="col-md-4">

@@ -9,8 +9,36 @@ use App\Models\User;
 use App\Models\Setting;
 use App\Middleware\AuthMiddleware;
 use App\Services\RememberMeService;
+use App\Services\AuditLogService;
 
 require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
+/**
+ * Safely record password-change audit events.
+ */
+function logPasswordChangeEvent(
+    string $action,
+    string $description,
+    string $result = 'success'
+): void {
+    try {
+        (new AuditLogService())->log(
+            action: $action,
+            module: 'authentication',
+            entityType: 'user',
+            entityId: Auth::id(),
+            description: $description,
+            newValues: [
+                'password_change_status' => $result,
+            ],
+            result: $result
+        );
+    } catch (\Throwable $e) {
+        error_log(
+            'Password change audit logging failed: '
+            . $e->getMessage()
+        );
+    }
+}
 
 AuthMiddleware::handle();
 
@@ -112,6 +140,12 @@ try {
             $passwordHash
         )
     ) {
+        logPasswordChangeEvent(
+            action: 'change_password_failed',
+            description: 'Password change failed because the current password was incorrect.',
+            result: 'failure'
+        );
+
         exit('The current password is incorrect.');
     }
 
@@ -136,6 +170,13 @@ try {
             'Unable to update your password.'
         );
     }
+
+    // Record the successful password change.
+    // No password or password hash is included.
+    logPasswordChangeEvent(
+        action: 'change_password',
+        description: 'User changed their password successfully.'
+    );
 
     $rememberMeService = new RememberMeService();
 

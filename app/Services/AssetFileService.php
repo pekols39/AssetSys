@@ -67,6 +67,8 @@ class AssetFileService
         );
 
         try {
+            $this->db->beginTransaction();
+
             if ($isPrimary) {
                 $this->clearPrimaryPhoto($assetId);
             }
@@ -75,17 +77,43 @@ class AssetFileService
                 $isPrimary = true;
             }
 
-            return $this->photoModel->create([
+            $normalizedCaption = $this->normalizeOptionalString($caption);
+
+            $photoId = $this->photoModel->create([
                 'asset_id' => $assetId,
                 'original_name' => $upload['original_name'],
                 'stored_name' => $upload['filename'],
                 'mime_type' => $upload['mime_type'],
                 'file_size' => $upload['size'],
-                'caption' => $this->normalizeOptionalString($caption),
+                'caption' => $normalizedCaption,
                 'is_primary' => $isPrimary ? 1 : 0,
                 'uploaded_by' => $uploadedBy,
             ]);
+
+            (new AuditLogService())->log(
+                action: 'upload_photo',
+                module: 'assets',
+                entityType: 'asset_photo',
+                entityId: $photoId,
+                description: 'Asset photo uploaded.',
+                newValues: [
+                    'asset_id' => $assetId,
+                    'original_name' => $upload['original_name'],
+                    'mime_type' => $upload['mime_type'],
+                    'file_size' => $upload['size'],
+                    'is_primary' => $isPrimary,
+                    'caption' => $normalizedCaption,
+                ]
+            );
+
+            $this->db->commit();
+
+            return $photoId;
         } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
             $this->deleteStoredFile($upload['path']);
 
             throw $e;
@@ -129,17 +157,46 @@ class AssetFileService
         );
 
         try {
-            return $this->documentModel->create([
+            $this->db->beginTransaction();
+
+            $normalizedDescription =
+                $this->normalizeOptionalString($description);
+
+            $documentId = $this->documentModel->create([
                 'asset_id' => $assetId,
                 'document_type' => $documentType,
                 'original_name' => $upload['original_name'],
                 'stored_name' => $upload['filename'],
                 'mime_type' => $upload['mime_type'],
                 'file_size' => $upload['size'],
-                'description' => $this->normalizeOptionalString($description),
+                'description' => $normalizedDescription,
                 'uploaded_by' => $uploadedBy,
             ]);
+
+            (new AuditLogService())->log(
+                action: 'upload_document',
+                module: 'assets',
+                entityType: 'asset_document',
+                entityId: $documentId,
+                description: 'Asset document uploaded.',
+                newValues: [
+                    'asset_id' => $assetId,
+                    'document_type' => $documentType,
+                    'original_name' => $upload['original_name'],
+                    'mime_type' => $upload['mime_type'],
+                    'file_size' => $upload['size'],
+                    'description' => $normalizedDescription,
+                ]
+            );
+
+            $this->db->commit();
+
+            return $documentId;
         } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
             $this->deleteStoredFile($upload['path']);
 
             throw $e;
@@ -149,121 +206,152 @@ class AssetFileService
     public function deletePhoto(int $photoId): void
     {
         if ($photoId <= 0) {
-            throw new RuntimeException(
-                'Invalid photo.'
-            );
+            throw new RuntimeException('Invalid photo.');
         }
 
         $photo = $this->photoModel->findById($photoId);
 
         if (!$photo) {
-            throw new RuntimeException(
-                'Photo not found.'
-            );
+            throw new RuntimeException('Photo not found.');
         }
 
         $assetId = (int) $photo['asset_id'];
 
         if (!$this->authorization->canAccessAsset($assetId)) {
-            throw new RuntimeException(
-                'Access denied.'
-            );
+            throw new RuntimeException('Access denied.');
         }
 
-        $storedName = basename(
-            (string) $photo['stored_name']
-        );
+        $storedName = basename((string) $photo['stored_name']);
 
         if ($storedName === '') {
-            throw new RuntimeException(
-                'Invalid stored photo.'
-            );
+            throw new RuntimeException('Invalid stored photo.');
         }
 
         $photoPath =
             ASSETSYS_ROOT
-            . DIRECTORY_SEPARATOR
-            . 'storage'
-            . DIRECTORY_SEPARATOR
-            . 'uploads'
-            . DIRECTORY_SEPARATOR
-            . 'assets'
-            . DIRECTORY_SEPARATOR
-            . $storedName;
+            . DIRECTORY_SEPARATOR . 'storage'
+            . DIRECTORY_SEPARATOR . 'uploads'
+            . DIRECTORY_SEPARATOR . 'assets'
+            . DIRECTORY_SEPARATOR . $storedName;
 
-        $wasPrimary =
-            (int) $photo['is_primary'] === 1;
+        $wasPrimary = (int) $photo['is_primary'] === 1;
 
-        $this->photoModel->delete($photoId);
+        $this->db->beginTransaction();
+
+        try {
+            $deleted = $this->photoModel->delete($photoId);
+
+            if (!$deleted) {
+                throw new RuntimeException('Unable to delete photo record.');
+            }
+
+            if ($wasPrimary) {
+                $remainingPhotos = $this->photoModel->getByAssetId($assetId);
+
+                if (!empty($remainingPhotos)) {
+                    $nextPrimary = $remainingPhotos[0];
+
+                    $this->photoModel->setPrimary(
+                        (int) $nextPrimary['id'],
+                        $assetId
+                    );
+                }
+            }
+
+            (new AuditLogService())->log(
+                action: 'delete_photo',
+                module: 'assets',
+                entityType: 'asset_photo',
+                entityId: $photoId,
+                description: 'Asset photo deleted.',
+                oldValues: [
+                    'asset_id' => $assetId,
+                    'original_name' => $photo['original_name'] ?? null,
+                    'mime_type' => $photo['mime_type'] ?? null,
+                    'file_size' => $photo['file_size'] ?? null,
+                    'is_primary' => $wasPrimary,
+                    'caption' => $photo['caption'] ?? null,
+                ]
+            );
+
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $e;
+        }
 
         if (is_file($photoPath)) {
             @unlink($photoPath);
-        }
-
-        if ($wasPrimary) {
-            $remainingPhotos =
-                $this->photoModel->getByAssetId($assetId);
-
-            if (!empty($remainingPhotos)) {
-                $nextPrimary = $remainingPhotos[0];
-
-                $this->photoModel->setPrimary(
-                    (int) $nextPrimary['id'],
-                    $assetId
-                );
-            }
         }
     }
 
     public function deleteDocument(int $documentId): void
     {
         if ($documentId <= 0) {
-            throw new RuntimeException(
-                'Invalid document.'
-            );
+            throw new RuntimeException('Invalid document.');
         }
 
-        $document =
-            $this->documentModel->findById($documentId);
+        $document = $this->documentModel->findById($documentId);
 
         if (!$document) {
-            throw new RuntimeException(
-                'Document not found.'
-            );
+            throw new RuntimeException('Document not found.');
         }
 
         $assetId = (int) $document['asset_id'];
 
         if (!$this->authorization->canAccessAsset($assetId)) {
-            throw new RuntimeException(
-                'Access denied.'
-            );
+            throw new RuntimeException('Access denied.');
         }
 
-        $storedName = basename(
-            (string) $document['stored_name']
-        );
+        $storedName = basename((string) $document['stored_name']);
 
         if ($storedName === '') {
-            throw new RuntimeException(
-                'Invalid stored document.'
-            );
+            throw new RuntimeException('Invalid stored document.');
         }
 
         $documentPath =
             ASSETSYS_ROOT
-            . DIRECTORY_SEPARATOR
-            . 'storage'
-            . DIRECTORY_SEPARATOR
-            . 'uploads'
-            . DIRECTORY_SEPARATOR
-            . 'documents'
-            . DIRECTORY_SEPARATOR
-            . $storedName;
+            . DIRECTORY_SEPARATOR . 'storage'
+            . DIRECTORY_SEPARATOR . 'uploads'
+            . DIRECTORY_SEPARATOR . 'documents'
+            . DIRECTORY_SEPARATOR . $storedName;
 
-        $this->documentModel->delete(
-            $documentId
-        );
+        $this->db->beginTransaction();
+
+        try {
+            $deleted = $this->documentModel->delete($documentId);
+
+            if (!$deleted) {
+                throw new RuntimeException('Unable to delete document record.');
+            }
+
+            (new AuditLogService())->log(
+                action: 'delete_document',
+                module: 'assets',
+                entityType: 'asset_document',
+                entityId: $documentId,
+                description: 'Asset document deleted.',
+                oldValues: [
+                    'asset_id' => $assetId,
+                    'document_type' => $document['document_type'] ?? null,
+                    'original_name' => $document['original_name'] ?? null,
+                    'mime_type' => $document['mime_type'] ?? null,
+                    'file_size' => $document['file_size'] ?? null,
+                    'description' => $document['description'] ?? null,
+                ]
+            );
+
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $e;
+        }
 
         if (is_file($documentPath)) {
             @unlink($documentPath);

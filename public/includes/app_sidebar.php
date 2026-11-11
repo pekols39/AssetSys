@@ -54,6 +54,10 @@ $isAdministrationSettings = str_ends_with(
     $currentPath,
     '/administration/settings.php'
 );
+
+$isAdministrationAuditTrail =
+    str_ends_with($currentPath, '/administration/audit_trail.php')
+    || str_ends_with($currentPath, '/administration/audit_log_details.php');
 ?>
 
 <aside class="app-sidebar" id="appSidebar">
@@ -324,6 +328,17 @@ $isAdministrationSettings = str_ends_with(
 
                     <span class="app-sidebar-link-text">
                         User Accounts
+                    </span>
+                </a>
+
+                <a href="<?= e(base_url('/public/administration/audit_trail.php')) ?>"
+                    class="app-sidebar-link <?= $isAdministrationAuditTrail ? 'active' : '' ?>">
+                    <span class="app-sidebar-link-icon">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                    </span>
+
+                    <span class="app-sidebar-link-text">
+                        Audit Trail
                     </span>
                 </a>
 

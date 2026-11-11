@@ -321,9 +321,22 @@ class StockService
     {
         $departmentId = $this->authorizeStockOperation();
 
-        return $this->stockModel->getByDepartment(
+        $stock = $this->stockModel->getByDepartment(
             $departmentId
         );
+
+        (new AuditLogService())->log(
+            action: 'view_department_stock',
+            module: 'stock',
+            entityType: 'material_stock',
+            description: 'Department stock list viewed.',
+            newValues: [
+                'department_id' => $departmentId,
+                'items_count' => count($stock),
+            ]
+        );
+
+        return $stock;
     }
 
     /**
@@ -342,12 +355,26 @@ class StockService
             );
         }
 
-        return $this->stockMovementModel->getPage(
+        $result = $this->stockMovementModel->getPage(
             (int) $departmentId,
             $filters,
             $page,
             $perPage
         );
+
+        (new AuditLogService())->log(
+            action: 'view_stock_movement_history',
+            module: 'stock',
+            entityType: 'stock_movement',
+            description: 'Department stock movement history viewed.',
+            newValues: [
+                'department_id' => (int) $departmentId,
+                'page' => $page,
+                'per_page' => $perPage,
+            ]
+        );
+
+        return $result;
     }
 
     /**
@@ -366,12 +393,26 @@ class StockService
             );
         }
 
-        return $this->stockModel->getPage(
+        $result = $this->stockModel->getPage(
             $departmentId,
             $filters,
             $page,
             $perPage
         );
+
+        (new AuditLogService())->log(
+            action: 'view_department_stock_list',
+            module: 'stock',
+            entityType: 'material_stock',
+            description: 'Paginated department stock list viewed.',
+            newValues: [
+                'department_id' => $departmentId,
+                'page' => $page,
+                'per_page' => $perPage,
+            ]
+        );
+
+        return $result;
     }
 
     /**
@@ -381,9 +422,22 @@ class StockService
     {
         $departmentId = $this->authorizeStockOperation();
 
-        return $this->stockModel->getLowStockByDepartment(
+        $stock = $this->stockModel->getLowStockByDepartment(
             $departmentId
         );
+
+        (new AuditLogService())->log(
+            action: 'view_low_stock',
+            module: 'stock',
+            entityType: 'material_stock',
+            description: 'Department low-stock list viewed.',
+            newValues: [
+                'department_id' => $departmentId,
+                'items_count' => count($stock),
+            ]
+        );
+
+        return $stock;
     }
 
     /**
@@ -398,11 +452,26 @@ class StockService
             return false;
         }
 
-        return $this->stockModel
-            ->findByMaterialAndDepartment(
-                $materialId,
-                $departmentId
+        $stock = $this->stockModel->findByMaterialAndDepartment(
+            $materialId,
+            $departmentId
+        );
+
+        if ($stock !== false) {
+            (new AuditLogService())->log(
+                action: 'view_stock_details',
+                module: 'stock',
+                entityType: 'material_stock',
+                entityId: isset($stock['id']) ? (int) $stock['id'] : null,
+                description: 'Department stock details viewed.',
+                newValues: [
+                    'material_id' => $materialId,
+                    'department_id' => $departmentId,
+                ]
             );
+        }
+
+        return $stock;
     }
 
     /**
@@ -720,6 +789,51 @@ class StockService
             ]);
 
             $movementId = (int) $this->db->lastInsertId();
+
+            $action = match (true) {
+                $movementType === 'in' => 'stock_in',
+                $movementType === 'out' => 'stock_out',
+                $movementType === 'return' => 'return_stock',
+                $movementType === 'adjustment'
+                && $physicalStockAuditItemId !== null
+                => 'physical_audit_stock_adjustment',
+                $movementType === 'adjustment' => 'adjust_stock',
+                default => 'stock_movement',
+            };
+
+            (new AuditLogService())->log(
+                action: $action,
+                module: 'stock',
+                entityType: 'stock_movement',
+                entityId: $movementId,
+                description: 'Stock movement recorded successfully.',
+                oldValues: [
+                    'material_id' => $materialId,
+                    'material_stock_id' => $stockId,
+                    'department_id' => $departmentId,
+                    'stock_quantity' => $currentBalance,
+                ],
+                newValues: [
+                    'material_id' => $materialId,
+                    'material_name' => $material['name'] ?? null,
+                    'material_code' => $material['code'] ?? null,
+                    'material_stock_id' => $stockId,
+                    'department_id' => $departmentId,
+                    'movement_type' => $movementType,
+                    'quantity' => $quantity,
+                    'quantity_delta' => $quantityDelta,
+                    'balance_after' => $newBalance,
+                    'vendor_id' => $vendorId,
+                    'issued_to_user_id' => $issuedToUserId,
+                    'issued_to_name' => $issuedToName,
+                    'related_movement_id' => $relatedMovementId,
+                    'physical_stock_audit_item_id' => $physicalStockAuditItemId,
+                    'reference_number' => $referenceNumber,
+                    'purpose' => $purpose,
+                    'reason' => $reason,
+                    'recorded_by' => $userId,
+                ]
+            );
 
             if ($ownsTransaction) {
                 $this->db->commit();

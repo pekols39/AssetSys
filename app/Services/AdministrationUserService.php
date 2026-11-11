@@ -59,6 +59,16 @@ class AdministrationUserService
             );
         }
 
+        (new AuditLogService())->log(
+            action: 'view_all_user_accounts',
+            module: 'administration',
+            entityType: 'user',
+            description: 'All user accounts viewed.',
+            newValues: [
+                'result_count' => count($users),
+            ]
+        );
+
         return $users;
     }
 
@@ -108,6 +118,14 @@ class AdministrationUserService
             return null;
         }
 
+        (new AuditLogService())->log(
+            action: 'view_user_account_details',
+            module: 'administration',
+            entityType: 'user',
+            entityId: $userId,
+            description: 'User account details viewed.'
+        );
+
         return $user;
     }
 
@@ -118,73 +136,91 @@ class AdministrationUserService
      */
     public function update(int $userId, array $data): bool
     {
-        if ($userId <= 0) {
-            throw new \InvalidArgumentException(
-                'Invalid user account.'
-            );
-        }
+        // Capture the existing account values before updating.
+        // This is an internal lookup, so it does not create a separate view audit log.
+        $existing = null;
 
-        $stmt = $this->db->prepare(
-            'UPDATE users
-         SET
-            employee_number = :employee_number,
-            first_name = :first_name,
-            middle_name = :middle_name,
-            last_name = :last_name,
-            username = :username,
-            email = :email,
-            role_id = :role_id,
-            department_id = :department_id,
-            position = :position,
-            account_status = :account_status,
-            is_active = :is_active,
-            must_change_password = :must_change_password
+        $existingStmt = $this->db->prepare(
+            'SELECT employee_number, first_name, middle_name, last_name,
+                username, email, role_id, department_id, position,
+                account_status, is_active, must_change_password
+         FROM users
          WHERE id = :user_id
          LIMIT 1'
         );
 
-        $stmt->execute([
-            'employee_number' =>
-                $data['employee_number'] ?? null,
-
-            'first_name' =>
-                $data['first_name'] ?? null,
-
-            'middle_name' =>
-                $data['middle_name'] ?? null,
-
-            'last_name' =>
-                $data['last_name'] ?? null,
-
-            'username' =>
-                $data['username'] ?? null,
-
-            'email' =>
-                $data['email'] ?? null,
-
-            'role_id' =>
-                (int) ($data['role_id'] ?? 0),
-
-            'department_id' =>
-                $data['department_id'] !== null
-                ? (int) $data['department_id']
-                : null,
-
-            'position' => $data['position'] ?? null,
-
-            'account_status' =>
-                $data['account_status'] ?? 'active',
-
-            'is_active' =>
-                (int) ($data['is_active'] ?? 0),
-
-            'must_change_password' =>
-                (int) ($data['must_change_password'] ?? 0),
-
+        $existingStmt->execute([
             'user_id' => $userId,
         ]);
 
-        return $stmt->rowCount() > 0;
+        $existing = $existingStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($existing === false) {
+            $existing = null;
+        }
+
+        // Keep the existing account update query and parameter mapping.
+        $stmt = $this->db->prepare(
+            'UPDATE users
+         SET employee_number = :employee_number,
+             first_name = :first_name,
+             middle_name = :middle_name,
+             last_name = :last_name,
+             username = :username,
+             email = :email,
+             role_id = :role_id,
+             department_id = :department_id,
+             position = :position,
+             account_status = :account_status,
+             is_active = :is_active,
+             must_change_password = :must_change_password
+         WHERE id = :user_id'
+        );
+
+        $stmt->execute([
+            'employee_number' => $data['employee_number'],
+            'first_name' => $data['first_name'],
+            'middle_name' => $data['middle_name'] ?? null,
+            'last_name' => $data['last_name'],
+            'username' => $data['username'],
+            'email' => $data['email'],
+            'role_id' => $data['role_id'],
+            'department_id' => $data['department_id'] ?? null,
+            'position' => $data['position'] ?? null,
+            'account_status' => $data['account_status'],
+            'is_active' => $data['is_active'],
+            'must_change_password' => $data['must_change_password'] ?? 0,
+            'user_id' => $userId,
+        ]);
+
+        $success = $stmt->rowCount() > 0;
+
+        if ($success) {
+            (new AuditLogService())->log(
+                action: 'update_user_account',
+                module: 'administration',
+                entityType: 'user',
+                entityId: $userId,
+                description: 'User account updated successfully.',
+                oldValues: $existing,
+                newValues: [
+                    'employee_number' => $data['employee_number'],
+                    'first_name' => $data['first_name'],
+                    'middle_name' => $data['middle_name'] ?? null,
+                    'last_name' => $data['last_name'],
+                    'username' => $data['username'],
+                    'email' => $data['email'],
+                    'role_id' => $data['role_id'],
+                    'department_id' => $data['department_id'] ?? null,
+                    'position' => $data['position'] ?? null,
+                    'account_status' => $data['account_status'],
+                    'is_active' => $data['is_active'],
+                    'must_change_password' => $data['must_change_password'] ?? 0,
+                ]
+            );
+        }
+
+        return $success;
     }
     /**
      * Create an administrator-managed user account.
@@ -383,7 +419,31 @@ class AdministrationUserService
                 'is_active' => 1,
             ]);
 
-            return (int) $this->db->lastInsertId();
+            $userId = (int) $this->db->lastInsertId();
+
+            (new AuditLogService())->log(
+                action: 'create_user_account',
+                module: 'administration',
+                entityType: 'user',
+                entityId: $userId,
+                description: 'New user account created by administrator.',
+                newValues: [
+                    'employee_number' => $employeeNumber,
+                    'role_id' => $roleId,
+                    'department_id' => $financeDepartmentId,
+                    'position' => $data['position'] ?? null,
+                    'first_name' => $data['first_name'],
+                    'middle_name' => $data['middle_name'] ?? null,
+                    'last_name' => $data['last_name'],
+                    'username' => $data['username'],
+                    'email' => $data['email'],
+                    'account_status' => 'active',
+                    'is_active' => 1,
+                    'must_change_password' => 1,
+                ]
+            );
+
+            return $userId;
         } finally {
             if ($lockAcquired) {
                 $releaseStmt = $this->db->prepare(

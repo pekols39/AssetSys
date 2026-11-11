@@ -105,7 +105,7 @@ class MaterialReplenishmentService
             );
         }
 
-        return $this->replenishmentModel->create(
+        $replenishmentId = $this->replenishmentModel->create(
             $materialId,
             $departmentId,
             $quantity,
@@ -114,6 +114,24 @@ class MaterialReplenishmentService
             $notes,
             $recordedBy
         );
+
+        (new AuditLogService())->log(
+            action: 'create_material_replenishment',
+            module: 'materials',
+            entityType: 'material_replenishment',
+            entityId: $replenishmentId,
+            description: 'Material replenishment history recorded.',
+            newValues: [
+                'material_id' => $materialId,
+                'department_id' => $departmentId,
+                'quantity' => $quantity,
+                'replenished_at' => $replenishedAt,
+                'reference_number' => $referenceNumber,
+                'recorded_by' => $recordedBy,
+            ]
+        );
+
+        return $replenishmentId;
     }
     /**
      * Get active material options for the authenticated department.
@@ -122,7 +140,20 @@ class MaterialReplenishmentService
     {
         $this->authorizeReplenishment();
 
-        return $this->replenishmentModel->getMaterialOptions();
+        $materials = $this->replenishmentModel->getMaterialOptions();
+
+        (new AuditLogService())->log(
+            action: 'view_replenishment_material_options',
+            module: 'materials',
+            entityType: 'material_replenishment',
+            description: 'Material options for replenishment viewed.',
+            newValues: [
+                'department_id' => $this->authorization->departmentId(),
+                'result_count' => count($materials),
+            ]
+        );
+
+        return $materials;
     }
     /**
      * Retrieve replenishment history for the authenticated department.
@@ -134,12 +165,27 @@ class MaterialReplenishmentService
     ): array {
         $departmentId = $this->authorizeReplenishment();
 
-        return $this->replenishmentModel->getPage(
+        $result = $this->replenishmentModel->getPage(
             $departmentId,
             $filters,
             $page,
             $perPage
         );
+
+        (new AuditLogService())->log(
+            action: 'view_material_replenishment_history',
+            module: 'materials',
+            entityType: 'material_replenishment',
+            description: 'Material replenishment history viewed.',
+            newValues: [
+                'department_id' => $departmentId,
+                'filters' => $filters,
+                'page' => max(1, $page),
+                'per_page' => $perPage,
+            ]
+        );
+
+        return $result;
     }
 
     private function authorizeReplenishment(): int

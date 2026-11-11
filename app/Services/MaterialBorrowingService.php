@@ -27,28 +27,97 @@ class MaterialBorrowingService
     public function getBorrowableMaterials(): array
     {
         $this->authorizeAccess();
-        return $this->borrowingModel->getBorrowableMaterials();
+
+        $materials = $this->borrowingModel->getBorrowableMaterials();
+
+        (new AuditLogService())->log(
+            action: 'view_borrowable_materials',
+            module: 'material_borrowing',
+            entityType: 'material',
+            description: 'Borrowable materials list viewed.',
+            newValues: [
+                'materials_count' => count($materials),
+            ]
+        );
+
+        return $materials;
     }
 
-    public function getOutstandingPage(array $filters = [], int $page = 1, int $perPage = 10): array
-    {
+    public function getOutstandingPage(
+        array $filters = [],
+        int $page = 1,
+        int $perPage = 10
+    ): array {
         $this->authorizeAccess();
-        return $this->borrowingModel->getOutstandingPage($filters, $page, $perPage);
+
+        $result = $this->borrowingModel->getOutstandingPage(
+            $filters,
+            $page,
+            $perPage
+        );
+
+        (new AuditLogService())->log(
+            action: 'view_outstanding_borrowings',
+            module: 'material_borrowing',
+            entityType: 'material_borrowing',
+            description: 'Outstanding material borrowings list viewed.',
+            newValues: [
+                'page' => $page,
+                'per_page' => $perPage,
+            ]
+        );
+
+        return $result;
     }
 
-    public function getHistoryPage(array $filters = [], int $page = 1, int $perPage = 10): array
-    {
+    public function getHistoryPage(
+        array $filters = [],
+        int $page = 1,
+        int $perPage = 10
+    ): array {
         $this->authorizeAccess();
-        return $this->borrowingModel->getHistoryPage($filters, $page, $perPage);
+
+        $result = $this->borrowingModel->getHistoryPage(
+            $filters,
+            $page,
+            $perPage
+        );
+
+        (new AuditLogService())->log(
+            action: 'view_borrowing_history',
+            module: 'material_borrowing',
+            entityType: 'material_borrowing',
+            description: 'Material borrowing history viewed.',
+            newValues: [
+                'page' => $page,
+                'per_page' => $perPage,
+            ]
+        );
+
+        return $result;
     }
 
     public function findDetails(int $borrowingId): array|false
     {
         $this->authorizeAccess();
+
         if ($borrowingId <= 0) {
             return false;
         }
-        return $this->borrowingModel->findDetails($borrowingId);
+
+        $result = $this->borrowingModel->findDetails($borrowingId);
+
+        if ($result !== false) {
+            (new AuditLogService())->log(
+                action: 'view_borrowing_details',
+                module: 'material_borrowing',
+                entityType: 'material_borrowing',
+                entityId: $borrowingId,
+                description: 'Material borrowing details viewed.'
+            );
+        }
+
+        return $result;
     }
 
     public function createBorrowing(
@@ -143,7 +212,37 @@ class MaterialBorrowingService
             ]);
 
             $id = (int) $this->db->lastInsertId();
+
+            (new AuditLogService())->log(
+                action: 'create_material_borrowing',
+                module: 'material_borrowing',
+                entityType: 'material_borrowing',
+                entityId: $id,
+                description: 'Material borrowing record created successfully.',
+                oldValues: [
+                    'material_id' => $materialId,
+                    'material_stock_id' => (int) $stock['id'],
+                    'available_quantity' => $this->milliToString($availableMilli),
+                ],
+                newValues: [
+                    'material_id' => $materialId,
+                    'material_code' => (string) $stock['code'],
+                    'material_name' => (string) $stock['name'],
+                    'material_stock_id' => (int) $stock['id'],
+                    'borrower_name' => $borrowerName,
+                    'quantity_borrowed' => $this->milliToString($quantityMilli),
+                    'location' => $location,
+                    'purpose' => $purpose,
+                    'borrowed_at' => $borrowedAt,
+                    'expected_return_date' => $expectedReturnDate,
+                    'reference_number' => $referenceNumber,
+                    'available_quantity_after' => $this->milliToString($newBalance),
+                    'recorded_by' => $userId,
+                ]
+            );
+
             $this->db->commit();
+
             return $id;
         } catch (Throwable $e) {
             if ($this->db->inTransaction()) {
@@ -254,7 +353,42 @@ class MaterialBorrowingService
             ]);
 
             $id = (int) $this->db->lastInsertId();
+
+            (new AuditLogService())->log(
+                action: 'record_material_return',
+                module: 'material_borrowing',
+                entityType: 'material_borrowing_return',
+                entityId: $id,
+                description: 'Material return recorded successfully.',
+                oldValues: [
+                    'borrowing_id' => $borrowingId,
+                    'borrowed_quantity' => $this->milliToString($borrowedMilli),
+                    'previously_returned_quantity' => $this->milliToString($returnedMilli),
+                    'outstanding_quantity' => $this->milliToString($outstandingMilli),
+                    'stock_quantity' => $this->milliToString(
+                        $this->quantityToMilli((string) $stock['quantity'], true)
+                    ),
+                ],
+                newValues: [
+                    'borrowing_id' => $borrowingId,
+                    'return_id' => $id,
+                    'quantity_returned' => $this->milliToString($quantityMilli),
+                    'total_returned_quantity' => $this->milliToString(
+                        $returnedMilli + $quantityMilli
+                    ),
+                    'remaining_outstanding_quantity' => $this->milliToString(
+                        $outstandingMilli - $quantityMilli
+                    ),
+                    'returned_at' => $returnedAt,
+                    'item_condition' => $condition,
+                    'condition_notes' => $conditionNotes,
+                    'stock_quantity_after' => $this->milliToString($newBalance),
+                    'recorded_by' => $userId,
+                ]
+            );
+
             $this->db->commit();
+
             return $id;
         } catch (Throwable $e) {
             if ($this->db->inTransaction()) {

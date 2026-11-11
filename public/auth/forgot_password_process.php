@@ -5,9 +5,41 @@ declare(strict_types=1);
 use App\Core\Database;
 use App\Core\Session;
 use App\Helpers\Csrf;
+use App\Services\AuditLogService;
 use PHPMailer\PHPMailer\PHPMailer;
 
 require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
+
+/**
+ * Record password-reset request activity without storing email addresses
+ * or reset tokens.
+ */
+function logForgotPasswordEvent(
+    string $action,
+    string $description,
+    string $result = 'success',
+    ?int $actorUserId = null
+): void {
+    try {
+        (new AuditLogService())->log(
+            action: $action,
+            module: 'authentication',
+            entityType: 'user',
+            entityId: $actorUserId,
+            description: $description,
+            newValues: [
+                'password_reset_request_status' => $result,
+            ],
+            result: $result,
+            actorUserId: $actorUserId
+        );
+    } catch (Throwable $e) {
+        error_log(
+            'AssetSys forgot-password audit logging error: '
+            . $e->getMessage()
+        );
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -22,10 +54,7 @@ $genericMessage =
     'If an eligible account matches that email address, '
     . 'reset instructions will be sent. Check your inbox.';
 
-$redirectWithMessage = static function (
-    string $url,
-    string $message
-): never {
+$redirectWithMessage = static function (string $url, string $message): never {
     Session::set('password_reset_request_message', $message);
     header('Location: ' . $url, true, 303);
     exit;
@@ -77,6 +106,7 @@ if (
 Session::set('password_reset_last_request', $now);
 
 $db = null;
+$userId = null;
 
 try {
     /*
@@ -127,6 +157,12 @@ try {
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$user || !is_string($user['email'] ?? null)) {
+        logForgotPasswordEvent(
+            'request_password_reset_no_match',
+            'Password-reset request processed, but no eligible account matched the submitted email.',
+            'success'
+        );
+
         $redirectWithMessage($forgotUrl, $genericMessage);
     }
 
@@ -213,14 +249,14 @@ try {
 
     $logoHtml = $hasLogo
         ? '<img src="cid:assetsys-company-logo" '
-            . 'alt="' . $safeAppName . '" '
-            . 'width="190" '
-            . 'style="display:block;width:190px;max-width:100%;'
-            . 'height:auto;border:0;margin:0 auto;">'
+        . 'alt="' . $safeAppName . '" '
+        . 'width="190" '
+        . 'style="display:block;width:190px;max-width:100%;'
+        . 'height:auto;border:0;margin:0 auto;">'
         : '<div style="font-size:25px;font-weight:700;'
-            . 'letter-spacing:1px;color:#ffffff;">'
-            . $safeAppName
-            . '</div>';
+        . 'letter-spacing:1px;color:#ffffff;">'
+        . $safeAppName
+        . '</div>';
 
     /*
      * Branded HTML email.
@@ -333,8 +369,8 @@ try {
                                                   line-height:1.7;">
                                             <strong>Security notice:</strong>
                                             This link expires in '
-                                                . $safeTtl .
-                                            ' minutes and can only be used once.
+        . $safeTtl .
+        ' minutes and can only be used once.
                                         </p>
                                     </td>
                                 </tr>
@@ -441,12 +477,26 @@ try {
 
     $db->commit();
 
+    logForgotPasswordEvent(
+        'request_password_reset',
+        'Password-reset link generated and email sent successfully.',
+        'success',
+        $userId
+    );
+
     $redirectWithMessage($forgotUrl, $genericMessage);
 
 } catch (Throwable $e) {
     if ($db instanceof PDO && $db->inTransaction()) {
         $db->rollBack();
     }
+
+    logForgotPasswordEvent(
+        'request_password_reset_failed',
+        'Password-reset request processing failed.',
+        'failure',
+        ($userId !== null && $userId > 0) ? $userId : null
+    );
 
     if (defined('APP_DEBUG') && APP_DEBUG === true) {
         error_log(

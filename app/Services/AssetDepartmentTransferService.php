@@ -189,8 +189,24 @@ class AssetDepartmentTransferService
                 );
             }
 
-            $this->db->commit();
+            (new AuditLogService())->log(
+                action: 'request_department_transfer',
+                module: 'department_transfers',
+                entityType: 'department_transfer',
+                entityId: $requestId,
+                description: 'Department-transfer request submitted successfully.',
+                newValues: [
+                    'asset_id' => $assetId,
+                    'source_department_id' => $sourceDepartmentId,
+                    'destination_department_id' => $destinationDepartmentId,
+                    'destination_department_name' => (string) $destination['name'],
+                    'requested_by' => $requestedBy,
+                    'request_status' => 'pending',
+                    'request_reason' => $requestReason,
+                ]
+            );
 
+            $this->db->commit();
 
             $notificationTitle =
                 'New Asset Transfer Request';
@@ -369,6 +385,27 @@ class AssetDepartmentTransferService
                 );
             }
 
+            (new AuditLogService())->log(
+                action: 'approve_department_transfer',
+                module: 'department_transfers',
+                entityType: 'department_transfer',
+                entityId: $requestId,
+                description: 'Department-transfer request approved successfully.',
+                oldValues: [
+                    'asset_id' => $assetId,
+                    'department_id' => $sourceDepartmentId,
+                    'request_status' => 'pending',
+                ],
+                newValues: [
+                    'asset_id' => $assetId,
+                    'department_id' => $destinationDepartmentId,
+                    'request_status' => 'approved',
+                    'reviewed_by' => $reviewedBy,
+                    'review_notes' => $reviewNotes !== null && trim($reviewNotes) !== ''
+                        ? trim($reviewNotes)
+                        : null,
+                ]
+            );
 
             $this->db->commit();
 
@@ -480,6 +517,28 @@ class AssetDepartmentTransferService
                 );
             }
 
+
+            (new AuditLogService())->log(
+                action: 'reject_department_transfer',
+                module: 'department_transfers',
+                entityType: 'department_transfer',
+                entityId: $requestId,
+                description: 'Department-transfer request rejected successfully.',
+                oldValues: [
+                    'asset_id' => (int) ($request['asset_id'] ?? 0),
+                    'source_department_id' => (int) ($request['source_department_id'] ?? 0),
+                    'destination_department_id' => (int) ($request['destination_department_id'] ?? 0),
+                    'request_status' => 'pending',
+                ],
+                newValues: [
+                    'asset_id' => (int) ($request['asset_id'] ?? 0),
+                    'source_department_id' => (int) ($request['source_department_id'] ?? 0),
+                    'destination_department_id' => (int) ($request['destination_department_id'] ?? 0),
+                    'request_status' => 'rejected',
+                    'reviewed_by' => $reviewedBy,
+                    'review_notes' => $reviewNotes,
+                ]
+            );
 
             $this->db->commit();
 

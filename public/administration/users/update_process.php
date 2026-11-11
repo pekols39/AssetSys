@@ -9,6 +9,7 @@ use App\Helpers\Csrf;
 use App\Middleware\AuthMiddleware;
 use App\Services\AdministrationUserService;
 use App\Services\AuthorizationService;
+use App\Services\AuditLogService;
 
 AuthMiddleware::handle();
 
@@ -43,6 +44,28 @@ if (!Csrf::validate($csrfToken)) {
     http_response_code(403);
     exit('Invalid security token.');
 }
+
+$logFailedAccountUpdate = static function (?int $targetUserId, string $reason): void {
+    try {
+        (new AuditLogService())->log(
+            action: 'update_user_account_failed',
+            module: 'administration',
+            entityType: 'user',
+            entityId: $targetUserId,
+            description: $reason,
+            newValues: [
+                'operation' => 'update_user_account',
+                'status' => 'failed',
+            ],
+            result: 'failure'
+        );
+    } catch (\Throwable $e) {
+        error_log(
+            'Failed account-update audit logging error: '
+            . $e->getMessage()
+        );
+    }
+};
 
 $userId = filter_var(
     $_POST['user_id'] ?? null,
@@ -221,6 +244,11 @@ $userService = new AdministrationUserService();
 $account = $userService->findById($userId);
 
 if ($account === null) {
+    $logFailedAccountUpdate(
+        (int) $userId,
+        'Account update failed because the target user account was not found.'
+    );
+
     http_response_code(404);
     exit('User account not found.');
 }
@@ -364,6 +392,16 @@ try {
     }
 
 } catch (\Throwable $e) {
+
+    $logFailedAccountUpdate(
+        (int) $userId,
+        'Account update failed because of a server-side processing error.'
+    );
+
+    error_log(
+        'User account update error: '
+        . $e->getMessage()
+    );
 
     http_response_code(500);
 

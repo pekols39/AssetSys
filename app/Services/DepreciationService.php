@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Core\Database;
 use App\Models\Asset;
 use App\Models\DepreciationSchedule;
+use App\Services\AuditLogService;
 use App\Services\AuthorizationService;
 use App\Exceptions\DepreciationPeriodNotDueException;
 use PDO;
@@ -268,6 +269,28 @@ class DepreciationService
                 ':asset_id' =>
                     $assetId,
             ]);
+
+            (new AuditLogService())->log(
+                action: 'create_depreciation_schedule',
+                module: 'depreciation',
+                entityType: 'depreciation_schedule',
+                entityId: $scheduleId,
+                description: 'Depreciation schedule created successfully.',
+                newValues: [
+                    'asset_id' => $assetId,
+                    'depreciation_method' => $depreciationMethod,
+                    'start_date' => $resolvedStartDate,
+                    'useful_life_years' => $usefulLife,
+                    'original_cost' => $originalCost,
+                    'salvage_value' => $salvageValue,
+                    'depreciable_amount' => $depreciableAmount,
+                    'annual_depreciation' => $annualDepreciation,
+                    'monthly_depreciation' => $monthlyDepreciation,
+                    'current_book_value' => $currentBookValue,
+                    'schedule_status' => 'active',
+                    'created_by' => $createdBy,
+                ]
+            );
 
             $this->db->commit();
 
@@ -543,6 +566,21 @@ class DepreciationService
         ];
 
         if (!$preview['is_due']) {
+            (new AuditLogService())->log(
+                action: 'preview_depreciation_period',
+                module: 'depreciation',
+                entityType: 'depreciation_schedule',
+                entityId: $scheduleId,
+                description: 'Next depreciation period previewed.',
+                newValues: [
+                    'schedule_id' => $scheduleId,
+                    'period_start' => $preview['period_start'],
+                    'period_end' => $preview['period_end'],
+                    'eligible_on' => $preview['eligible_on'],
+                    'is_due' => false,
+                ]
+            );
+
             return $preview;
         }
 
@@ -671,7 +709,7 @@ class DepreciationService
             $accumulatedDepreciation + $depreciationAmount
         );
 
-        return array_merge($preview, [
+        $result = array_merge($preview, [
             'depreciation_amount' => $depreciationAmount,
             'book_value_after' => $bookValueAfter,
             'expected_schedule_status' =>
@@ -679,6 +717,26 @@ class DepreciationService
                 ? 'completed'
                 : 'active',
         ]);
+
+        (new AuditLogService())->log(
+            action: 'preview_depreciation_period',
+            module: 'depreciation',
+            entityType: 'depreciation_schedule',
+            entityId: $scheduleId,
+            description: 'Next depreciation period previewed.',
+            newValues: [
+                'schedule_id' => $scheduleId,
+                'period_start' => $result['period_start'],
+                'period_end' => $result['period_end'],
+                'eligible_on' => $result['eligible_on'],
+                'is_due' => true,
+                'depreciation_amount' => $result['depreciation_amount'],
+                'book_value_after' => $result['book_value_after'],
+                'expected_schedule_status' => $result['expected_schedule_status'],
+            ]
+        );
+
+        return $result;
     }
 
     /**
@@ -958,12 +1016,28 @@ class DepreciationService
             );
         }
 
-        return [
+        $result = [
             'schedule_id' => $scheduleId,
             'periods' => $periods,
             'next_period' => $nextPeriod,
             'completed' => $completed,
         ];
+
+        (new AuditLogService())->log(
+            action: 'preview_due_depreciation_periods',
+            module: 'depreciation',
+            entityType: 'depreciation_schedule',
+            entityId: $scheduleId,
+            description: 'Due depreciation periods previewed.',
+            newValues: [
+                'schedule_id' => $scheduleId,
+                'periods_previewed' => count($periods),
+                'as_of_date' => ($asOf ?? new \DateTimeImmutable('today'))
+                    ->format('Y-m-d'),
+            ]
+        );
+
+        return $result;
     }
 
     /**
@@ -1511,6 +1585,43 @@ class DepreciationService
                 ':asset_id' =>
                     $scheduleAssetId,
             ]);
+
+            (new AuditLogService())->log(
+                action: 'post_depreciation_entry',
+                module: 'depreciation',
+                entityType: 'depreciation_entry',
+                entityId: $entryId,
+                description: $automated
+                ? 'Depreciation entry posted automatically.'
+                : 'Depreciation entry posted manually.',
+                oldValues: [
+                    'schedule_id' => $scheduleId,
+                    'asset_id' => $scheduleAssetId,
+                    'accumulated_depreciation' =>
+                        $lockedSchedule['accumulated_depreciation'],
+                    'current_book_value' =>
+                        $lockedSchedule['current_book_value'],
+                    'schedule_status' =>
+                        $lockedSchedule['schedule_status'],
+                ],
+                newValues: [
+                    'schedule_id' => $scheduleId,
+                    'asset_id' => $scheduleAssetId,
+                    'period_start' => $periodStart,
+                    'period_end' => $periodEnd,
+                    'depreciation_amount' => $depreciationAmount,
+                    'accumulated_depreciation' =>
+                        $newAccumulatedDepreciation,
+                    'book_value_before' => $bookValueBefore,
+                    'book_value_after' => $bookValueAfter,
+                    'schedule_status' => $newScheduleStatus,
+                    'entry_status' => 'posted',
+                    'posted_by' => $postedBy,
+                    'posted_at' => $postedAt,
+                    'automated' => $automated,
+                ],
+                actorUserId: $automated ? $postedBy : null
+            );
 
             $this->db->commit();
 

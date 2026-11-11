@@ -48,7 +48,33 @@ class AuthorizationService
 
         return $user;
     }
+    /**
+     * Retrieve an active user by ID.
+     *
+     * Used when an operation runs outside an authenticated web session,
+     * such as automated depreciation posting.
+     */
+    public function findActiveUserById(int $userId): ?array
+    {
+        if ($userId <= 0) {
+            return null;
+        }
 
+        $user = $this->userModel->findById($userId);
+
+        if (!is_array($user)) {
+            return null;
+        }
+
+        if (
+            ($user['account_status'] ?? '') !== 'active'
+            || (int) ($user['is_active'] ?? 0) !== 1
+        ) {
+            return null;
+        }
+
+        return $user;
+    }
     public function roleName(): ?string
     {
         $user = $this->currentUser();
