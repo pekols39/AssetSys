@@ -31,6 +31,8 @@ if (!$batch) {
 }
 
 $rows = $importService->getBatchRows((int) $batchId, 25);
+$savedMapping = $importService->getSavedMapping((int) $batchId);
+$mappingComplete = !empty($savedMapping['item_ids']) && !empty($savedMapping['statuses']);
 $pageTitle = 'Finance Import Batch #' . (int) $batch['id'];
 require_once dirname(__DIR__) . '/includes/app_header.php';
 
@@ -57,6 +59,12 @@ $previewHeaders = [
         <h1 class="h3 mb-1">Import Batch #<?= (int) $batch['id'] ?></h1>
         <p class="text-muted mb-0"><?= e($batch['original_filename']) ?></p>
     </div>
+    <?php if ($batch['batch_status'] === 'preview'): ?>
+        <a href="<?= e(base_url('/public/assets/import_mapping.php?id=' . (int) $batchId)) ?>" class="btn btn-primary">
+            <i class="fa-solid fa-list-check me-1"></i>
+            Review Category and Status Mapping
+        </a>
+    <?php endif; ?>
     <a href="<?= e(base_url('/public/assets/import.php')) ?>" class="btn btn-outline-primary">
         <i class="fa-solid fa-upload me-1"></i> Upload Another Workbook
     </a>
@@ -92,6 +100,14 @@ $previewHeaders = [
 <div class="alert alert-success">
     The workbook has been staged successfully. No AssetSys assets or reference records were created or changed.
 </div>
+
+<?php if ($batch['batch_status'] === 'preview'): ?>
+    <div class="alert <?= $mappingComplete ? 'alert-success' : 'alert-warning' ?>">
+        <?= $mappingComplete
+            ? 'Category and status mappings have been saved. Asset creation is not enabled yet.'
+            : 'Next step: review and save the Finance Item ID and Status mappings before asset creation.' ?>
+    </div>
+<?php endif; ?>
 
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white py-3">
