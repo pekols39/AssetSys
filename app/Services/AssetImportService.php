@@ -370,4 +370,292 @@ class AssetImportService
             : ['item_ids' => [], 'statuses' => []];
     }
 
+
+    /**
+     * Create AssetSys assets from a reviewed staging batch.
+     * Finance reference text is retained in dedicated columns; no department,
+     * location, supplier, FFE number, or Finance code is auto-normalized.
+     */
+    public function processBatch(int $batchId, int $userId): array
+    {
+        if ($batchId <= 0 || $userId <= 0) {
+            throw new RuntimeException('Invalid import request.');
+        }
+
+        $batchStmt = $this->db->prepare(
+            'SELECT id, batch_status, mapping_data
+             FROM asset_import_batches
+             WHERE id = :id
+             FOR UPDATE'
+        );
+        $this->db->beginTransaction();
+
+        try {
+            $batchStmt->execute(['id' => $batchId]);
+            $batch = $batchStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$batch || $batch['batch_status'] !== 'preview') {
+                throw new RuntimeException('This import batch is not available for processing.');
+            }
+
+            if (!is_string($batch['mapping_data']) || $batch['mapping_data'] === '') {
+                throw new RuntimeException('Save the category and status mappings before importing.');
+            }
+
+            $mapping = json_decode($batch['mapping_data'], true);
+            if (!is_array($mapping)) {
+                throw new RuntimeException('The saved reference mapping is invalid.');
+            }
+
+            $itemMappings = $mapping['item_ids'] ?? [];
+            $statusMappings = $mapping['statuses'] ?? [];
+            if (!is_array($itemMappings) || !is_array($statusMappings)) {
+                throw new RuntimeException('The saved reference mapping is invalid.');
+            }
+
+            $this->db->prepare(
+                'UPDATE asset_import_batches SET batch_status = \'processing\' WHERE id = :id'
+            )->execute(['id' => $batchId]);
+
+            $rowsStmt = $this->db->prepare(
+                'SELECT id, source_row_number, source_data
+                 FROM asset_import_rows
+                 WHERE batch_id = :batch_id AND row_status = \'pending\'
+                 ORDER BY source_row_number ASC
+                 FOR UPDATE'
+            );
+            $rowsStmt->execute(['batch_id' => $batchId]);
+
+            $insertAsset = $this->db->prepare(
+                'INSERT INTO assets (
+                    asset_code, asset_tag, serial_number, category_id,
+                    department_id, asset_name, description, purchase_date,
+                    purchase_cost, purchase_order_number, salvage_value,
+                    depreciation_method, current_book_value, status_id,
+                    location_id, created_by,
+                    finance_item_id, finance_ffe_number, finance_code,
+                    finance_main_location, finance_owner_department,
+                    finance_status, finance_supplier, finance_po_number,
+                    finance_location, finance_price, finance_qr_code_generator
+                ) VALUES (
+                    :asset_code, NULL, NULL, :category_id,
+                    NULL, :asset_name, NULL, :purchase_date,
+                    :purchase_cost, NULL, 0,
+                    \'straight_line\', :current_book_value, :status_id,
+                    NULL, :created_by,
+                    :finance_item_id, :finance_ffe_number, :finance_code,
+                    :finance_main_location, :finance_owner_department,
+                    :finance_status, :finance_supplier, :finance_po_number,
+                    :finance_location, :finance_price, :finance_qr_code_generator
+                )'
+            );
+
+            $updateRow = $this->db->prepare(
+                'UPDATE asset_import_rows
+                 SET row_status = :row_status,
+                     asset_id = :asset_id,
+                     validation_errors = :validation_errors
+                 WHERE id = :id'
+            );
+
+            $imported = 0;
+            $failed = 0;
+
+            while ($row = $rowsStmt->fetch(PDO::FETCH_ASSOC)) {
+                try {
+                    $decoded = json_decode((string) $row['source_data'], true, 512, JSON_THROW_ON_ERROR);
+                    $values = is_array($decoded['values'] ?? null) ? $decoded['values'] : [];
+                    $raw = is_array($decoded['raw_values'] ?? null) ? $decoded['raw_values'] : [];
+
+                    $itemKey = trim((string) ($values['Item ID'] ?? '')) === ''
+                        ? '__BLANK__'
+                        : trim((string) $values['Item ID']);
+                    $statusKey = trim((string) ($values['Status'] ?? '')) === ''
+                        ? '__BLANK__'
+                        : trim((string) $values['Status']);
+
+                    $categoryId = filter_var($itemMappings[$itemKey] ?? null, FILTER_VALIDATE_INT);
+                    $statusId = filter_var($statusMappings[$statusKey] ?? null, FILTER_VALIDATE_INT);
+
+                    if ($categoryId === false || $statusId === false) {
+                        throw new RuntimeException('A Finance Item ID or Status value has no saved AssetSys mapping.');
+                    }
+
+                    $assetName = trim((string) ($values['Item name'] ?? ''));
+                    if ($assetName === '') {
+                        throw new RuntimeException('Finance Item name is blank; an AssetSys asset name is required.');
+                    }
+
+                    $purchaseDate = $this->normalizeFinanceDate(
+                        $raw['DATE PURCHASE'] ?? null,
+                        $values['DATE PURCHASE'] ?? null
+                    );
+
+                    $priceText = trim((string) ($values['Price'] ?? ''));
+                    $financePrice = null;
+                    if ($priceText !== '') {
+                        $normalizedPrice = str_replace([',', '₱', 'PHP', ' '], '', $priceText);
+                        if (!is_numeric($normalizedPrice) || (float) $normalizedPrice < 0) {
+                            throw new RuntimeException('Finance Price is not a valid non-negative amount.');
+                        }
+                        $financePrice = round((float) $normalizedPrice, 2);
+                    }
+
+                    $assetCode = $this->nextImportAssetCode();
+                    $insertAsset->execute([
+                        'asset_code' => $assetCode,
+                        'category_id' => (int) $categoryId,
+                        'asset_name' => $assetName,
+                        'purchase_date' => $purchaseDate,
+                        'purchase_cost' => $financePrice ?? 0.00,
+                        'current_book_value' => $financePrice ?? 0.00,
+                        'status_id' => (int) $statusId,
+                        'created_by' => $userId,
+                        'finance_item_id' => $this->nullableFinanceText($values['Item ID'] ?? null, 100),
+                        'finance_ffe_number' => $this->nullableFinanceText($values['FFE NUMBER'] ?? null, 150),
+                        'finance_code' => $this->nullableFinanceText($values['CODE'] ?? null, 100),
+                        'finance_main_location' => $this->nullableFinanceText($values['LOCATION (Main)'] ?? null, 150),
+                        'finance_owner_department' => $this->nullableFinanceText($values['OWNER / DEPARTMENT'] ?? null, 150),
+                        'finance_status' => $this->nullableFinanceText($values['Status'] ?? null, 50),
+                        'finance_supplier' => $this->nullableFinanceText($values['SUPPLIER'] ?? null, 150),
+                        'finance_po_number' => $this->nullableFinanceText($values['PO NUMBER'] ?? null, 100),
+                        'finance_location' => $this->nullableFinanceText($values['LOCATION'] ?? null, 255),
+                        'finance_price' => $financePrice,
+                        'finance_qr_code_generator' => $this->nullableFinanceText($values['QR CODE GENERATOR'] ?? null, 255),
+                    ]);
+
+                    $assetId = (int) $this->db->lastInsertId();
+                    $updateRow->execute([
+                        'row_status' => 'imported',
+                        'asset_id' => $assetId,
+                        'validation_errors' => null,
+                        'id' => (int) $row['id'],
+                    ]);
+                    $imported++;
+                } catch (Throwable $rowException) {
+                    $updateRow->execute([
+                        'row_status' => 'failed',
+                        'asset_id' => null,
+                        'validation_errors' => mb_substr($rowException->getMessage(), 0, 60000),
+                        'id' => (int) $row['id'],
+                    ]);
+                    $failed++;
+                }
+            }
+
+            $summaryStmt = $this->db->prepare(
+                'UPDATE asset_import_batches
+                 SET imported_rows = imported_rows + :imported,
+                     failed_rows = failed_rows + :failed,
+                     batch_status = \'completed\',
+                     completed_at = CURRENT_TIMESTAMP
+                 WHERE id = :id'
+            );
+            $summaryStmt->execute([
+                'imported' => $imported,
+                'failed' => $failed,
+                'id' => $batchId,
+            ]);
+
+            (new AuditLogService())->log(
+                action: 'import',
+                module: 'assets',
+                entityType: 'asset_import_batch',
+                entityId: $batchId,
+                description: 'Finance inventory import batch processed.',
+                newValues: [
+                    'imported_rows' => $imported,
+                    'failed_rows' => $failed,
+                ]
+            );
+
+            $this->db->commit();
+
+            return ['imported' => $imported, 'failed' => $failed];
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            if ($exception instanceof RuntimeException) {
+                throw $exception;
+            }
+            throw new RuntimeException('Unable to process the Finance inventory batch.', 0, $exception);
+        }
+    }
+
+    private function nextImportAssetCode(): string
+    {
+        $date = date('Y-m-d');
+        $prefix = date('Ymd');
+
+        $stmt = $this->db->prepare(
+            'INSERT INTO asset_code_sequences (sequence_date, last_number)
+             VALUES (:sequence_date, 1)
+             ON DUPLICATE KEY UPDATE last_number = last_number + 1'
+        );
+        $stmt->execute(['sequence_date' => $date]);
+
+        $stmt = $this->db->prepare(
+            'SELECT last_number FROM asset_code_sequences
+             WHERE sequence_date = :sequence_date FOR UPDATE'
+        );
+        $stmt->execute(['sequence_date' => $date]);
+        $number = (int) $stmt->fetchColumn();
+
+        $stmt = $this->db->prepare(
+            'SELECT MAX(CAST(SUBSTRING_INDEX(asset_code, "-", -1) AS UNSIGNED))
+             FROM assets WHERE asset_code REGEXP :pattern'
+        );
+        $stmt->execute(['pattern' => '^' . $prefix . '-[0-9]+$']);
+        $existing = (int) $stmt->fetchColumn();
+
+        if ($existing >= $number) {
+            $number = $existing + 1;
+            $stmt = $this->db->prepare(
+                'UPDATE asset_code_sequences SET last_number = :number
+                 WHERE sequence_date = :sequence_date'
+            );
+            $stmt->execute(['number' => $number, 'sequence_date' => $date]);
+        }
+
+        return $prefix . '-' . str_pad((string) $number, 5, '0', STR_PAD_LEFT);
+    }
+
+    private function normalizeFinanceDate(mixed $raw, mixed $display): ?string
+    {
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        if (is_numeric($raw)) {
+            try {
+                return \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject((float) $raw)->format('Y-m-d');
+            } catch (Throwable) {
+                // Try the formatted cell value below.
+            }
+        }
+
+        $text = trim((string) ($display ?? $raw));
+        if ($text === '') {
+            return null;
+        }
+
+        foreach (['Y-m-d', 'm/d/Y', 'n/j/Y', 'd/m/Y', 'j/n/Y', 'd-M-Y', 'j-M-Y'] as $format) {
+            $date = \DateTimeImmutable::createFromFormat('!' . $format, $text);
+            if ($date instanceof \DateTimeImmutable && $date->format($format) === $text) {
+                return $date->format('Y-m-d');
+            }
+        }
+
+        throw new RuntimeException('Finance Date Purchase is not a recognizable date.');
+    }
+
+    private function nullableFinanceText(mixed $value, int $maxLength): ?string
+    {
+        if ($value === null || (string) $value === '') {
+            return null;
+        }
+        return substr((string) $value, 0, $maxLength);
+    }
+
 }
