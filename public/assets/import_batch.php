@@ -97,15 +97,30 @@ $previewHeaders = [
     </div>
 </div>
 
-<div class="alert alert-success">
-    The workbook has been staged successfully. No AssetSys assets or reference records were created or changed.
-</div>
-
 <?php if ($batch['batch_status'] === 'preview'): ?>
+    <div class="alert alert-success">
+        The workbook has been staged. No AssetSys assets or reference records have been created or changed.
+    </div>
     <div class="alert <?= $mappingComplete ? 'alert-success' : 'alert-warning' ?>">
         <?= $mappingComplete
-            ? 'Category and status mappings have been saved. Asset creation is not enabled yet.'
-            : 'Next step: review and save the Finance Item ID and Status mappings before asset creation.' ?>
+            ? 'Category and status mappings are saved. You can now import the staged records.'
+            : 'Review and save the Finance Item ID and Status mappings before importing.' ?>
+    </div>
+    <?php if ($mappingComplete): ?>
+        <form method="post" action="<?= e(base_url('/public/assets/import_execute.php')) ?>"
+              onsubmit="return confirm('Import the staged rows into AssetSys now? Existing assets will not be updated.');"
+              class="mb-4">
+            <?= \\App\\Helpers\\Csrf::field() ?>
+            <input type="hidden" name="batch_id" value="<?= (int) $batchId ?>">
+            <button type="submit" class="btn btn-success">
+                <i class="fa-solid fa-database me-1"></i> Import Staged Records into AssetSys
+            </button>
+        </form>
+    <?php endif; ?>
+<?php elseif ($batch['batch_status'] === 'completed'): ?>
+    <div class="alert alert-success">
+        Import processing completed. <?= number_format((int) $batch['imported_rows']) ?> asset(s) created;
+        <?= number_format((int) $batch['failed_rows']) ?> row(s) require review.
     </div>
 <?php endif; ?>
 
