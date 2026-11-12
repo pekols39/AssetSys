@@ -7,6 +7,7 @@ require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 use App\Middleware\AuthMiddleware;
 use App\Services\AssetImportService;
 use App\Services\AuthorizationService;
+use App\Helpers\Csrf;
 
 AuthMiddleware::handle();
 
@@ -110,7 +111,7 @@ $previewHeaders = [
         <form method="post" action="<?= e(base_url('/public/assets/import_execute.php')) ?>"
               onsubmit="return confirm('Import the staged rows into AssetSys now? Existing assets will not be updated.');"
               class="mb-4">
-            <?= \\App\\Helpers\\Csrf::field() ?>
+            <?= Csrf::field() ?>
             <input type="hidden" name="batch_id" value="<?= (int) $batchId ?>">
             <button type="submit" class="btn btn-success">
                 <i class="fa-solid fa-database me-1"></i> Import Staged Records into AssetSys
