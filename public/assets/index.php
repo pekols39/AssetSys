@@ -114,6 +114,11 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
             Export PDF
         </a>
 
+        <a href="<?= e(base_url('/public/assets/import.php')) ?>" class="btn btn-outline-primary">
+            <i class="fa-solid fa-file-import me-1"></i>
+            Import Finance Excel
+        </a>
+
         <a href="<?= e(base_url('/public/assets/create.php')) ?>" class="btn btn-primary">
             <i class="fa-solid fa-plus me-1"></i>
             Add Asset
