@@ -32,6 +32,8 @@ if (!$batch) {
 }
 
 $rows = $importService->getBatchRows((int) $batchId, 25);
+$failedRows = $importService->getFailedRows((int) $batchId, 100);
+$failedCount = $importService->countFailedRows((int) $batchId);
 $savedMapping = $importService->getSavedMapping((int) $batchId);
 $mappingComplete = !empty($savedMapping['item_ids']) && !empty($savedMapping['statuses']);
 $pageTitle = 'Finance Import Batch #' . (int) $batch['id'];
@@ -125,6 +127,40 @@ $previewHeaders = [
     </div>
 <?php endif; ?>
 
+<?php if ($failedCount > 0): ?>
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
+            <div>
+                <h2 class="h5 mb-0 text-danger">Failed rows (<?= number_format($failedCount) ?>)</h2>
+                <div class="text-muted small">These source rows were not created as assets. Review the reason before correcting or re-importing.</div>
+            </div>
+            <a class="btn btn-outline-danger btn-sm"
+               href="<?= e(base_url('/public/assets/import_failed_export.php?id=' . (int) $batchId)) ?>">
+                <i class="fa-solid fa-file-csv me-1"></i> Export Failed Rows (CSV)
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+                <thead><tr><th>Excel Row</th><th>Item Name</th><th>Finance Item ID</th><th>Finance Status</th><th>Reason</th></tr></thead>
+                <tbody>
+                <?php foreach ($failedRows as $failed): ?>
+                    <tr>
+                        <td><?= (int) $failed['source_row_number'] ?></td>
+                        <td><?= e((string) ($failed['source_values']['Item name'] ?? '')) ?></td>
+                        <td><?= e((string) ($failed['source_values']['Item ID'] ?? '')) ?></td>
+                        <td><?= e((string) ($failed['source_values']['Status'] ?? '')) ?></td>
+                        <td class="text-danger"><?= e((string) ($failed['validation_errors'] ?? 'Unknown error')) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <?php if ($failedCount > count($failedRows)): ?>
+                <div class="p-3 text-muted small">Showing first <?= count($failedRows) ?> failed rows. Export the CSV to view all <?= number_format($failedCount) ?>.</div>
+            <?php endif; ?>
+        </div>
+    </div>
+<?php endif; ?>
+
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white py-3">
         <h2 class="h5 mb-0">First 25 source rows</h2>
@@ -133,7 +169,7 @@ $previewHeaders = [
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-sm table-striped table-hover align-middle mb-0">
-                <thead><tr><th>Excel Row</th><?php foreach ($previewHeaders as $header): ?><th><?= e($header) ?></th><?php endforeach; ?></tr></thead>
+                <thead><tr><th>Excel Row</th><?php foreach ($previewHeaders as $header): ?><th><?= e($header) ?></th><?php endforeach; ?><th>Import Result</th><th>Asset ID</th></tr></thead>
                 <tbody>
                 <?php foreach ($rows as $row): ?>
                     <tr>
@@ -141,9 +177,21 @@ $previewHeaders = [
                         <?php foreach ($previewHeaders as $header): ?>
                             <td><?= e((string) ($row['source_values'][$header] ?? '')) ?></td>
                         <?php endforeach; ?>
+                        <td>
+                            <?php if ($row['row_status'] === 'imported'): ?>
+                                <span class="badge bg-success">Imported</span>
+                            <?php elseif ($row['row_status'] === 'failed'): ?>
+                                <span class="badge bg-danger">Failed</span>
+                            <?php elseif ($row['row_status'] === 'skipped'): ?>
+                                <span class="badge bg-secondary">Skipped</span>
+                            <?php else: ?>
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            <?php endif; ?>
+                        </td>
+                        <td><?= $row['asset_id'] !== null ? (int) $row['asset_id'] : '—' ?></td>
                     </tr>
                 <?php endforeach; ?>
-                <?php if ($rows === []): ?><tr><td colspan="<?= count($previewHeaders) + 1 ?>" class="text-center py-4">No rows found.</td></tr><?php endif; ?>
+                <?php if ($rows === []): ?><tr><td colspan="<?= count($previewHeaders) + 3 ?>" class="text-center py-4">No rows found.</td></tr><?php endif; ?>
                 </tbody>
             </table>
         </div>

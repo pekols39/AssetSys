@@ -231,7 +231,7 @@ class AssetImportService
         $limit = max(1, min(100, $limit));
 
         $stmt = $this->db->prepare(
-            'SELECT source_row_number, source_data, row_status, validation_errors
+            'SELECT source_row_number, source_data, row_status, asset_id, validation_errors
              FROM asset_import_rows
              WHERE batch_id = :batch_id
              ORDER BY source_row_number ASC
@@ -348,8 +348,16 @@ class AssetImportService
             'id' => $batchId,
         ]);
 
-        if ($stmt->rowCount() !== 1) {
-            throw new RuntimeException('Unable to save mappings for this batch.');
+        // Some PDO/MySQL configurations report zero affected rows when the
+        // submitted mapping is identical to the already-saved mapping.
+        $verify = $this->db->prepare(
+            'SELECT mapping_data FROM asset_import_batches WHERE id = :id LIMIT 1'
+        );
+        $verify->execute(['id' => $batchId]);
+        $savedJson = $verify->fetchColumn();
+
+        if (!is_string($savedJson) || $savedJson === '') {
+            throw new RuntimeException('Unable to verify saved mappings for this batch.');
         }
     }
 
@@ -536,7 +544,7 @@ class AssetImportService
                     $updateRow->execute([
                         'row_status' => 'failed',
                         'asset_id' => null,
-                        'validation_errors' => mb_substr($rowException->getMessage(), 0, 60000),
+                        'validation_errors' => substr($rowException->getMessage(), 0, 60000),
                         'id' => (int) $row['id'],
                     ]);
                     $failed++;
@@ -656,6 +664,45 @@ class AssetImportService
             return null;
         }
         return substr((string) $value, 0, $maxLength);
+    }
+
+
+    /** Retrieve failed rows with their original Finance values for review/export. */
+    public function getFailedRows(int $batchId, int $limit = 100, int $offset = 0): array
+    {
+        $limit = max(1, min(500, $limit));
+        $offset = max(0, $offset);
+
+        $stmt = $this->db->prepare(
+            'SELECT source_row_number, source_data, validation_errors
+             FROM asset_import_rows
+             WHERE batch_id = :batch_id AND row_status = \'failed\'
+             ORDER BY source_row_number ASC
+             LIMIT ' . $limit . ' OFFSET ' . $offset
+        );
+        $stmt->execute(['batch_id' => $batchId]);
+
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as &$row) {
+            $decoded = json_decode((string) $row['source_data'], true);
+            $row['source_values'] = is_array($decoded['values'] ?? null)
+                ? $decoded['values']
+                : [];
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    public function countFailedRows(int $batchId): int
+    {
+        $stmt = $this->db->prepare(
+            'SELECT COUNT(*) FROM asset_import_rows
+             WHERE batch_id = :batch_id AND row_status = \'failed\''
+        );
+        $stmt->execute(['batch_id' => $batchId]);
+
+        return (int) $stmt->fetchColumn();
     }
 
 }
