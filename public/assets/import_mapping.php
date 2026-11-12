@@ -71,9 +71,9 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         <div class="card-body">
             <?php foreach ($options['item_ids'] as $value): ?>
                 <div class="row align-items-center g-2 mb-3">
-                    <div class="col-md-5"><label class="form-label mb-md-0"><?= e($value) ?></label></div>
+                    <div class="col-md-5"><label class="form-label mb-md-0"><?= $value === '__BLANK__' ? '(Blank cell)' : e($value) ?></label></div>
                     <div class="col-md-7">
-                        <select class="form-select" name="mapping[item_ids][<?= e($value) ?>]" required>
+                        <select class="form-select" name="mapping[item_ids][<?= $value === '__BLANK__' ? '(Blank cell)' : e($value) ?>]" required>
                             <option value="">Select AssetSys category</option>
                             <?php foreach ($categories as $category): ?>
                                 <option value="<?= (int) $category['id'] ?>"
@@ -94,9 +94,9 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         <div class="card-body">
             <?php foreach ($options['statuses'] as $value): ?>
                 <div class="row align-items-center g-2 mb-3">
-                    <div class="col-md-5"><label class="form-label mb-md-0"><?= e($value) ?></label></div>
+                    <div class="col-md-5"><label class="form-label mb-md-0"><?= $value === '__BLANK__' ? '(Blank cell)' : e($value) ?></label></div>
                     <div class="col-md-7">
-                        <select class="form-select" name="mapping[statuses][<?= e($value) ?>]" required>
+                        <select class="form-select" name="mapping[statuses][<?= $value === '__BLANK__' ? '(Blank cell)' : e($value) ?>]" required>
                             <option value="">Select AssetSys status</option>
                             <?php foreach ($statuses as $status): ?>
                                 <option value="<?= (int) $status['id'] ?>"
