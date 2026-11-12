@@ -273,10 +273,15 @@ class AssetImportService
             $itemId = trim((string) ($values['Item ID'] ?? ''));
             $status = trim((string) ($values['Status'] ?? ''));
 
-            if ($itemId !== '') {
+            if ($itemId === '') {
+                $itemIds['__BLANK__'] = true;
+            } else {
                 $itemIds[$itemId] = true;
             }
-            if ($status !== '') {
+
+            if ($status === '') {
+                $statuses['__BLANK__'] = true;
+            } else {
                 $statuses[$status] = true;
             }
         }
