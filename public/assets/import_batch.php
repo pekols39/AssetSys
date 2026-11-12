@@ -169,7 +169,7 @@ $previewHeaders = [
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-sm table-striped table-hover align-middle mb-0">
-                <thead><tr><th>Excel Row</th><?php foreach ($previewHeaders as $header): ?><th><?= e($header) ?></th><?php endforeach; ?></tr></thead>
+                <thead><tr><th>Excel Row</th><?php foreach ($previewHeaders as $header): ?><th><?= e($header) ?></th><?php endforeach; ?><th>Import Result</th><th>Asset ID</th></tr></thead>
                 <tbody>
                 <?php foreach ($rows as $row): ?>
                     <tr>
@@ -177,9 +177,21 @@ $previewHeaders = [
                         <?php foreach ($previewHeaders as $header): ?>
                             <td><?= e((string) ($row['source_values'][$header] ?? '')) ?></td>
                         <?php endforeach; ?>
+                        <td>
+                            <?php if ($row['row_status'] === 'imported'): ?>
+                                <span class="badge bg-success">Imported</span>
+                            <?php elseif ($row['row_status'] === 'failed'): ?>
+                                <span class="badge bg-danger">Failed</span>
+                            <?php elseif ($row['row_status'] === 'skipped'): ?>
+                                <span class="badge bg-secondary">Skipped</span>
+                            <?php else: ?>
+                                <span class="badge bg-warning text-dark">Pending</span>
+                            <?php endif; ?>
+                        </td>
+                        <td><?= $row['asset_id'] !== null ? (int) $row['asset_id'] : '—' ?></td>
                     </tr>
                 <?php endforeach; ?>
-                <?php if ($rows === []): ?><tr><td colspan="<?= count($previewHeaders) + 1 ?>" class="text-center py-4">No rows found.</td></tr><?php endif; ?>
+                <?php if ($rows === []): ?><tr><td colspan="<?= count($previewHeaders) + 3 ?>" class="text-center py-4">No rows found.</td></tr><?php endif; ?>
                 </tbody>
             </table>
         </div>
