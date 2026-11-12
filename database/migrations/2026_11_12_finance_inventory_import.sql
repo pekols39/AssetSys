@@ -15,7 +15,8 @@ ALTER TABLE assets
     ADD COLUMN finance_status VARCHAR(50) NULL AFTER finance_owner_department,
     ADD COLUMN finance_supplier VARCHAR(150) NULL AFTER finance_status,
     ADD COLUMN finance_location VARCHAR(255) NULL AFTER finance_supplier,
-    ADD COLUMN finance_qr_code_generator VARCHAR(255) NULL AFTER finance_location;
+    ADD COLUMN finance_price DECIMAL(15,2) NULL AFTER finance_location,
+    ADD COLUMN finance_qr_code_generator VARCHAR(255) NULL AFTER finance_price;
 
 -- These values are indexed for lookup, but duplicates remain allowed.
 ALTER TABLE assets
@@ -25,10 +26,8 @@ ALTER TABLE assets
     ADD INDEX idx_assets_finance_main_location (finance_main_location),
     ADD INDEX idx_assets_finance_status (finance_status);
 
--- A blank Finance Price must remain NULL, not silently become PHP 0.00.
--- Existing records retain their current numeric values.
-ALTER TABLE assets
-    MODIFY COLUMN purchase_cost DECIMAL(15,2) NULL DEFAULT NULL;
+-- Keep the original Finance price separately so a blank source cell stays NULL.
+-- Do not alter purchase_cost here; its existing AssetSys behavior remains intact.
 
 CREATE TABLE IF NOT EXISTS asset_import_batches (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
