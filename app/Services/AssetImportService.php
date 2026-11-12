@@ -251,4 +251,118 @@ class AssetImportService
 
         return $rows;
     }
+
+    /** Return distinct Finance Item ID and Status values for manual mapping. */
+    public function getMappingOptions(int $batchId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT source_data
+             FROM asset_import_rows
+             WHERE batch_id = :batch_id
+             ORDER BY source_row_number ASC'
+        );
+        $stmt->execute(['batch_id' => $batchId]);
+
+        $itemIds = [];
+        $statuses = [];
+
+        while ($source = $stmt->fetchColumn()) {
+            $decoded = json_decode((string) $source, true);
+            $values = is_array($decoded['values'] ?? null) ? $decoded['values'] : [];
+
+            $itemId = trim((string) ($values['Item ID'] ?? ''));
+            $status = trim((string) ($values['Status'] ?? ''));
+
+            if ($itemId !== '') {
+                $itemIds[$itemId] = true;
+            }
+            if ($status !== '') {
+                $statuses[$status] = true;
+            }
+        }
+
+        $itemValues = array_keys($itemIds);
+        $statusValues = array_keys($statuses);
+        natcasesort($itemValues);
+        natcasesort($statusValues);
+
+        return [
+            'item_ids' => array_values($itemValues),
+            'statuses' => array_values($statusValues),
+        ];
+    }
+
+    /** Save manual category/status mappings without altering original source rows. */
+    public function saveBatchMapping(int $batchId, array $mapping): void
+    {
+        $batch = $this->getBatch($batchId);
+        if (!$batch) {
+            throw new RuntimeException('Import batch not found.');
+        }
+        if ($batch['batch_status'] !== 'preview') {
+            throw new RuntimeException('Mappings can only be changed while the batch is in preview.');
+        }
+
+        $options = $this->getMappingOptions($batchId);
+        $categories = $this->db->query(
+            'SELECT id FROM asset_categories WHERE is_active = 1'
+        )->fetchAll(PDO::FETCH_COLUMN);
+        $statuses = $this->db->query(
+            'SELECT id FROM asset_statuses WHERE is_active = 1'
+        )->fetchAll(PDO::FETCH_COLUMN);
+
+        $categoryIds = array_map('intval', $categories);
+        $statusIds = array_map('intval', $statuses);
+
+        $clean = ['item_ids' => [], 'statuses' => []];
+
+        foreach ($options['item_ids'] as $value) {
+            $id = filter_var($mapping['item_ids'][$value] ?? null, FILTER_VALIDATE_INT);
+            if ($id === false || !in_array((int) $id, $categoryIds, true)) {
+                throw new RuntimeException('Select a valid AssetSys category for Finance Item ID: ' . $value);
+            }
+            $clean['item_ids'][$value] = (int) $id;
+        }
+
+        foreach ($options['statuses'] as $value) {
+            $id = filter_var($mapping['statuses'][$value] ?? null, FILTER_VALIDATE_INT);
+            if ($id === false || !in_array((int) $id, $statusIds, true)) {
+                throw new RuntimeException('Select a valid AssetSys status for Finance Status: ' . $value);
+            }
+            $clean['statuses'][$value] = (int) $id;
+        }
+
+        $stmt = $this->db->prepare(
+            'UPDATE asset_import_batches
+             SET mapping_data = :mapping_data,
+                 mapping_saved_at = CURRENT_TIMESTAMP
+             WHERE id = :id AND batch_status = \'preview\''
+        );
+        $stmt->execute([
+            'mapping_data' => json_encode($clean, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+            'id' => $batchId,
+        ]);
+
+        if ($stmt->rowCount() !== 1) {
+            throw new RuntimeException('Unable to save mappings for this batch.');
+        }
+    }
+
+    public function getSavedMapping(int $batchId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT mapping_data FROM asset_import_batches WHERE id = :id LIMIT 1'
+        );
+        $stmt->execute(['id' => $batchId]);
+        $json = $stmt->fetchColumn();
+        if (!is_string($json) || $json === '') {
+            return ['item_ids' => [], 'statuses' => []];
+        }
+
+        $mapping = json_decode($json, true);
+        return is_array($mapping)
+            ? $mapping
+            : ['item_ids' => [], 'statuses' => []];
+    }
+
 }
