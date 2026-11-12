@@ -32,6 +32,8 @@ if (!$batch) {
 }
 
 $rows = $importService->getBatchRows((int) $batchId, 25);
+$failedRows = $importService->getFailedRows((int) $batchId, 100);
+$failedCount = $importService->countFailedRows((int) $batchId);
 $savedMapping = $importService->getSavedMapping((int) $batchId);
 $mappingComplete = !empty($savedMapping['item_ids']) && !empty($savedMapping['statuses']);
 $pageTitle = 'Finance Import Batch #' . (int) $batch['id'];
@@ -122,6 +124,40 @@ $previewHeaders = [
     <div class="alert alert-success">
         Import processing completed. <?= number_format((int) $batch['imported_rows']) ?> asset(s) created;
         <?= number_format((int) $batch['failed_rows']) ?> row(s) require review.
+    </div>
+<?php endif; ?>
+
+<?php if ($failedCount > 0): ?>
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
+            <div>
+                <h2 class="h5 mb-0 text-danger">Failed rows (<?= number_format($failedCount) ?>)</h2>
+                <div class="text-muted small">These source rows were not created as assets. Review the reason before correcting or re-importing.</div>
+            </div>
+            <a class="btn btn-outline-danger btn-sm"
+               href="<?= e(base_url('/public/assets/import_failed_export.php?id=' . (int) $batchId)) ?>">
+                <i class="fa-solid fa-file-csv me-1"></i> Export Failed Rows (CSV)
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+                <thead><tr><th>Excel Row</th><th>Item Name</th><th>Finance Item ID</th><th>Finance Status</th><th>Reason</th></tr></thead>
+                <tbody>
+                <?php foreach ($failedRows as $failed): ?>
+                    <tr>
+                        <td><?= (int) $failed['source_row_number'] ?></td>
+                        <td><?= e((string) ($failed['source_values']['Item name'] ?? '')) ?></td>
+                        <td><?= e((string) ($failed['source_values']['Item ID'] ?? '')) ?></td>
+                        <td><?= e((string) ($failed['source_values']['Status'] ?? '')) ?></td>
+                        <td class="text-danger"><?= e((string) ($failed['validation_errors'] ?? 'Unknown error')) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            <?php if ($failedCount > count($failedRows)): ?>
+                <div class="p-3 text-muted small">Showing first <?= count($failedRows) ?> failed rows. Export the CSV to view all <?= number_format($failedCount) ?>.</div>
+            <?php endif; ?>
+        </div>
     </div>
 <?php endif; ?>
 
