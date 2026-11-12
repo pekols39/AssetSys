@@ -231,7 +231,7 @@ class AssetImportService
         $limit = max(1, min(100, $limit));
 
         $stmt = $this->db->prepare(
-            'SELECT source_row_number, source_data, row_status, validation_errors
+            'SELECT source_row_number, source_data, row_status, asset_id, validation_errors
              FROM asset_import_rows
              WHERE batch_id = :batch_id
              ORDER BY source_row_number ASC
