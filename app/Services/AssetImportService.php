@@ -98,7 +98,7 @@ class AssetImportService
                 throw new RuntimeException('Unable to calculate the workbook checksum.');
             }
 
-            $filename = mb_substr(basename($originalFilename), 0, 255);
+            $filename = substr(basename($originalFilename), 0, 255);
 
             $this->db->beginTransaction();
 
