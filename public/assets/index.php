@@ -368,7 +368,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                 $assignedName = $assignedName !== ''
                                     ? $assignedName
                                     : (strtolower($statusName) === 'in use'
-                                        ? 'Not applicable (location-based)'
+                                        ? 'No individual assignee'
                                         : 'Unassigned');
 
                                 $financeValue = static function (mixed $value): string {
