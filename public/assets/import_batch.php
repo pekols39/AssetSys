@@ -67,9 +67,14 @@ $previewHeaders = [
             Review Category and Status Mapping
         </a>
     <?php endif; ?>
-    <a href="<?= e(base_url('/public/assets/import.php')) ?>" class="btn btn-outline-primary">
-        <i class="fa-solid fa-upload me-1"></i> Upload Another Workbook
-    </a>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="<?= e(base_url('/public/assets/import_history.php')) ?>" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-clock-rotate-left me-1"></i> Import History
+        </a>
+        <a href="<?= e(base_url('/public/assets/import.php')) ?>" class="btn btn-outline-primary">
+            <i class="fa-solid fa-upload me-1"></i> Upload Another Workbook
+        </a>
+    </div>
 </div>
 
 <div class="row g-3 mb-4">
