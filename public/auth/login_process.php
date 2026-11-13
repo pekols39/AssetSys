@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Helpers\Csrf;
+use App\Core\Session;
 use App\Services\AuthService;
 use App\Services\RememberMeService;
 
@@ -123,6 +124,23 @@ try {
     ) {
         $redirect = base_url('/public/auth/change_password.php');
     }
+
+    $intendedUrl = $_POST['intended_url'] ?? Session::get('intended_url', '');
+    if (is_string($intendedUrl) && $intendedUrl !== '') {
+        $parts = parse_url($intendedUrl);
+        $path = is_array($parts) ? ($parts['path'] ?? '') : '';
+        if (
+            is_string($path)
+            && str_starts_with($path, '/public/')
+            && !str_starts_with($path, '//')
+            && !str_contains($path, '\\')
+            && !isset($parts['scheme'])
+            && !isset($parts['host'])
+        ) {
+            $redirect = $intendedUrl;
+        }
+    }
+    Session::remove('intended_url');
 
     echo json_encode([
         'success' => true,
