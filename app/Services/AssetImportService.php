@@ -390,7 +390,7 @@ class AssetImportService
         }
 
         $batchStmt = $this->db->prepare(
-            'SELECT id, batch_status, mapping_data
+            'SELECT id, batch_status, mapping_data, failed_rows
              FROM asset_import_batches
              WHERE id = :id
              FOR UPDATE'
@@ -401,8 +401,12 @@ class AssetImportService
             $batchStmt->execute(['id' => $batchId]);
             $batch = $batchStmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$batch || $batch['batch_status'] !== 'preview') {
-                throw new RuntimeException('This import batch is not available for processing.');
+            if (
+                !$batch
+                || !in_array($batch['batch_status'], ['preview', 'completed'], true)
+                || ($batch['batch_status'] === 'completed' && (int) $batch['failed_rows'] <= 0)
+            ) {
+                throw new RuntimeException('This import batch has no pending or failed rows available for processing.');
             }
 
             if (!is_string($batch['mapping_data']) || $batch['mapping_data'] === '') {
@@ -427,7 +431,7 @@ class AssetImportService
             $rowsStmt = $this->db->prepare(
                 'SELECT id, source_row_number, source_data
                  FROM asset_import_rows
-                 WHERE batch_id = :batch_id AND row_status = \'pending\'
+                 WHERE batch_id = :batch_id AND row_status IN (\'pending\', \'failed\')
                  ORDER BY source_row_number ASC
                  FOR UPDATE'
             );
@@ -500,7 +504,7 @@ class AssetImportService
 
                     $priceText = trim((string) ($values['Price'] ?? ''));
                     $financePrice = null;
-                    if ($priceText !== '') {
+                    if ($priceText !== '' && strtoupper($priceText) !== 'WARRANTY') {
                         $normalizedPrice = str_replace([',', '₱', 'PHP', ' '], '', $priceText);
                         if (!is_numeric($normalizedPrice) || (float) $normalizedPrice < 0) {
                             throw new RuntimeException('Finance Price is not a valid non-negative amount.');
@@ -552,7 +556,7 @@ class AssetImportService
             $summaryStmt = $this->db->prepare(
                 'UPDATE asset_import_batches
                  SET imported_rows = imported_rows + :imported,
-                     failed_rows = failed_rows + :failed,
+                     failed_rows = :failed,
                      batch_status = \'completed\',
                      completed_at = CURRENT_TIMESTAMP
                  WHERE id = :id'
