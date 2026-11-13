@@ -367,6 +367,16 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                     ? $assignedName
                                     : 'Unassigned';
 
+                                $financePriceText = trim((string) ($asset['finance_price_text'] ?? ''));
+                                $financePriceText = $financePriceText === '' || strtolower($financePriceText) === 'null'
+                                    ? '—'
+                                    : $financePriceText;
+
+                                $financeDatePurchaseText = trim((string) ($asset['finance_date_purchase_text'] ?? ''));
+                                $financeDatePurchaseText = $financeDatePurchaseText === '' || strtolower($financeDatePurchaseText) === 'null'
+                                    ? '—'
+                                    : $financeDatePurchaseText;
+
                                 $statusName = $asset['status_name'] ?? 'Unknown';
 
                                 $statusClass = match (strtolower($statusName)) {
@@ -448,8 +458,8 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                 <td><?= e($asset['finance_owner_department'] ?? '—') ?></td>
                                 <td><?= e($asset['finance_supplier'] ?? '—') ?></td>
                                 <td><?= e($asset['finance_po_number'] ?? '—') ?></td>
-                                <td class="text-nowrap"><?= e($asset['finance_price_text'] ?? '—') ?></td>
-                                <td class="text-nowrap"><?= e($asset['finance_date_purchase_text'] ?? '—') ?></td>
+                                <td class="text-nowrap"><?= e($financePriceText) ?></td>
+                                <td class="text-nowrap"><?= e($financeDatePurchaseText) ?></td>
                                 <td><?= e($asset['finance_location'] ?? '—') ?></td>
 
                                 <td>
