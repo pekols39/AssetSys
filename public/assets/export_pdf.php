@@ -137,7 +137,7 @@ function renderAssetPdf(
         }
         if ($assignedTo === '') {
             $assignedTo = strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
-                ? 'Not applicable (location-based)'
+                ? 'No individual assignee'
                 : 'Unassigned';
         }
 
