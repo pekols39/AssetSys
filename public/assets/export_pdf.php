@@ -120,7 +120,7 @@ function renderAssetPdf(
     $html .= '<th style="width:7%">Condition</th>';
     $html .= '<th style="width:9%">Department (AssetSys)</th>';
     $html .= '<th style="width:8%">Location (AssetSys)</th>';
-    $html .= '<th style="width:9%">Assigned To</th>';
+    $html .= '<th style="width:9%">Assigned Employee</th>';
     $html .= '<th style="width:6%">Purchase Date (AssetSys)</th>';
     $html .= '<th style="width:7%">Purchase Cost (AssetSys)</th>';
     $html .= '<th style="width:7%">Book Value (AssetSys)</th>';
@@ -134,6 +134,11 @@ function renderAssetPdf(
                 (string) ($asset['assigned_first_name'] ?? '') . ' ' .
                 (string) ($asset['assigned_last_name'] ?? '')
             );
+        }
+        if ($assignedTo === '') {
+            $assignedTo = strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
+                ? 'Not applicable (location-based)'
+                : 'Unassigned';
         }
 
         $html .= '<tr>';
