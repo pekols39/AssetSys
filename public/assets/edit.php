@@ -560,7 +560,7 @@ $workbookValue = static function (mixed $value): string {
                             <?= $assignedName !== ''
                                 ? e($assignedName)
                                 : (strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
-                                    ? 'Not applicable (location-based asset)'
+                                    ? 'No individual assignee'
                                     : 'Unassigned') ?>
                         </p>
 
