@@ -52,7 +52,6 @@ $previewHeaders = [
     'Price',
     'DATE PURCHASE',
     'LOCATION',
-    'QR CODE GENERATOR',
 ];
 ?>
 
