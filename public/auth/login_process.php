@@ -126,12 +126,19 @@ try {
     }
 
     $intendedUrl = $_POST['intended_url'] ?? Session::get('intended_url', '');
-    if (is_string($intendedUrl) && $intendedUrl !== '') {
+    if (
+        (int) ($user['must_change_password'] ?? 0) !== 1
+        && is_string($intendedUrl)
+        && $intendedUrl !== ''
+    ) {
         $parts = parse_url($intendedUrl);
         $path = is_array($parts) ? ($parts['path'] ?? '') : '';
         if (
             is_string($path)
-            && str_starts_with($path, '/public/')
+            && str_starts_with(
+                $path,
+                rtrim((string) parse_url(base_url('/public/'), PHP_URL_PATH), '/') . '/'
+            )
             && !str_starts_with($path, '//')
             && !str_contains($path, '\\')
             && !isset($parts['scheme'])
