@@ -187,6 +187,7 @@ strtolower($statusName)
 ) {
     'available' => 'status-available',
     'assigned' => 'status-assigned',
+    'in use' => 'status-in-use',
     'under maintenance' => 'status-maintenance',
     'under repair' => 'status-repair',
     'lost' => 'status-lost',
@@ -535,7 +536,7 @@ function displayDate(
 
                     <div class="detail-row">
                         <span class="detail-label">
-                            Assigned To
+                            Assigned Employee
                         </span>
 
                         <span class="detail-value">
@@ -561,7 +562,9 @@ function displayDate(
 
                             <?= $assignedToDisplay !== ''
                                 ? e($assignedToDisplay)
-                                : '<span class="text-muted">Unassigned</span>' ?>
+                                : (strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
+                                    ? '<span class="text-muted">Not applicable (location-based asset)</span>'
+                                    : '<span class="text-muted">Unassigned</span>') ?>
                         </span>
                     </div>
 
