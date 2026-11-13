@@ -114,6 +114,16 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
             Export PDF
         </a>
 
+        <a href="<?= e(base_url('/public/assets/import_history.php')) ?>" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-clock-rotate-left me-1"></i>
+            Import History
+        </a>
+
+        <a href="<?= e(base_url('/public/assets/import.php')) ?>" class="btn btn-outline-primary">
+            <i class="fa-solid fa-file-import me-1"></i>
+            Import Asset Excel
+        </a>
+
         <a href="<?= e(base_url('/public/assets/create.php')) ?>" class="btn btn-primary">
             <i class="fa-solid fa-plus me-1"></i>
             Add Asset
@@ -283,9 +293,9 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
         <?php else: ?>
 
-            <div class="table-responsive">
+            <div class="table-responsive" id="assetsTableScroll">
 
-                <table id="assetsTable" class="table table-hover align-middle mb-0">
+                <table id="assetsTable" class="table table-hover align-middle mb-0 asset-table">
 
                     <thead>
 
@@ -303,24 +313,23 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                 Category
                             </th>
 
-                            <th>
-                                Status
-                            </th>
+                            <th>Status (AssetSys)</th>
+
+                            <th>Item ID</th>
+                            <th>Item name (Workbook)</th>
+                            <th>FFE NUMBER</th>
+                            <th>CODE</th>
+                            <th>Status (Workbook)</th>
+                            <th>LOCATION (Main)</th>
+                            <th>OWNER / DEPARTMENT</th>
+                            <th>SUPPLIER</th>
+                            <th>PO NUMBER</th>
+                            <th>Price</th>
+                            <th>DATE PURCHASE</th>
+                            <th>LOCATION</th>
 
                             <th>
-                                Condition
-                            </th>
-
-                            <th>
-                                Department
-                            </th>
-
-                            <th>
-                                Location
-                            </th>
-
-                            <th>
-                                Assigned To
+                                Assigned Employee
                             </th>
 
                             <th class="text-end">
@@ -355,15 +364,22 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                     );
                                 }
 
+                                $statusName = $asset['status_name'] ?? 'Unknown';
                                 $assignedName = $assignedName !== ''
                                     ? $assignedName
-                                    : 'Unassigned';
+                                    : (strtolower($statusName) === 'in use'
+                                        ? 'No individual assignee'
+                                        : 'Unassigned');
 
-                                $statusName = $asset['status_name'] ?? 'Unknown';
+                                $financeValue = static function (mixed $value): string {
+                                    $value = trim((string) ($value ?? ''));
+                                    return $value === '' || strtolower($value) === 'null' ? '—' : $value;
+                                };
 
                                 $statusClass = match (strtolower($statusName)) {
                                     'available' => 'status-available',
                                     'assigned' => 'status-assigned',
+                                    'in use' => 'status-in-use',
                                     'under maintenance' => 'status-maintenance',
                                     'under repair' => 'status-repair',
                                     'lost' => 'status-lost',
@@ -432,26 +448,18 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                                 </td>
 
-                                <td>
-                                    <?= e(
-                                        $asset['condition_name']
-                                        ?? '—'
-                                    ) ?>
-                                </td>
-
-                                <td>
-                                    <?= e(
-                                        $asset['department_name']
-                                        ?? '—'
-                                    ) ?>
-                                </td>
-
-                                <td>
-                                    <?= e(
-                                        $asset['location_name']
-                                        ?? '—'
-                                    ) ?>
-                                </td>
+                                <td><?= e($financeValue($asset['finance_item_id'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_item_name'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_ffe_number'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_code'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_status'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_main_location'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_owner_department'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_supplier'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_po_number'] ?? null)) ?></td>
+                                <td class="text-nowrap"><?= e($financeValue($asset['finance_price_text'] ?? null)) ?></td>
+                                <td class="text-nowrap"><?= e($financeValue($asset['finance_date_purchase_text'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_location'] ?? null)) ?></td>
 
                                 <td>
                                     <?= e($assignedName) ?>
@@ -500,6 +508,9 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                 </table>
 
+            </div>
+            <div class="asset-horizontal-scrollbar" id="assetsHorizontalScrollbar" aria-label="Scroll asset table horizontally">
+                <div class="asset-horizontal-scrollbar-inner" id="assetsHorizontalScrollbarInner"></div>
             </div>
 
         <?php endif; ?>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Middleware;
 
 use App\Core\Auth;
+use App\Core\Session;
 use App\Services\AuthorizationService;
 use App\Services\RememberMeService;
 
@@ -19,6 +20,7 @@ class AuthMiddleware
         }
 
         if (!Auth::check()) {
+            self::rememberRequestedPage();
             header(
                 'Location: ' . base_url('/public/login.php')
             );
@@ -28,6 +30,7 @@ class AuthMiddleware
         SessionTimeoutMiddleware::handle();
 
         if (!Auth::check()) {
+            self::rememberRequestedPage();
             header(
                 'Location: ' . base_url('/public/login.php')
             );
@@ -90,5 +93,30 @@ class AuthMiddleware
             );
             exit;
         }
+    }
+
+    /**
+     * Preserve a same-site application page so the user can return after login.
+     */
+    private static function rememberRequestedPage(): void
+    {
+        $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+        if (!is_string($requestUri) || $requestUri === '') {
+            return;
+        }
+
+        $parts = parse_url($requestUri);
+        $path = is_array($parts) ? ($parts['path'] ?? '') : '';
+        $publicPrefix = rtrim((string) parse_url(base_url('/public/'), PHP_URL_PATH), '/') . '/';
+        if (
+            !is_string($path)
+            || $publicPrefix === '/'
+            || !str_starts_with($path, $publicPrefix)
+        ) {
+            return;
+        }
+
+        $query = is_array($parts) && isset($parts['query']) ? '?' . $parts['query'] : '';
+        Session::set('intended_url', $path . $query);
     }
 }

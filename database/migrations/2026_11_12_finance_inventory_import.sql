@@ -14,7 +14,8 @@ ALTER TABLE assets
     ADD COLUMN finance_owner_department VARCHAR(150) NULL AFTER finance_main_location,
     ADD COLUMN finance_status VARCHAR(50) NULL AFTER finance_owner_department,
     ADD COLUMN finance_supplier VARCHAR(150) NULL AFTER finance_status,
-    ADD COLUMN finance_location VARCHAR(255) NULL AFTER finance_supplier,
+    ADD COLUMN finance_po_number VARCHAR(100) NULL AFTER finance_supplier,
+    ADD COLUMN finance_location VARCHAR(255) NULL AFTER finance_po_number,
     ADD COLUMN finance_price DECIMAL(15,2) NULL AFTER finance_location,
     ADD COLUMN finance_qr_code_generator VARCHAR(255) NULL AFTER finance_price;
 

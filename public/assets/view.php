@@ -187,6 +187,7 @@ strtolower($statusName)
 ) {
     'available' => 'status-available',
     'assigned' => 'status-assigned',
+    'in use' => 'status-in-use',
     'under maintenance' => 'status-maintenance',
     'under repair' => 'status-repair',
     'lost' => 'status-lost',
@@ -212,7 +213,9 @@ if ($assignedTo === '') {
 
 $assignedTo = $assignedTo !== ''
     ? $assignedTo
-    : 'Unassigned';
+    : (strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
+        ? 'No individual assignee'
+        : 'Unassigned');
 
 
 function displayValue(
@@ -221,7 +224,8 @@ function displayValue(
 ): string {
     if (
         $value === null
-        || $value === ''
+        || trim((string) $value) === ''
+        || strtolower(trim((string) $value)) === 'null'
     ) {
         return $fallback;
     }
@@ -468,15 +472,16 @@ function displayDate(
                         </span>
                     </div>
 
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Condition
-                        </span>
+                    <hr class="my-3">
+                    <h6 class="text-muted mb-3">Original Asset Workbook Details</h6>
 
-                        <span class="detail-value">
-                            <?= displayValue($asset['condition_name']) ?>
-                        </span>
-                    </div>
+                    <div class="detail-row"><span class="detail-label">Item ID</span><span class="detail-value"><?= displayValue($asset['finance_item_id'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Item name (Workbook)</span><span class="detail-value"><?= displayValue($asset['finance_item_name'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">FFE NUMBER</span><span class="detail-value"><?= displayValue($asset['finance_ffe_number'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">CODE</span><span class="detail-value"><?= displayValue($asset['finance_code'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Status (Workbook)</span><span class="detail-value"><?= displayValue($asset['finance_status'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">LOCATION (Main)</span><span class="detail-value"><?= displayValue($asset['finance_main_location'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">OWNER / DEPARTMENT</span><span class="detail-value"><?= displayValue($asset['finance_owner_department'] ?? null) ?></span></div>
 
                 </div>
 
@@ -517,7 +522,7 @@ function displayDate(
                         </span>
 
                         <span class="detail-value">
-                            <?= displayValue($asset['department_name'] ?? null) ?>
+                            <?= displayValue($asset['finance_owner_department'] ?? null) ?>
                         </span>
                     </div>
 
@@ -527,13 +532,13 @@ function displayDate(
                         </span>
 
                         <span class="detail-value">
-                            <?= displayValue($asset['location_name']) ?>
+                            <?= displayValue($asset['finance_location'] ?? null) ?>
                         </span>
                     </div>
 
                     <div class="detail-row">
                         <span class="detail-label">
-                            Assigned To
+                            Assigned Employee
                         </span>
 
                         <span class="detail-value">
@@ -559,7 +564,9 @@ function displayDate(
 
                             <?= $assignedToDisplay !== ''
                                 ? e($assignedToDisplay)
-                                : '<span class="text-muted">Unassigned</span>' ?>
+                                : (strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
+                                    ? '<span class="text-muted">No individual assignee</span>'
+                                    : '<span class="text-muted">Unassigned</span>') ?>
                         </span>
                     </div>
 
@@ -2954,15 +2961,11 @@ function displayDate(
                         </span>
                     </div>
 
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Supplier
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayValue($asset['supplier_name']) ?>
-                        </span>
-                    </div>
+                    <div class="detail-row"><span class="detail-label">SUPPLIER (Workbook)</span><span class="detail-value"><?= displayValue($asset['finance_supplier'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">PO NUMBER (Workbook)</span><span class="detail-value"><?= displayValue($asset['finance_po_number'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Price (Workbook)</span><span class="detail-value"><?= displayValue($asset['finance_price_text'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">DATE PURCHASE (Workbook)</span><span class="detail-value"><?= displayValue($asset['finance_date_purchase_text'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Supplier (AssetSys)</span><span class="detail-value"><?= displayValue($asset['supplier_name']) ?></span></div>
 
                     <div class="detail-row">
                         <span class="detail-label">

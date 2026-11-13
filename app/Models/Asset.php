@@ -50,6 +50,19 @@ class Asset
                 a.created_by,
                 a.created_at,
                 a.updated_at,
+                a.finance_item_id,
+                a.finance_item_name,
+                a.finance_ffe_number,
+                a.finance_code,
+                a.finance_main_location,
+                a.finance_owner_department,
+                a.finance_status,
+                a.finance_supplier,
+                a.finance_po_number,
+                a.finance_location,
+                a.finance_price,
+                a.finance_price_text,
+                a.finance_date_purchase_text,
 
                 c.name AS category_name,
                 s.name AS status_name,
@@ -285,6 +298,19 @@ class Asset
                 a.purchase_date,
                 a.purchase_cost,
                 a.current_book_value,
+                a.finance_item_id,
+                a.finance_item_name,
+                a.finance_ffe_number,
+                a.finance_code,
+                a.finance_main_location,
+                a.finance_owner_department,
+                a.finance_status,
+                a.finance_supplier,
+                a.finance_po_number,
+                a.finance_location,
+                a.finance_price,
+                a.finance_price_text,
+                a.finance_date_purchase_text,
                 a.department_id,
                 a.assigned_to_user_id,
 
@@ -381,6 +407,18 @@ class Asset
                 OR s.name LIKE :search_status
                 OR ac.name LIKE :search_condition
                 OR l.name LIKE :search_location
+                OR a.finance_item_id LIKE :search_item_id
+                OR a.finance_item_name LIKE :search_finance_item_name
+                OR a.finance_ffe_number LIKE :search_ffe
+                OR a.finance_code LIKE :search_finance_code
+                OR a.finance_main_location LIKE :search_main_location
+                OR a.finance_owner_department LIKE :search_owner_department
+                OR a.finance_status LIKE :search_finance_status
+                OR a.finance_supplier LIKE :search_supplier
+                OR a.finance_po_number LIKE :search_po
+                OR a.finance_location LIKE :search_finance_location
+                OR a.finance_price_text LIKE :search_finance_price
+                OR a.finance_date_purchase_text LIKE :search_finance_date
                 OR assigned.first_name LIKE :search_first
                 OR assigned.last_name LIKE :search_last
                 OR assigned.employee_number LIKE :search_employee
@@ -397,6 +435,18 @@ class Asset
                 'search_status',
                 'search_condition',
                 'search_location',
+                'search_item_id',
+                'search_finance_item_name',
+                'search_ffe',
+                'search_finance_code',
+                'search_main_location',
+                'search_owner_department',
+                'search_finance_status',
+                'search_supplier',
+                'search_po',
+                'search_finance_location',
+                'search_finance_price',
+                'search_finance_date',
                 'search_first',
                 'search_last',
                 'search_employee',
@@ -499,6 +549,19 @@ class Asset
                 a.department_id,
                 a.assigned_to_user_id,
                 a.assigned_to_name,
+                a.finance_item_id,
+                a.finance_item_name,
+                a.finance_ffe_number,
+                a.finance_code,
+                a.finance_main_location,
+                a.finance_owner_department,
+                a.finance_status,
+                a.finance_supplier,
+                a.finance_po_number,
+                a.finance_location,
+                a.finance_price,
+                a.finance_price_text,
+                a.finance_date_purchase_text,
                 c.name AS category_name,
                 s.name AS status_name,
                 ac.name AS condition_name,

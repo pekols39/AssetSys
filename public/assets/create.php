@@ -505,7 +505,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                 <div class="col-12 col-md-4">
 
                     <label for="assigned_to_name" class="form-label">
-                        Assign To
+                        Assigned Employee
                         <span class="text-danger d-none" id="assignedRequiredMark">*</span>
                     </label>
 
@@ -513,7 +513,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                         maxlength="150" placeholder="Enter employee name">
 
                     <div class="form-text">
-                        Enter the employee's name. A user account is not required.
+                        Required only when Status is Assigned. Location-based assets marked In Use do not need an employee.
                     </div>
 
                 </div>
@@ -563,24 +563,29 @@ document.addEventListener('DOMContentLoaded', function () {
             statusField.selectedIndex
         ];
 
-        const isAssigned = selectedStatus
-            && selectedStatus.text.trim().toLowerCase() === 'assigned';
+        const selectedStatusName = selectedStatus
+            ? selectedStatus.text.trim().toLowerCase()
+            : '';
+        const isAssigned = selectedStatusName === 'assigned';
+        const isInUse = selectedStatusName === 'in use';
+        const needsLocation = isAssigned || isInUse;
 
-        locationField.required = isAssigned;
-        conditionField.required = isAssigned;
+        locationField.required = needsLocation;
+        conditionField.required = needsLocation;
         assignedField.required = isAssigned;
+        assignedField.disabled = isInUse;
 
-        locationMark.classList.toggle('d-none', !isAssigned);
-        conditionMark.classList.toggle('d-none', !isAssigned);
+        locationMark.classList.toggle('d-none', !needsLocation);
+        conditionMark.classList.toggle('d-none', !needsLocation);
         assignedMark.classList.toggle('d-none', !isAssigned);
 
-        locationField.placeholder = isAssigned
+        locationField.placeholder = needsLocation
             ? 'Enter location (required)'
             : 'Enter location (optional)';
 
         assignedField.placeholder = isAssigned
             ? 'Enter employee name (required)'
-            : 'Enter employee name (optional)';
+            : 'Not applicable for location-based assets';
     }
 
     statusField.addEventListener(

@@ -33,6 +33,58 @@
         window.setInterval(updateTopbarDateTime, 1000);
     }
 
+    // Shared SweetAlert confirmation for forms and action links.
+    document.addEventListener('submit', async function (event) {
+        const form = event.target.closest('form[data-swal-confirm="true"]');
+        if (!form || form.dataset.swalConfirmed === 'true') {
+            return;
+        }
+
+        event.preventDefault();
+
+        const result = await Swal.fire({
+            icon: 'question',
+            title: form.dataset.swalTitle || 'Are you sure?',
+            text: form.dataset.swalText || 'Please confirm this action.',
+            showCancelButton: true,
+            confirmButtonText: form.dataset.swalConfirmText || 'Continue',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#007472',
+            cancelButtonColor: '#6c757d',
+            reverseButtons: true
+        });
+
+        if (result.isConfirmed) {
+            form.dataset.swalConfirmed = 'true';
+            form.submit();
+        }
+    });
+
+    document.addEventListener('click', async function (event) {
+        const link = event.target.closest('a[data-swal-confirm="true"]');
+        if (!link) {
+            return;
+        }
+
+        event.preventDefault();
+
+        const result = await Swal.fire({
+            icon: 'question',
+            title: link.dataset.swalTitle || 'Are you sure?',
+            text: link.dataset.swalText || 'Please confirm this action.',
+            showCancelButton: true,
+            confirmButtonText: link.dataset.swalConfirmText || 'Continue',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#007472',
+            cancelButtonColor: '#6c757d',
+            reverseButtons: true
+        });
+
+        if (result.isConfirmed) {
+            window.location.href = link.href;
+        }
+    });
+
     // Shared logout confirmation for sidebar and top-bar links.
     const logoutLinks = [
         document.getElementById('logoutLink'),

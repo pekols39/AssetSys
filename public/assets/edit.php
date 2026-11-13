@@ -87,6 +87,14 @@ $currentStatus = strtolower(
         (string) ($asset['status_name'] ?? '')
     )
 );
+
+$workbookValue = static function (mixed $value): string {
+    if ($value === null || trim((string) $value) === '' || strtolower(trim((string) $value)) === 'null') {
+        return '—';
+    }
+
+    return (string) $value;
+};
 ?>
 
 <div class="asset-edit-page">
@@ -306,6 +314,46 @@ $currentStatus = strtolower(
         </div>
 
         <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h2 class="h5 mb-0">
+                    <i class="fa-solid fa-file-excel me-2 text-teal"></i>
+                    Original Workbook Details
+                </h2>
+                <p class="text-muted small mb-0 mt-1">
+                    Imported source values are read-only and are preserved exactly as recorded in the original workbook.
+                </p>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <?php
+                    $workbookFields = [
+                        'LOCATION (Main)' => $asset['finance_main_location'] ?? null,
+                        'OWNER / DEPARTMENT' => $asset['finance_owner_department'] ?? null,
+                        'Item ID' => $asset['finance_item_id'] ?? null,
+                        'Item name' => $asset['finance_item_name'] ?? null,
+                        'FFE NUMBER' => $asset['finance_ffe_number'] ?? null,
+                        'CODE' => $asset['finance_code'] ?? null,
+                        'Status' => $asset['finance_status'] ?? null,
+                        'SUPPLIER' => $asset['finance_supplier'] ?? null,
+                        'PO NUMBER' => $asset['finance_po_number'] ?? null,
+                        'Price' => $asset['finance_price_text'] ?? null,
+                        'DATE PURCHASE' => $asset['finance_date_purchase_text'] ?? null,
+                        'LOCATION' => $asset['finance_location'] ?? null,
+                    ];
+                    ?>
+                    <?php foreach ($workbookFields as $label => $value): ?>
+                        <div class="col-12 col-md-6 col-xl-4">
+                            <div class="border rounded p-3 h-100">
+                                <div class="text-muted small mb-1"><?= e($label) ?></div>
+                                <div class="fw-semibold text-break"><?= e($workbookValue($value)) ?></div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
 
             <div class="card-header bg-white">
                 <h2 class="h5 mb-0">
@@ -479,14 +527,18 @@ $currentStatus = strtolower(
 
                         <p class="form-control-plaintext mb-0">
                             <?= e(
-                                $asset['location_name'] ?? 'Not set'
+                                ($asset['location_name'] ?? '') !== ''
+                                    ? $asset['location_name']
+                                    : (($asset['finance_location'] ?? '') !== ''
+                                        ? $asset['finance_location']
+                                        : 'Not set')
                             ) ?>
                         </p>
                     </div>
 
                     <div class="col-md-6">
                         <div class="form-label">
-                            Assigned To
+                            Assigned Employee
                         </div>
 
 
@@ -507,7 +559,9 @@ $currentStatus = strtolower(
                         <p class="form-control-plaintext mb-0">
                             <?= $assignedName !== ''
                                 ? e($assignedName)
-                                : 'Unassigned' ?>
+                                : (strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
+                                    ? 'No individual assignee'
+                                    : 'Unassigned') ?>
                         </p>
 
                     </div>

@@ -105,6 +105,11 @@
     background-color: #007472 !important;
 }
 
+.asset-status.status-in-use {
+    color: #ffffff !important;
+    background-color: #0d6efd !important;
+}
+
 .asset-status.status-maintenance {
     color: #212529 !important;
     background-color: #ffc107 !important;

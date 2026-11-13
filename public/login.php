@@ -161,6 +161,8 @@ if (Auth::check()) {
                                 <form id="loginForm" method="POST" autocomplete="off">
 
                                     <?= Csrf::field() ?>
+                                    <input type="hidden" name="intended_url"
+                                           value="<?= e((string) Session::get('intended_url', '')) ?>">
 
                                     <!-- USERNAME -->
 
