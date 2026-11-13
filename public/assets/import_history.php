@@ -13,11 +13,11 @@ AuthMiddleware::handle();
 $authorization = new AuthorizationService();
 if (!$authorization->canAccessAssetOperations()) {
     http_response_code(403);
-    exit('You do not have permission to view Finance import history.');
+    exit('You do not have permission to view asset import history.');
 }
 
 $batches = (new AssetImportService())->getRecentBatches(200);
-$pageTitle = 'Finance Import History';
+$pageTitle = 'Asset Import History';
 require_once dirname(__DIR__) . '/includes/app_header.php';
 ?>
 
@@ -29,7 +29,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     </div>
     <div class="d-flex flex-wrap gap-2">
         <a href="<?= e(base_url('/public/assets/import.php')) ?>" class="btn btn-primary">
-            <i class="fa-solid fa-file-import me-1"></i> Upload Finance Excel
+            <i class="fa-solid fa-file-import me-1"></i> Upload Asset Excel
         </a>
         <a href="<?= e(base_url('/public/assets/index.php')) ?>" class="btn btn-outline-secondary">
             <i class="fa-solid fa-arrow-left me-1"></i> Back to Assets
@@ -87,7 +87,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                 </tr>
             <?php endforeach; ?>
             <?php if ($batches === []): ?>
-                <tr><td colspan="9" class="text-center text-muted py-5">No Finance import batches found.</td></tr>
+                <tr><td colspan="9" class="text-center text-muted py-5">No asset import batches found.</td></tr>
             <?php endif; ?>
             </tbody>
         </table>
