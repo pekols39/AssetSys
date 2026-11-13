@@ -28,7 +28,6 @@ class AssetImportService
         'Price',
         'DATE PURCHASE',
         'LOCATION',
-        'QR CODE GENERATOR',
     ];
 
     public function __construct()
@@ -444,7 +443,7 @@ class AssetImportService
                     finance_item_id, finance_ffe_number, finance_code,
                     finance_main_location, finance_owner_department,
                     finance_status, finance_supplier, finance_po_number,
-                    finance_location, finance_price, finance_qr_code_generator
+                    finance_location, finance_price
                 ) VALUES (
                     :asset_code, NULL, NULL, :category_id,
                     NULL, :asset_name, NULL, :purchase_date,
@@ -454,7 +453,7 @@ class AssetImportService
                     :finance_item_id, :finance_ffe_number, :finance_code,
                     :finance_main_location, :finance_owner_department,
                     :finance_status, :finance_supplier, :finance_po_number,
-                    :finance_location, :finance_price, :finance_qr_code_generator
+                    :finance_location, :finance_price
                 )'
             );
 
@@ -529,7 +528,6 @@ class AssetImportService
                         'finance_po_number' => $this->nullableFinanceText($values['PO NUMBER'] ?? null, 100),
                         'finance_location' => $this->nullableFinanceText($values['LOCATION'] ?? null, 255),
                         'finance_price' => $financePrice,
-                        'finance_qr_code_generator' => $this->nullableFinanceText($values['QR CODE GENERATOR'] ?? null, 255),
                     ]);
 
                     $assetId = (int) $this->db->lastInsertId();
