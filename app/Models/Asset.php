@@ -405,6 +405,17 @@ class Asset
                 OR s.name LIKE :search_status
                 OR ac.name LIKE :search_condition
                 OR l.name LIKE :search_location
+                OR a.finance_item_id LIKE :search_item_id
+                OR a.finance_ffe_number LIKE :search_ffe
+                OR a.finance_code LIKE :search_finance_code
+                OR a.finance_main_location LIKE :search_main_location
+                OR a.finance_owner_department LIKE :search_owner_department
+                OR a.finance_status LIKE :search_finance_status
+                OR a.finance_supplier LIKE :search_supplier
+                OR a.finance_po_number LIKE :search_po
+                OR a.finance_location LIKE :search_finance_location
+                OR a.finance_price_text LIKE :search_finance_price
+                OR a.finance_date_purchase_text LIKE :search_finance_date
                 OR assigned.first_name LIKE :search_first
                 OR assigned.last_name LIKE :search_last
                 OR assigned.employee_number LIKE :search_employee
@@ -421,6 +432,17 @@ class Asset
                 'search_status',
                 'search_condition',
                 'search_location',
+                'search_item_id',
+                'search_ffe',
+                'search_finance_code',
+                'search_main_location',
+                'search_owner_department',
+                'search_finance_status',
+                'search_supplier',
+                'search_po',
+                'search_finance_location',
+                'search_finance_price',
+                'search_finance_date',
                 'search_first',
                 'search_last',
                 'search_employee',
