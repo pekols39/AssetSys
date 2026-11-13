@@ -9,11 +9,11 @@ INNER JOIN asset_import_rows r
     ON r.asset_id = a.id
 SET
     a.finance_price_text = NULLIF(
-        JSON_UNQUOTE(JSON_EXTRACT(r.source_data, '$.values.Price')),
+        JSON_UNQUOTE(JSON_EXTRACT(r.source_data, '$."values"."Price"')),
         ''
     ),
     a.finance_date_purchase_text = NULLIF(
-        JSON_UNQUOTE(JSON_EXTRACT(r.source_data, '$.values.DATE PURCHASE')),
+        JSON_UNQUOTE(JSON_EXTRACT(r.source_data, '$."values"."DATE PURCHASE"')),
         ''
     )
 WHERE r.row_status = 'imported';
