@@ -117,7 +117,7 @@ $isAdministrationAuditTrail =
                     <span class="app-sidebar-link-icon">
                         <i class="fa-solid fa-clock-rotate-left"></i>
                     </span>
-                    <span class="app-sidebar-link-text">Finance Import History</span>
+                    <span class="app-sidebar-link-text">Asset Import History</span>
                 </a>
 
                 <a href="<?= e(base_url('/public/assets/department_transfers.php')) ?>"
