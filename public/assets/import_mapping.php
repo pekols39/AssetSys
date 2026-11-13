@@ -58,8 +58,8 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
 <div class="alert alert-warning">
     Map each source Item ID to an AssetSys category and each source Status to an AssetSys status.
-    These are manual reference choices only. Original source values remain unchanged in staging.
-    No assets are created on this page.
+    Finance status INSTALLED is preselected as AssetSys In Use because it describes location-based deployment,
+    not assignment to an employee. Review every mapping before saving. Original source values remain unchanged.
 </div>
 
 <form method="post" action="<?= e(base_url('/public/assets/import_mapping_process.php')) ?>" data-swal-confirm="true" data-swal-title="Save asset mappings?" data-swal-text="The selected category and status mappings will be saved for this batch." data-swal-confirm-text="Yes, Save">
@@ -93,6 +93,19 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         <div class="card-header bg-white"><h2 class="h5 mb-0">Asset Status → AssetSys Status</h2></div>
         <div class="card-body">
             <?php foreach ($options['statuses'] as $value): ?>
+                <?php
+                $savedStatusId = (int) ($saved['statuses'][$value] ?? 0);
+                $recommendedStatusId = 0;
+                if ($savedStatusId === 0 && strtoupper(trim((string) $value)) === 'INSTALLED') {
+                    foreach ($statuses as $statusOption) {
+                        if (strcasecmp(trim((string) $statusOption['name']), 'In Use') === 0) {
+                            $recommendedStatusId = (int) $statusOption['id'];
+                            break;
+                        }
+                    }
+                }
+                $selectedStatusId = $savedStatusId > 0 ? $savedStatusId : $recommendedStatusId;
+                ?>
                 <div class="row align-items-center g-2 mb-3">
                     <div class="col-md-5"><label class="form-label mb-md-0"><?= $value === '__BLANK__' ? '(Blank cell)' : e($value) ?></label></div>
                     <div class="col-md-7">
@@ -100,7 +113,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                             <option value="">Select AssetSys status</option>
                             <?php foreach ($statuses as $status): ?>
                                 <option value="<?= (int) $status['id'] ?>"
-                                    <?= (int) ($saved['statuses'][$value] ?? 0) === (int) $status['id'] ? 'selected' : '' ?>>
+                                    <?= $selectedStatusId === (int) $status['id'] ? 'selected' : '' ?>>
                                     <?= e($status['name']) ?>
                                 </option>
                             <?php endforeach; ?>
