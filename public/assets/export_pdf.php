@@ -50,11 +50,7 @@ function pdfWorkbookValue(mixed $value): string
     return strtolower($text) === 'null' ? '' : $text;
 }
 
-/**
- * Render one limited group of assets. Keeping each Dompdf instance small
- * prevents the complete register from exhausting PHP memory.
- */
-function renderAssetPdfChunk(
+function renderAssetPdf(
     array $assets,
     string $headerImageUri,
     string $generatedAt,
@@ -63,12 +59,12 @@ function renderAssetPdfChunk(
     int $totalParts,
     int $totalAssets
 ): string {
-    $chunkPurchaseCost = 0.0;
-    $chunkBookValue = 0.0;
+    $partPurchaseCost = 0.0;
+    $partBookValue = 0.0;
 
     foreach ($assets as $asset) {
-        $chunkPurchaseCost += (float) ($asset['purchase_cost'] ?? 0);
-        $chunkBookValue += (float) ($asset['current_book_value'] ?? 0);
+        $partPurchaseCost += (float) ($asset['purchase_cost'] ?? 0);
+        $partBookValue += (float) ($asset['current_book_value'] ?? 0);
     }
 
     $html = '<!DOCTYPE html>
@@ -110,8 +106,8 @@ function renderAssetPdfChunk(
 
     $html .= '<table class="summary"><tr>';
     $html .= '<td>Assets in this part<br><strong>' . number_format(count($assets)) . '</strong></td>';
-    $html .= '<td>Purchase cost in this part<br><strong>₱' . number_format($chunkPurchaseCost, 2) . '</strong></td>';
-    $html .= '<td>Current book value in this part<br><strong>₱' . number_format($chunkBookValue, 2) . '</strong></td>';
+    $html .= '<td>Purchase cost in this part<br><strong>₱' . number_format($partPurchaseCost, 2) . '</strong></td>';
+    $html .= '<td>Current book value in this part<br><strong>₱' . number_format($partBookValue, 2) . '</strong></td>';
     $html .= '</tr></table>';
 
     $html .= '<table class="inventory"><thead><tr>';
@@ -130,35 +126,35 @@ function renderAssetPdfChunk(
     $html .= '<th style="width:7%">Book Value (AssetSys)</th>';
     $html .= '</tr></thead><tbody>';
 
+    foreach ($assets as $asset) {
+        $assignedTo = trim((string) ($asset['assigned_to_name'] ?? ''));
+
+        if ($assignedTo === '') {
+            $assignedTo = trim(
+                (string) ($asset['assigned_first_name'] ?? '') . ' ' .
+                (string) ($asset['assigned_last_name'] ?? '')
+            );
+        }
+
+        $html .= '<tr>';
+        $html .= '<td>' . pdfEscape($asset['asset_code'] ?? '') . '</td>';
+        $html .= '<td>' . pdfEscape($asset['asset_tag'] ?? '') . '</td>';
+        $html .= '<td>' . pdfEscape($asset['serial_number'] ?? '') . '</td>';
+        $html .= '<td>' . pdfEscape($asset['asset_name'] ?? '') . '</td>';
+        $html .= '<td>' . pdfEscape($asset['category_name'] ?? '') . '</td>';
+        $html .= '<td>' . pdfEscape($asset['status_name'] ?? '') . '</td>';
+        $html .= '<td>' . pdfEscape($asset['condition_name'] ?? '') . '</td>';
+        $html .= '<td>' . pdfEscape($asset['department_name'] ?? '') . '</td>';
+        $html .= '<td>' . pdfEscape($asset['location_name'] ?? '') . '</td>';
+        $html .= '<td>' . pdfEscape($assignedTo) . '</td>';
+        $html .= '<td>' . pdfEscape($asset['purchase_date'] ?? '') . '</td>';
+        $html .= '<td class="money">₱' . number_format((float) ($asset['purchase_cost'] ?? 0), 2) . '</td>';
+        $html .= '<td class="money">₱' . number_format((float) ($asset['current_book_value'] ?? 0), 2) . '</td>';
+        $html .= '</tr>';
+    }
+
     if ($assets === []) {
         $html .= '<tr><td colspan="13" style="text-align:center;">No assets found for the selected filters.</td></tr>';
-    } else {
-        foreach ($assets as $asset) {
-            $assignedTo = trim((string) ($asset['assigned_to_name'] ?? ''));
-
-            if ($assignedTo === '') {
-                $assignedTo = trim(
-                    (string) ($asset['assigned_first_name'] ?? '') . ' ' .
-                    (string) ($asset['assigned_last_name'] ?? '')
-                );
-            }
-
-            $html .= '<tr>';
-            $html .= '<td>' . pdfEscape($asset['asset_code'] ?? '') . '</td>';
-            $html .= '<td>' . pdfEscape($asset['asset_tag'] ?? '') . '</td>';
-            $html .= '<td>' . pdfEscape($asset['serial_number'] ?? '') . '</td>';
-            $html .= '<td>' . pdfEscape($asset['asset_name'] ?? '') . '</td>';
-            $html .= '<td>' . pdfEscape($asset['category_name'] ?? '') . '</td>';
-            $html .= '<td>' . pdfEscape($asset['status_name'] ?? '') . '</td>';
-            $html .= '<td>' . pdfEscape($asset['condition_name'] ?? '') . '</td>';
-            $html .= '<td>' . pdfEscape($asset['department_name'] ?? '') . '</td>';
-            $html .= '<td>' . pdfEscape($asset['location_name'] ?? '') . '</td>';
-            $html .= '<td>' . pdfEscape($assignedTo) . '</td>';
-            $html .= '<td>' . pdfEscape($asset['purchase_date'] ?? '') . '</td>';
-            $html .= '<td class="money">₱' . number_format((float) ($asset['purchase_cost'] ?? 0), 2) . '</td>';
-            $html .= '<td class="money">₱' . number_format((float) ($asset['current_book_value'] ?? 0), 2) . '</td>';
-            $html .= '</tr>';
-        }
     }
 
     $html .= '</tbody></table>';
@@ -179,38 +175,38 @@ function renderAssetPdfChunk(
         'Price',
         'DATE PURCHASE',
         'LOCATION',
-    ] as $workbookHeader) {
-        $html .= '<th>' . pdfEscape($workbookHeader) . '</th>';
+    ] as $header) {
+        $html .= '<th>' . pdfEscape($header) . '</th>';
     }
 
     $html .= '</tr></thead><tbody>';
 
+    foreach ($assets as $asset) {
+        $values = [
+            $asset['asset_code'] ?? '',
+            $asset['finance_main_location'] ?? '',
+            $asset['finance_owner_department'] ?? '',
+            $asset['finance_item_id'] ?? '',
+            $asset['finance_item_name'] ?? '',
+            $asset['finance_ffe_number'] ?? '',
+            $asset['finance_code'] ?? '',
+            $asset['finance_status'] ?? '',
+            $asset['finance_supplier'] ?? '',
+            $asset['finance_po_number'] ?? '',
+            $asset['finance_price_text'] ?? '',
+            $asset['finance_date_purchase_text'] ?? '',
+            $asset['finance_location'] ?? '',
+        ];
+
+        $html .= '<tr>';
+        foreach ($values as $value) {
+            $html .= '<td>' . pdfEscape(pdfWorkbookValue($value)) . '</td>';
+        }
+        $html .= '</tr>';
+    }
+
     if ($assets === []) {
         $html .= '<tr><td colspan="13" style="text-align:center;">No original workbook values found.</td></tr>';
-    } else {
-        foreach ($assets as $asset) {
-            $workbookValues = [
-                $asset['asset_code'] ?? '',
-                $asset['finance_main_location'] ?? '',
-                $asset['finance_owner_department'] ?? '',
-                $asset['finance_item_id'] ?? '',
-                $asset['finance_item_name'] ?? '',
-                $asset['finance_ffe_number'] ?? '',
-                $asset['finance_code'] ?? '',
-                $asset['finance_status'] ?? '',
-                $asset['finance_supplier'] ?? '',
-                $asset['finance_po_number'] ?? '',
-                $asset['finance_price_text'] ?? '',
-                $asset['finance_date_purchase_text'] ?? '',
-                $asset['finance_location'] ?? '',
-            ];
-
-            $html .= '<tr>';
-            foreach ($workbookValues as $workbookValue) {
-                $html .= '<td>' . pdfEscape(pdfWorkbookValue($workbookValue)) . '</td>';
-            }
-            $html .= '</tr>';
-        }
     }
 
     $html .= '</tbody></table>';
@@ -239,19 +235,67 @@ function renderAssetPdfChunk(
 }
 
 try {
-    if (!class_exists(ZipArchive::class)) {
-        throw new RuntimeException(
-            'The PHP ZIP extension is not enabled. Enable extension=zip in your XAMPP php.ini, restart Apache, and try again.'
-        );
-    }
-
     $assetService = new AssetService();
 
-    // Fetch only one group at a time; never keep the full register in memory.
-    $chunkSize = 100;
-    $firstPage = $assetService->getPage($filters, null, 1, $chunkSize);
-    $totalAssets = (int) $firstPage['total'];
+    // Keep each HTTP request limited to one small PDF.
+    $chunkSize = 50;
+    $summary = $assetService->getPage($filters, null, 1, $chunkSize);
+    $totalAssets = (int) $summary['total'];
     $totalParts = max(1, (int) ceil($totalAssets / $chunkSize));
+
+    $part = filter_var(
+        $_GET['part'] ?? null,
+        FILTER_VALIDATE_INT,
+        ['options' => ['min_range' => 1]]
+    );
+
+    if ($part === false || $part === null) {
+        $query = $_GET;
+        unset($query['part']);
+        $baseUrl = base_url('/public/assets/export_pdf.php');
+        $queryString = http_build_query($query);
+        $partBaseUrl = $baseUrl . ($queryString !== '' ? '?' . $queryString . '&' : '?');
+
+        $title = 'Export Asset Register PDF';
+        $html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
+            . '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            . '<title>' . pdfEscape($title) . '</title>'
+            . '<style>body{font-family:Arial,sans-serif;margin:32px;color:#263238}'
+            . 'h2{color:#007472}.parts{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}'
+            . 'a{display:block;padding:12px;border:1px solid #ccd8d8;border-radius:6px;color:#007472;text-decoration:none}'
+            . 'a:hover{background:#f1f8f8}.muted{color:#607070}</style></head><body>'
+            . '<h2>Asset Register PDF Export</h2>'
+            . '<p>Total matching assets: <strong>' . number_format($totalAssets) . '</strong></p>'
+            . '<p class="muted">Each PDF contains up to ' . $chunkSize
+            . ' assets and includes both AssetSys records and Original Workbook Values.</p>'
+            . '<div class="parts">';
+
+        for ($number = 1; $number <= $totalParts; $number++) {
+            $start = (($number - 1) * $chunkSize) + 1;
+            $end = min($number * $chunkSize, $totalAssets);
+            $html .= '<a href="' . pdfEscape($partBaseUrl . 'part=' . $number) . '">'
+                . 'Download PDF Part ' . $number . '<br><small>Assets '
+                . number_format($start) . '–' . number_format($end)
+                . '</small></a>';
+        }
+
+        $html .= '</div></body></html>';
+
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
+
+        header('Content-Type: text/html; charset=UTF-8');
+        echo $html;
+        exit;
+    }
+
+    if ($part > $totalParts) {
+        http_response_code(404);
+        exit('The requested PDF part does not exist.');
+    }
+
+    $result = $assetService->getPage($filters, null, $part, $chunkSize);
 
     $headerImagePath = dirname(__DIR__, 2)
         . '/public/assets/images/header_mmgcci.png';
@@ -264,78 +308,37 @@ try {
         (string) file_get_contents($headerImagePath)
     );
 
-    $generatedAt = date('Y-m-d H:i:s');
-    $searchLabel = $filters['search'] !== '' ? $filters['search'] : 'All assets';
+    $pdfBytes = renderAssetPdf(
+        $result['items'],
+        $headerImageUri,
+        date('Y-m-d H:i:s'),
+        $filters['search'] !== '' ? $filters['search'] : 'All assets',
+        $part,
+        $totalParts,
+        $totalAssets
+    );
 
-    $temporaryZip = tempnam(sys_get_temp_dir(), 'assets_pdf_');
-    if ($temporaryZip === false) {
-        throw new RuntimeException('Unable to create a temporary export file.');
-    }
-
-    $zip = new ZipArchive();
-    $zipResult = $zip->open($temporaryZip, ZipArchive::OVERWRITE);
-
-    if ($zipResult !== true) {
-        @unlink($temporaryZip);
-        throw new RuntimeException('Unable to initialize the PDF ZIP archive.');
-    }
-
-    try {
-        for ($part = 1; $part <= $totalParts; $part++) {
-            $result = $part === 1
-                ? $firstPage
-                : $assetService->getPage($filters, null, $part, $chunkSize);
-
-            $pdfBytes = renderAssetPdfChunk(
-                $result['items'],
-                $headerImageUri,
-                $generatedAt,
-                $searchLabel,
-                $part,
-                $totalParts,
-                $totalAssets
-            );
-
-            $partFilename = sprintf(
-                'asset-register-part-%02d-of-%02d.pdf',
-                $part,
-                $totalParts
-            );
-
-            if (!$zip->addFromString($partFilename, $pdfBytes)) {
-                throw new RuntimeException('Unable to add a generated PDF part to the ZIP archive.');
-            }
-
-            unset($pdfBytes, $result);
-            if (function_exists('gc_collect_cycles')) {
-                gc_collect_cycles();
-            }
-        }
-    } finally {
-        $zip->close();
-    }
-
-    $filename = 'inventory-tracker-assets-' . date('Y-m-d') . '.zip';
+    $filename = sprintf(
+        'inventory-tracker-assets-part-%02d-of-%02d-%s.pdf',
+        $part,
+        $totalParts,
+        date('Y-m-d')
+    );
 
     if (ob_get_length()) {
         ob_end_clean();
     }
 
-    header('Content-Type: application/zip');
+    header('Content-Type: application/pdf');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
-    header('Content-Length: ' . filesize($temporaryZip));
+    header('Content-Length: ' . strlen($pdfBytes));
     header('Cache-Control: no-store, no-cache, must-revalidate');
-    header('Pragma: no-cache');
 
-    readfile($temporaryZip);
-    @unlink($temporaryZip);
+    echo $pdfBytes;
     exit;
 } catch (Throwable $exception) {
-    error_log('Assets PDF ZIP export failed: ' . $exception->getMessage());
+    error_log('Assets PDF export failed: ' . $exception->getMessage());
 
     http_response_code(500);
-    exit(
-        'Unable to export the asset register as PDF files. '
-        . 'Please check the application logs and confirm the PHP ZIP extension is enabled.'
-    );
+    exit('Unable to export this PDF part. Please check the application logs.');
 }
