@@ -124,6 +124,17 @@ $previewHeaders = [
         Import processing completed. <?= number_format((int) $batch['imported_rows']) ?> asset(s) created;
         <?= number_format((int) $batch['failed_rows']) ?> row(s) require review.
     </div>
+    <?php if ($failedCount > 0 && $mappingComplete): ?>
+        <form method="post" action="<?= e(base_url('/public/assets/import_execute.php')) ?>"
+              onsubmit="return confirm('Retry only the failed rows? The <?= number_format((int) $batch['imported_rows']) ?> assets already created will not be imported again.');"
+              class="mb-4">
+            <?= Csrf::field() ?>
+            <input type="hidden" name="batch_id" value="<?= (int) $batchId ?>">
+            <button type="submit" class="btn btn-warning">
+                <i class="fa-solid fa-rotate me-1"></i> Retry Failed Rows (<?= number_format($failedCount) ?>)
+            </button>
+        </form>
+    <?php endif; ?>
 <?php endif; ?>
 
 <?php if ($failedCount > 0): ?>
