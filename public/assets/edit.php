@@ -527,14 +527,18 @@ $workbookValue = static function (mixed $value): string {
 
                         <p class="form-control-plaintext mb-0">
                             <?= e(
-                                $asset['location_name'] ?? 'Not set'
+                                ($asset['location_name'] ?? '') !== ''
+                                    ? $asset['location_name']
+                                    : (($asset['finance_location'] ?? '') !== ''
+                                        ? $asset['finance_location']
+                                        : 'Not set')
                             ) ?>
                         </p>
                     </div>
 
                     <div class="col-md-6">
                         <div class="form-label">
-                            Assigned To
+                            Assigned Employee
                         </div>
 
 
@@ -555,7 +559,9 @@ $workbookValue = static function (mixed $value): string {
                         <p class="form-control-plaintext mb-0">
                             <?= $assignedName !== ''
                                 ? e($assignedName)
-                                : 'Unassigned' ?>
+                                : (strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
+                                    ? 'Not applicable (location-based asset)'
+                                    : 'Unassigned') ?>
                         </p>
 
                     </div>
