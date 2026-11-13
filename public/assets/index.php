@@ -317,17 +317,17 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                 Status
                             </th>
 
-                            <th>
-                                Condition
-                            </th>
-
-                            <th>
-                                Department
-                            </th>
-
-                            <th>
-                                Location
-                            </th>
+                            <th>Item ID</th>
+                            <th>FFE NUMBER</th>
+                            <th>CODE</th>
+                            <th>Status (Workbook)</th>
+                            <th>LOCATION (Main)</th>
+                            <th>OWNER / DEPARTMENT</th>
+                            <th>SUPPLIER</th>
+                            <th>PO NUMBER</th>
+                            <th>Price</th>
+                            <th>DATE PURCHASE</th>
+                            <th>LOCATION</th>
 
                             <th>
                                 Assigned To
@@ -442,26 +442,17 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                                 </td>
 
-                                <td>
-                                    <?= e(
-                                        $asset['condition_name']
-                                        ?? '—'
-                                    ) ?>
-                                </td>
-
-                                <td>
-                                    <?= e(
-                                        $asset['department_name']
-                                        ?? '—'
-                                    ) ?>
-                                </td>
-
-                                <td>
-                                    <?= e(
-                                        $asset['location_name']
-                                        ?? '—'
-                                    ) ?>
-                                </td>
+                                <td><?= e($asset['finance_item_id'] ?? '—') ?></td>
+                                <td><?= e($asset['finance_ffe_number'] ?? '—') ?></td>
+                                <td><?= e($asset['finance_code'] ?? '—') ?></td>
+                                <td><?= e($asset['finance_status'] ?? '—') ?></td>
+                                <td><?= e($asset['finance_main_location'] ?? '—') ?></td>
+                                <td><?= e($asset['finance_owner_department'] ?? '—') ?></td>
+                                <td><?= e($asset['finance_supplier'] ?? '—') ?></td>
+                                <td><?= e($asset['finance_po_number'] ?? '—') ?></td>
+                                <td class="text-nowrap"><?= e($asset['finance_price_text'] ?? '—') ?></td>
+                                <td class="text-nowrap"><?= e($asset['finance_date_purchase_text'] ?? '—') ?></td>
+                                <td><?= e($asset['finance_location'] ?? '—') ?></td>
 
                                 <td>
                                     <?= e($assignedName) ?>
