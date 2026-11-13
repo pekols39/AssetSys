@@ -162,36 +162,38 @@ class AssetService
                 );
             }
 
-            $isAssignedStatus = strcasecmp(
-                trim((string) $statusName),
-                'Assigned'
-            ) === 0;
+            $normalizedStatus = strtolower(trim((string) $statusName));
+            $isAssignedStatus = $normalizedStatus === 'assigned';
+            $isInUseStatus = $normalizedStatus === 'in use';
 
             /*
-             * An asset marked as Assigned must have complete
-             * assignment and location information.
+             * Employee assignment and location deployment are separate.
+             * Assigned requires an employee; In Use requires a location
+             * and condition but does not require an employee.
              */
-            if ($isAssignedStatus) {
+            if ($isAssignedStatus || $isInUseStatus) {
                 if (empty($data['location_id'])) {
                     throw new RuntimeException(
-                        'Location is required when the asset status is Assigned.'
+                        'Location is required when the asset status is Assigned or In Use.'
                     );
                 }
 
                 if (empty($data['condition_id'])) {
                     throw new RuntimeException(
-                        'Condition is required when the asset status is Assigned.'
+                        'Condition is required when the asset status is Assigned or In Use.'
                     );
                 }
+            }
 
-                if (empty($data['assigned_to_name'])) {
-                    throw new RuntimeException(
-                        'Assign To is required when the asset status is Assigned.'
-                    );
-                }
-            } elseif (!empty($data['assigned_to_name'])) {
+            if ($isAssignedStatus && empty($data['assigned_to_name'])) {
                 throw new RuntimeException(
-                    'Select Assigned status when providing an assignee.'
+                    'Assigned Employee is required when the asset status is Assigned.'
+                );
+            }
+
+            if (!$isAssignedStatus && !empty($data['assigned_to_name'])) {
+                throw new RuntimeException(
+                    'Select Assigned status when providing an assigned employee.'
                 );
             }
 
@@ -529,6 +531,16 @@ class AssetService
         ) {
             throw new RuntimeException(
                 'Use the Assign Asset workflow before setting the status to Assigned.'
+            );
+        }
+
+        if (
+            $requestedStatus === 'in use'
+            && $isAssigned
+            && $requestedStatus !== $currentStatus
+        ) {
+            throw new RuntimeException(
+                'Return the assigned asset before changing its status to In Use.'
             );
         }
 
