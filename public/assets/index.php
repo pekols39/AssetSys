@@ -329,7 +329,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                             <th>LOCATION</th>
 
                             <th>
-                                Assigned To
+                                Assigned Employee
                             </th>
 
                             <th class="text-end">
@@ -364,20 +364,22 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                     );
                                 }
 
+                                $statusName = $asset['status_name'] ?? 'Unknown';
                                 $assignedName = $assignedName !== ''
                                     ? $assignedName
-                                    : 'Unassigned';
+                                    : (strtolower($statusName) === 'in use'
+                                        ? 'Not applicable (location-based)'
+                                        : 'Unassigned');
 
                                 $financeValue = static function (mixed $value): string {
                                     $value = trim((string) ($value ?? ''));
                                     return $value === '' || strtolower($value) === 'null' ? '—' : $value;
                                 };
 
-                                $statusName = $asset['status_name'] ?? 'Unknown';
-
                                 $statusClass = match (strtolower($statusName)) {
                                     'available' => 'status-available',
                                     'assigned' => 'status-assigned',
+                                    'in use' => 'status-in-use',
                                     'under maintenance' => 'status-maintenance',
                                     'under repair' => 'status-repair',
                                     'lost' => 'status-lost',
