@@ -556,6 +556,7 @@ class AssetImportService
                         'status_id' => (int) $statusId,
                         'created_by' => $userId,
                         'finance_item_id' => $this->nullableFinanceText($values['Item ID'] ?? null, 100),
+                        'finance_item_name' => $this->nullableFinanceText($values['Item name'] ?? null, 200),
                         'finance_ffe_number' => $this->nullableFinanceText($values['FFE NUMBER'] ?? null, 150),
                         'finance_code' => $this->nullableFinanceText($values['CODE'] ?? null, 100),
                         'finance_main_location' => $this->nullableFinanceText($values['LOCATION (Main)'] ?? null, 150),
