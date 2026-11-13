@@ -19,10 +19,13 @@ $isDisposalRequests = str_ends_with(
     '/assets/disposal_requests.php'
 );
 
+$isImportHistory = str_ends_with($currentPath, '/assets/import_history.php');
+
 $isAssets =
     str_contains($currentPath, '/assets/')
     && !$isDepartmentTransfers
-    && !$isDisposalRequests;
+    && !$isDisposalRequests
+    && !$isImportHistory;
 
 $isInventoryReport =
     str_ends_with($currentPath, '/reports/index.php')
@@ -107,6 +110,14 @@ $isAdministrationAuditTrail =
                         <i class="fa-solid fa-boxes-stacked"></i>
                     </span>
                     <span class="app-sidebar-link-text">Assets</span>
+                </a>
+
+                <a href="<?= e(base_url('/public/assets/import_history.php')) ?>"
+                    class="app-sidebar-link <?= $isImportHistory ? 'active' : '' ?>">
+                    <span class="app-sidebar-link-icon">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                    </span>
+                    <span class="app-sidebar-link-text">Finance Import History</span>
                 </a>
 
                 <a href="<?= e(base_url('/public/assets/department_transfers.php')) ?>"
