@@ -114,6 +114,11 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
             Export PDF
         </a>
 
+        <a href="<?= e(base_url('/public/assets/import_history.php')) ?>" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-clock-rotate-left me-1"></i>
+            Import History
+        </a>
+
         <a href="<?= e(base_url('/public/assets/import.php')) ?>" class="btn btn-outline-primary">
             <i class="fa-solid fa-file-import me-1"></i>
             Import Finance Excel
