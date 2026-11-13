@@ -43,7 +43,6 @@ $headers = [
     'Price',
     'DATE PURCHASE',
     'LOCATION',
-    'QR CODE GENERATOR',
     'Import Error',
 ];
 
@@ -70,7 +69,7 @@ do {
     foreach ($rows as $row) {
         $values = $row['source_values'] ?? [];
         $line = [(int) $row['source_row_number']];
-        foreach (array_slice($headers, 1, 13) as $header) {
+        foreach (array_slice($headers, 1, 12) as $header) {
             $line[] = $values[$header] ?? '';
         }
         $line[] = $row['validation_errors'] ?? '';
