@@ -214,7 +214,7 @@ if ($assignedTo === '') {
 $assignedTo = $assignedTo !== ''
     ? $assignedTo
     : (strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
-        ? 'Not applicable (location-based asset)'
+        ? 'No individual assignee'
         : 'Unassigned');
 
 
@@ -565,7 +565,7 @@ function displayDate(
                             <?= $assignedToDisplay !== ''
                                 ? e($assignedToDisplay)
                                 : (strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
-                                    ? '<span class="text-muted">Not applicable (location-based asset)</span>'
+                                    ? '<span class="text-muted">No individual assignee</span>'
                                     : '<span class="text-muted">Unassigned</span>') ?>
                         </span>
                     </div>
