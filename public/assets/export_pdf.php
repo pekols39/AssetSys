@@ -309,6 +309,7 @@ try {
     $html .= '<h2 class="workbook-title">Original Workbook Values</h2>';
     $html .= '<table class="workbook-inventory"><thead><tr>';
     foreach ([
+        'Asset Code',
         'LOCATION (Main)',
         'OWNER / DEPARTMENT',
         'Item ID',
@@ -327,10 +328,11 @@ try {
     $html .= '</tr></thead><tbody>';
 
     if ($assets === []) {
-        $html .= '<tr><td colspan="12" style="text-align:center;">No original workbook values found.</td></tr>';
+        $html .= '<tr><td colspan="13" style="text-align:center;">No original workbook values found.</td></tr>';
     } else {
         foreach ($assets as $asset) {
             $workbookValues = [
+                $asset['asset_code'] ?? '',
                 $asset['finance_main_location'] ?? '',
                 $asset['finance_owner_department'] ?? '',
                 $asset['finance_item_id'] ?? '',
