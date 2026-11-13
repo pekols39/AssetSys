@@ -52,7 +52,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     required
                 >
-                <div class="form-text">Maximum file size: 20 MB. The workbook must contain all 13 Finance inventory columns.</div>
+                <div class="form-text">Maximum file size: 20 MB. The workbook must contain the 12 required Finance inventory columns. The QR Code Generator column is not imported; AssetSys manages QR identities separately.</div>
             </div>
             <button type="submit" class="btn btn-primary">
                 <i class="fa-solid fa-upload me-1"></i> Upload and Preview
