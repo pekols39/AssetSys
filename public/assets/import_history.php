@@ -24,7 +24,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
         <div class="text-muted small mb-1">Asset Management</div>
-        <h1 class="h3 mb-1">Finance Import History</h1>
+        <h1 class="h3 mb-1">Asset Import History</h1>
         <p class="text-muted mb-0">Access previous workbooks, review imported records, and resume batches that need attention.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
