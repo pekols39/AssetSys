@@ -46,7 +46,7 @@ $headers = [
     'Import Error',
 ];
 
-$filename = 'finance-import-batch-' . (int) $batchId . '-failed-rows.csv';
+$filename = 'asset-import-batch-' . (int) $batchId . '-failed-rows.csv';
 header('Content-Type: text/csv; charset=UTF-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 header('X-Content-Type-Options: nosniff');
