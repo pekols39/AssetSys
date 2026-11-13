@@ -474,7 +474,8 @@ class AssetImportService
                     finance_item_id, finance_ffe_number, finance_code,
                     finance_main_location, finance_owner_department,
                     finance_status, finance_supplier, finance_po_number,
-                    finance_location, finance_price
+                    finance_location, finance_price,
+                    finance_price_text, finance_date_purchase_text
                 ) VALUES (
                     :asset_code, NULL, NULL, :category_id,
                     NULL, :asset_name, NULL, :purchase_date,
@@ -484,7 +485,8 @@ class AssetImportService
                     :finance_item_id, :finance_ffe_number, :finance_code,
                     :finance_main_location, :finance_owner_department,
                     :finance_status, :finance_supplier, :finance_po_number,
-                    :finance_location, :finance_price
+                    :finance_location, :finance_price,
+                    :finance_price_text, :finance_date_purchase_text
                 )'
             );
 
@@ -563,6 +565,8 @@ class AssetImportService
                         'finance_po_number' => $this->nullableFinanceText($values['PO NUMBER'] ?? null, 100),
                         'finance_location' => $this->nullableFinanceText($values['LOCATION'] ?? null, 255),
                         'finance_price' => $financePrice,
+                        'finance_price_text' => $this->nullableFinanceText($values['Price'] ?? null, 100),
+                        'finance_date_purchase_text' => $this->nullableFinanceText($values['DATE PURCHASE'] ?? null, 100),
                     ]);
 
                     $assetId = (int) $this->db->lastInsertId();
