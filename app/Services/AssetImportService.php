@@ -531,7 +531,11 @@ class AssetImportService
 
                     $priceText = trim((string) ($values['Price'] ?? ''));
                     $financePrice = null;
-                    if ($priceText !== '' && strtoupper($priceText) !== 'WARRANTY') {
+                    if (
+                        $priceText !== ''
+                        && $priceText !== '-'
+                        && strtoupper($priceText) !== 'WARRANTY'
+                    ) {
                         $normalizedPrice = str_replace([',', '₱', 'PHP', ' '], '', $priceText);
                         if (!is_numeric($normalizedPrice) || (float) $normalizedPrice < 0) {
                             throw new RuntimeException('Finance Price is not a valid non-negative amount.');
@@ -673,7 +677,7 @@ class AssetImportService
         }
 
         $text = trim((string) ($display ?? $raw));
-        if ($text === '') {
+        if ($text === '' || strtoupper($text) === 'STOCK') {
             return null;
         }
 
