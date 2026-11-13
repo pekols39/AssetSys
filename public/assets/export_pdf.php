@@ -45,6 +45,12 @@ function pdfEscape(mixed $value): string
     );
 }
 
+function pdfWorkbookValue(mixed $value): string
+{
+    $text = trim((string) ($value ?? ''));
+    return strtolower($text) === 'null' ? '' : $text;
+}
+
 try {
     $assetService = new AssetService();
 
@@ -186,6 +192,39 @@ try {
         white-space: nowrap;
     }
 
+    .workbook-title {
+        margin-top: 14px;
+        margin-bottom: 5px;
+        color: #007472;
+        font-size: 11px;
+    }
+
+    table.workbook-inventory {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-size: 6px;
+    }
+
+    .workbook-inventory th {
+        background: #52636a;
+        color: #ffffff;
+        font-weight: bold;
+        text-align: left;
+    }
+
+    .workbook-inventory th,
+    .workbook-inventory td {
+        border: 1px solid #d5dddd;
+        padding: 3px;
+        vertical-align: top;
+        word-wrap: break-word;
+    }
+
+    .workbook-inventory tr:nth-child(even) td {
+        background: #f5f8f8;
+    }
+
     .footer {
         margin-top: 10px;
         font-size: 7px;
@@ -266,7 +305,56 @@ try {
     }
 
     $html .= '</tbody></table>';
-    $html .= '<div class="footer">Inventory Tracker — Asset Register | Total records: ';
+
+    $html .= '<h2 class="workbook-title">Original Workbook Values</h2>';
+    $html .= '<table class="workbook-inventory"><thead><tr>';
+    foreach ([
+        'LOCATION (Main)',
+        'OWNER / DEPARTMENT',
+        'Item ID',
+        'Item name',
+        'FFE NUMBER',
+        'CODE',
+        'Status',
+        'SUPPLIER',
+        'PO NUMBER',
+        'Price',
+        'DATE PURCHASE',
+        'LOCATION',
+    ] as $workbookHeader) {
+        $html .= '<th>' . pdfEscape($workbookHeader) . '</th>';
+    }
+    $html .= '</tr></thead><tbody>';
+
+    if ($assets === []) {
+        $html .= '<tr><td colspan="12" style="text-align:center;">No original workbook values found.</td></tr>';
+    } else {
+        foreach ($assets as $asset) {
+            $workbookValues = [
+                $asset['finance_main_location'] ?? '',
+                $asset['finance_owner_department'] ?? '',
+                $asset['finance_item_id'] ?? '',
+                $asset['finance_item_name'] ?? '',
+                $asset['finance_ffe_number'] ?? '',
+                $asset['finance_code'] ?? '',
+                $asset['finance_status'] ?? '',
+                $asset['finance_supplier'] ?? '',
+                $asset['finance_po_number'] ?? '',
+                $asset['finance_price_text'] ?? '',
+                $asset['finance_date_purchase_text'] ?? '',
+                $asset['finance_location'] ?? '',
+            ];
+
+            $html .= '<tr>';
+            foreach ($workbookValues as $workbookValue) {
+                $html .= '<td>' . pdfEscape(pdfWorkbookValue($workbookValue)) . '</td>';
+            }
+            $html .= '</tr>';
+        }
+    }
+
+    $html .= '</tbody></table>';
+    $html .= '<div class="footer">Inventory Tracker — Asset Register and Original Workbook Values | Total records: ';
     $html .= number_format($totalAssets) . '</div>';
     $html .= '</body></html>';
 
