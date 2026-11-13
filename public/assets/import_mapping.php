@@ -41,13 +41,13 @@ $referenceData = new ReferenceDataService();
 $categories = $referenceData->getAssetCategories();
 $statuses = $referenceData->getAssetStatuses();
 
-$pageTitle = 'Map Finance Inventory';
+$pageTitle = 'Map Asset Inventory';
 require_once dirname(__DIR__) . '/includes/app_header.php';
 ?>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <div class="text-muted small mb-1">Finance Inventory Import</div>
+        <div class="text-muted small mb-1">Asset Inventory Import</div>
         <h1 class="h3 mb-1">Review Reference Mappings</h1>
         <p class="text-muted mb-0">Batch #<?= (int) $batch['id'] ?> — <?= e($batch['original_filename']) ?></p>
     </div>
@@ -57,17 +57,17 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 </div>
 
 <div class="alert alert-warning">
-    Map each Finance Item ID to an AssetSys category and each Finance Status to an AssetSys status.
-    These are manual reference choices only. Original Finance values remain unchanged in staging.
+    Map each source Item ID to an AssetSys category and each source Status to an AssetSys status.
+    These are manual reference choices only. Original source values remain unchanged in staging.
     No assets are created on this page.
 </div>
 
-<form method="post" action="<?= e(base_url('/public/assets/import_mapping_process.php')) ?>">
+<form method="post" action="<?= e(base_url('/public/assets/import_mapping_process.php')) ?>" data-swal-confirm="true" data-swal-title="Save asset mappings?" data-swal-text="The selected category and status mappings will be saved for this batch." data-swal-confirm-text="Yes, Save">
     <?= Csrf::field() ?>
     <input type="hidden" name="batch_id" value="<?= (int) $batchId ?>">
 
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white"><h2 class="h5 mb-0">Finance Item ID → AssetSys Category</h2></div>
+        <div class="card-header bg-white"><h2 class="h5 mb-0">Asset Item ID → AssetSys Category</h2></div>
         <div class="card-body">
             <?php foreach ($options['item_ids'] as $value): ?>
                 <div class="row align-items-center g-2 mb-3">
@@ -90,7 +90,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     </div>
 
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white"><h2 class="h5 mb-0">Finance Status → AssetSys Status</h2></div>
+        <div class="card-header bg-white"><h2 class="h5 mb-0">Asset Status → AssetSys Status</h2></div>
         <div class="card-body">
             <?php foreach ($options['statuses'] as $value): ?>
                 <div class="row align-items-center g-2 mb-3">
