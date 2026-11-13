@@ -93,9 +93,21 @@ try {
         'Purchase Date',
         'Purchase Cost',
         'Current Book Value',
+        'LOCATION (Main) - Workbook',
+        'OWNER / DEPARTMENT - Workbook',
+        'Item ID - Workbook',
+        'Item name - Workbook',
+        'FFE NUMBER - Workbook',
+        'CODE - Workbook',
+        'Status - Workbook',
+        'SUPPLIER - Workbook',
+        'PO NUMBER - Workbook',
+        'Price - Workbook',
+        'DATE PURCHASE - Workbook',
+        'LOCATION - Workbook',
     ];
 
-    $lastColumn = 'M';
+    $lastColumn = 'Y';
 
     $sheet->mergeCells("A1:{$lastColumn}1");
     $sheet->setCellValue('A1', 'INVENTORY TRACKER - ASSET REGISTER');
@@ -165,6 +177,16 @@ try {
         ],
     ]);
 
+    $sheet->mergeCells('A5:M5');
+    $sheet->setCellValue('A5', 'ASSETSYS RECORD');
+    $sheet->mergeCells('N5:Y5');
+    $sheet->setCellValue('N5', 'ORIGINAL WORKBOOK VALUES');
+    $sheet->getStyle('A5:Y5')->applyFromArray([
+        'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '52636A']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+    ]);
+
     $headerRow = 6;
 
     foreach ($headers as $index => $heading) {
@@ -222,6 +244,18 @@ try {
             'I' => $asset['location_name'] ?? '',
             'J' => $assignedName !== '' ? $assignedName : 'Unassigned',
             'K' => $asset['purchase_date'] ?? '',
+            'N' => $asset['finance_main_location'] ?? '',
+            'O' => $asset['finance_owner_department'] ?? '',
+            'P' => $asset['finance_item_id'] ?? '',
+            'Q' => $asset['finance_item_name'] ?? '',
+            'R' => $asset['finance_ffe_number'] ?? '',
+            'S' => $asset['finance_code'] ?? '',
+            'T' => $asset['finance_status'] ?? '',
+            'U' => $asset['finance_supplier'] ?? '',
+            'V' => $asset['finance_po_number'] ?? '',
+            'W' => $asset['finance_price_text'] ?? '',
+            'X' => $asset['finance_date_purchase_text'] ?? '',
+            'Y' => $asset['finance_location'] ?? '',
         ];
 
         foreach ($textValues as $column => $value) {
@@ -298,6 +332,18 @@ try {
         'K' => 16,
         'L' => 20,
         'M' => 22,
+        'N' => 24,
+        'O' => 24,
+        'P' => 18,
+        'Q' => 38,
+        'R' => 28,
+        'S' => 12,
+        'T' => 16,
+        'U' => 22,
+        'V' => 18,
+        'W' => 16,
+        'X' => 18,
+        'Y' => 30,
     ];
 
     foreach ($widths as $column => $width) {
