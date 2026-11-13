@@ -107,7 +107,12 @@ class AuthMiddleware
 
         $parts = parse_url($requestUri);
         $path = is_array($parts) ? ($parts['path'] ?? '') : '';
-        if (!is_string($path) || !str_starts_with($path, '/public/')) {
+        $publicPrefix = rtrim((string) parse_url(base_url('/public/'), PHP_URL_PATH), '/') . '/';
+        if (
+            !is_string($path)
+            || $publicPrefix === '/'
+            || !str_starts_with($path, $publicPrefix)
+        ) {
             return;
         }
 
