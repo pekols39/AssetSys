@@ -213,7 +213,9 @@ if ($assignedTo === '') {
 
 $assignedTo = $assignedTo !== ''
     ? $assignedTo
-    : 'Unassigned';
+    : (strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
+        ? 'Not applicable (location-based asset)'
+        : 'Unassigned');
 
 
 function displayValue(
