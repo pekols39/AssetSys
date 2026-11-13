@@ -261,14 +261,14 @@ try {
     $html .= '<th style="width:9%">Serial Number</th>';
     $html .= '<th style="width:13%">Asset Name</th>';
     $html .= '<th style="width:9%">Category</th>';
-    $html .= '<th style="width:7%">Status</th>';
+    $html .= '<th style="width:7%">Status (AssetSys)</th>';
     $html .= '<th style="width:7%">Condition</th>';
-    $html .= '<th style="width:9%">Department</th>';
-    $html .= '<th style="width:8%">Location</th>';
+    $html .= '<th style="width:9%">Department (AssetSys)</th>';
+    $html .= '<th style="width:8%">Location (AssetSys)</th>';
     $html .= '<th style="width:9%">Assigned To</th>';
-    $html .= '<th style="width:6%">Purchase Date</th>';
-    $html .= '<th style="width:7%">Purchase Cost</th>';
-    $html .= '<th style="width:7%">Book Value</th>';
+    $html .= '<th style="width:6%">Purchase Date (AssetSys)</th>';
+    $html .= '<th style="width:7%">Purchase Cost (AssetSys)</th>';
+    $html .= '<th style="width:7%">Book Value (AssetSys)</th>';
     $html .= '</tr></thead><tbody>';
 
     if ($assets === []) {
