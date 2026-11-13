@@ -293,9 +293,9 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
         <?php else: ?>
 
-            <div class="table-responsive">
+            <div class="table-responsive" id="assetsTableScroll">
 
-                <table id="assetsTable" class="table table-hover align-middle mb-0">
+                <table id="assetsTable" class="table table-hover align-middle mb-0 asset-table">
 
                     <thead>
 
@@ -509,6 +509,9 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                 </table>
 
+            </div>
+            <div class="asset-horizontal-scrollbar" id="assetsHorizontalScrollbar" aria-label="Scroll asset table horizontally">
+                <div class="asset-horizontal-scrollbar-inner" id="assetsHorizontalScrollbarInner"></div>
             </div>
 
         <?php endif; ?>
