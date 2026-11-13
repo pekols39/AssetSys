@@ -221,7 +221,8 @@ function displayValue(
 ): string {
     if (
         $value === null
-        || $value === ''
+        || trim((string) $value) === ''
+        || strtolower(trim((string) $value)) === 'null'
     ) {
         return $fallback;
     }
