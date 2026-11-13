@@ -219,7 +219,7 @@ class AssetImportService
                 u.first_name,
                 u.last_name
              FROM asset_import_batches b
-             INNER JOIN users u ON u.id = b.imported_by
+             LEFT JOIN users u ON u.id = b.imported_by
              ORDER BY b.created_at DESC, b.id DESC
              LIMIT ' . $limit
         );
