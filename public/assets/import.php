@@ -26,9 +26,14 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         <h1 class="h3 mb-1">Import Finance Inventory</h1>
         <p class="text-muted mb-0">Upload the Finance .xlsx workbook for review and staging.</p>
     </div>
-    <a href="<?= e(base_url('/public/assets/index.php')) ?>" class="btn btn-outline-secondary">
-        <i class="fa-solid fa-arrow-left me-1"></i> Back to Assets
-    </a>
+    <div class="d-flex gap-2">
+        <a href="<?= e(base_url('/public/assets/import_history.php')) ?>" class="btn btn-outline-primary">
+            <i class="fa-solid fa-clock-rotate-left me-1"></i> Import History
+        </a>
+        <a href="<?= e(base_url('/public/assets/index.php')) ?>" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-1"></i> Back to Assets
+        </a>
+    </div>
 </div>
 
 <div class="card border-0 shadow-sm">
