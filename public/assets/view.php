@@ -469,12 +469,12 @@ function displayDate(
                     </div>
 
                     <hr class="my-3">
-                    <h6 class="text-muted mb-3">Original Inventory Workbook Details</h6>
+                    <h6 class="text-muted mb-3">Original Asset Workbook Details</h6>
 
                     <div class="detail-row"><span class="detail-label">Item ID</span><span class="detail-value"><?= displayValue($asset['finance_item_id'] ?? null) ?></span></div>
                     <div class="detail-row"><span class="detail-label">FFE NUMBER</span><span class="detail-value"><?= displayValue($asset['finance_ffe_number'] ?? null) ?></span></div>
                     <div class="detail-row"><span class="detail-label">CODE</span><span class="detail-value"><?= displayValue($asset['finance_code'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">Finance Status</span><span class="detail-value"><?= displayValue($asset['finance_status'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Status (Workbook)</span><span class="detail-value"><?= displayValue($asset['finance_status'] ?? null) ?></span></div>
                     <div class="detail-row"><span class="detail-label">LOCATION (Main)</span><span class="detail-value"><?= displayValue($asset['finance_main_location'] ?? null) ?></span></div>
                     <div class="detail-row"><span class="detail-label">OWNER / DEPARTMENT</span><span class="detail-value"><?= displayValue($asset['finance_owner_department'] ?? null) ?></span></div>
 
