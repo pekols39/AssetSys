@@ -316,6 +316,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                             <th>Status (AssetSys)</th>
 
                             <th>Item ID</th>
+                            <th>Item name (Workbook)</th>
                             <th>FFE NUMBER</th>
                             <th>CODE</th>
                             <th>Status (Workbook)</th>
@@ -367,15 +368,10 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                     ? $assignedName
                                     : 'Unassigned';
 
-                                $financePriceText = trim((string) ($asset['finance_price_text'] ?? ''));
-                                $financePriceText = $financePriceText === '' || strtolower($financePriceText) === 'null'
-                                    ? '—'
-                                    : $financePriceText;
-
-                                $financeDatePurchaseText = trim((string) ($asset['finance_date_purchase_text'] ?? ''));
-                                $financeDatePurchaseText = $financeDatePurchaseText === '' || strtolower($financeDatePurchaseText) === 'null'
-                                    ? '—'
-                                    : $financeDatePurchaseText;
+                                $financeValue = static function (mixed $value): string {
+                                    $value = trim((string) ($value ?? ''));
+                                    return $value === '' || strtolower($value) === 'null' ? '—' : $value;
+                                };
 
                                 $statusName = $asset['status_name'] ?? 'Unknown';
 
@@ -450,17 +446,18 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                                 </td>
 
-                                <td><?= e($asset['finance_item_id'] ?? '—') ?></td>
-                                <td><?= e($asset['finance_ffe_number'] ?? '—') ?></td>
-                                <td><?= e($asset['finance_code'] ?? '—') ?></td>
-                                <td><?= e($asset['finance_status'] ?? '—') ?></td>
-                                <td><?= e($asset['finance_main_location'] ?? '—') ?></td>
-                                <td><?= e($asset['finance_owner_department'] ?? '—') ?></td>
-                                <td><?= e($asset['finance_supplier'] ?? '—') ?></td>
-                                <td><?= e($asset['finance_po_number'] ?? '—') ?></td>
-                                <td class="text-nowrap"><?= e($financePriceText) ?></td>
-                                <td class="text-nowrap"><?= e($financeDatePurchaseText) ?></td>
-                                <td><?= e($asset['finance_location'] ?? '—') ?></td>
+                                <td><?= e($financeValue($asset['finance_item_id'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_item_name'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_ffe_number'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_code'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_status'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_main_location'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_owner_department'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_supplier'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_po_number'] ?? null)) ?></td>
+                                <td class="text-nowrap"><?= e($financeValue($asset['finance_price_text'] ?? null)) ?></td>
+                                <td class="text-nowrap"><?= e($financeValue($asset['finance_date_purchase_text'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_location'] ?? null)) ?></td>
 
                                 <td>
                                     <?= e($assignedName) ?>
