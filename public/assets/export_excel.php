@@ -89,7 +89,7 @@ try {
         'Condition',
         'Department (AssetSys)',
         'Location (AssetSys)',
-        'Assigned To',
+        'Assigned Employee',
         'Purchase Date (AssetSys)',
         'Purchase Cost (AssetSys)',
         'Current Book Value (AssetSys)',
@@ -230,6 +230,11 @@ try {
                 . ' '
                 . (string) ($asset['assigned_last_name'] ?? '')
             );
+        }
+        if ($assignedName === '') {
+            $assignedName = strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
+                ? 'Not applicable (location-based)'
+                : 'Unassigned';
         }
 
         $textValues = [
