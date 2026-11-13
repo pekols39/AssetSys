@@ -51,6 +51,7 @@ class Asset
                 a.created_at,
                 a.updated_at,
                 a.finance_item_id,
+                a.finance_item_name,
                 a.finance_ffe_number,
                 a.finance_code,
                 a.finance_main_location,
@@ -298,6 +299,7 @@ class Asset
                 a.purchase_cost,
                 a.current_book_value,
                 a.finance_item_id,
+                a.finance_item_name,
                 a.finance_ffe_number,
                 a.finance_code,
                 a.finance_main_location,
@@ -406,6 +408,7 @@ class Asset
                 OR ac.name LIKE :search_condition
                 OR l.name LIKE :search_location
                 OR a.finance_item_id LIKE :search_item_id
+                OR a.finance_item_name LIKE :search_finance_item_name
                 OR a.finance_ffe_number LIKE :search_ffe
                 OR a.finance_code LIKE :search_finance_code
                 OR a.finance_main_location LIKE :search_main_location
@@ -433,6 +436,7 @@ class Asset
                 'search_condition',
                 'search_location',
                 'search_item_id',
+                'search_finance_item_name',
                 'search_ffe',
                 'search_finance_code',
                 'search_main_location',
@@ -546,6 +550,7 @@ class Asset
                 a.assigned_to_user_id,
                 a.assigned_to_name,
                 a.finance_item_id,
+                a.finance_item_name,
                 a.finance_ffe_number,
                 a.finance_code,
                 a.finance_main_location,
