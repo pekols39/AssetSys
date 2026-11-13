@@ -200,6 +200,33 @@ class AssetImportService
         }
     }
 
+    /** Return recent Finance import batches for the import history page. */
+    public function getRecentBatches(int $limit = 100): array
+    {
+        $limit = max(1, min(500, $limit));
+
+        $stmt = $this->db->query(
+            'SELECT
+                b.id,
+                b.original_filename,
+                b.total_rows,
+                b.imported_rows,
+                b.skipped_rows,
+                b.failed_rows,
+                b.batch_status,
+                b.created_at,
+                b.completed_at,
+                u.first_name,
+                u.last_name
+             FROM asset_import_batches b
+             INNER JOIN users u ON u.id = b.imported_by
+             ORDER BY b.created_at DESC, b.id DESC
+             LIMIT ' . $limit
+        );
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getBatch(int $batchId): array|false
     {
         $stmt = $this->db->prepare(
