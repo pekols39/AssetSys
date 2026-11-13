@@ -36,7 +36,7 @@ $failedRows = $importService->getFailedRows((int) $batchId, 100);
 $failedCount = $importService->countFailedRows((int) $batchId);
 $savedMapping = $importService->getSavedMapping((int) $batchId);
 $mappingComplete = !empty($savedMapping['item_ids']) && !empty($savedMapping['statuses']);
-$pageTitle = 'Finance Import Batch #' . (int) $batch['id'];
+$pageTitle = 'Asset Import Batch #' . (int) $batch['id'];
 require_once dirname(__DIR__) . '/includes/app_header.php';
 
 $previewHeaders = [
@@ -57,7 +57,7 @@ $previewHeaders = [
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <div class="text-muted small mb-1">Finance Inventory Import</div>
+        <div class="text-muted small mb-1">Asset Inventory Import</div>
         <h1 class="h3 mb-1">Import Batch #<?= (int) $batch['id'] ?></h1>
         <p class="text-muted mb-0"><?= e($batch['original_filename']) ?></p>
     </div>
@@ -111,11 +111,11 @@ $previewHeaders = [
     <div class="alert <?= $mappingComplete ? 'alert-success' : 'alert-warning' ?>">
         <?= $mappingComplete
             ? 'Category and status mappings are saved. You can now import the staged records.'
-            : 'Review and save the Finance Item ID and Status mappings before importing.' ?>
+            : 'Review and save the Item ID and Status mappings before importing.' ?>
     </div>
     <?php if ($mappingComplete): ?>
         <form method="post" action="<?= e(base_url('/public/assets/import_execute.php')) ?>"
-              onsubmit="return confirm('Import the staged rows into AssetSys now? Existing assets will not be updated.');"
+              data-swal-confirm="true" data-swal-title="Import staged assets?" data-swal-text="The staged records will be created in AssetSys. Existing assets will not be updated." data-swal-confirm-text="Yes, Import"
               class="mb-4">
             <?= Csrf::field() ?>
             <input type="hidden" name="batch_id" value="<?= (int) $batchId ?>">
@@ -131,7 +131,7 @@ $previewHeaders = [
     </div>
     <?php if ($failedCount > 0 && $mappingComplete): ?>
         <form method="post" action="<?= e(base_url('/public/assets/import_execute.php')) ?>"
-              onsubmit="return confirm('Retry only the failed rows? The <?= number_format((int) $batch['imported_rows']) ?> assets already created will not be imported again.');"
+              data-swal-confirm="true" data-swal-title="Retry failed rows?" data-swal-text="Only failed rows will be retried. The <?= number_format((int) $batch['imported_rows']) ?> assets already created will not be imported again." data-swal-confirm-text="Yes, Retry"
               class="mb-4">
             <?= Csrf::field() ?>
             <input type="hidden" name="batch_id" value="<?= (int) $batchId ?>">
@@ -150,13 +150,13 @@ $previewHeaders = [
                 <div class="text-muted small">These source rows were not created as assets. Review the reason before correcting or re-importing.</div>
             </div>
             <a class="btn btn-outline-danger btn-sm"
-               href="<?= e(base_url('/public/assets/import_failed_export.php?id=' . (int) $batchId)) ?>">
+               href="<?= e(base_url('/public/assets/import_failed_export.php?id=' . (int) $batchId)) ?>" data-swal-confirm="true" data-swal-title="Export failed rows?" data-swal-text="A CSV file containing the failed source rows will be downloaded." data-swal-confirm-text="Export CSV">
                 <i class="fa-solid fa-file-csv me-1"></i> Export Failed Rows (CSV)
             </a>
         </div>
         <div class="table-responsive">
             <table class="table table-sm table-striped align-middle mb-0">
-                <thead><tr><th>Excel Row</th><th>Item Name</th><th>Finance Item ID</th><th>Finance Status</th><th>Reason</th></tr></thead>
+                <thead><tr><th>Excel Row</th><th>Item Name</th><th>Asset Item ID</th><th>Asset Status</th><th>Reason</th></tr></thead>
                 <tbody>
                 <?php foreach ($failedRows as $failed): ?>
                     <tr>
@@ -179,7 +179,7 @@ $previewHeaders = [
 <div class="card border-0 shadow-sm">
     <div class="card-header bg-white py-3">
         <h2 class="h5 mb-0">First 25 source rows</h2>
-        <div class="text-muted small">Original Finance values are shown without category or status conversion.</div>
+        <div class="text-muted small">Original source values are shown without category or status conversion.</div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
