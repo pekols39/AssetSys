@@ -313,9 +313,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                 Category
                             </th>
 
-                            <th>
-                                Status
-                            </th>
+                            <th>Status (AssetSys)</th>
 
                             <th>Item ID</th>
                             <th>FFE NUMBER</th>
