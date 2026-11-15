@@ -64,6 +64,7 @@ class DatabaseBackupService
             $tables = $this->db->query(
                 "SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'"
             )->fetchAll(PDO::FETCH_NUM);
+            $foreignKeyStatements = [];
 
             foreach ($tables as $tableRow) {
                 $table = (string) ($tableRow[0] ?? '');
@@ -79,11 +80,29 @@ class DatabaseBackupService
                     throw new RuntimeException('Unable to read table definition: ' . $table);
                 }
 
+                // Create every table before adding foreign keys. This avoids
+                // dependency-order failures and supports circular relationships.
+                $createLines = preg_split('/\r\n|\n|\r/', $create['Create Table']);
+                $tableDefinitionLines = [];
+
+                foreach ($createLines as $createLine) {
+                    if (preg_match('/^\s*CONSTRAINT\s+.+\s+FOREIGN KEY\s+/i', $createLine)) {
+                        $foreignKeyStatements[] = 'ALTER TABLE ' . $quotedTable
+                            . ' ADD ' . rtrim(trim($createLine), ',') . ';';
+                        continue;
+                    }
+
+                    $tableDefinitionLines[] = $createLine;
+                }
+
+                $tableDefinition = implode("\n", $tableDefinitionLines);
+                $tableDefinition = preg_replace('/,\s*\)\s*$/', "\n)", $tableDefinition) ?? $tableDefinition;
+
                 $this->write($handle, "-- --------------------------------------------------------\n");
                 $this->write($handle, "-- Table structure for " . $this->safeComment($table) . "\n");
                 $this->write($handle, "-- --------------------------------------------------------\n");
                 $this->write($handle, "DROP TABLE IF EXISTS " . $quotedTable . ";\n");
-                $this->write($handle, $create['Create Table'] . ";\n\n");
+                $this->write($handle, $tableDefinition . ";\n\n");
 
                 $columns = $this->db->query('SHOW FULL COLUMNS FROM ' . $quotedTable)
                     ->fetchAll(PDO::FETCH_ASSOC);
@@ -151,6 +170,14 @@ class DatabaseBackupService
                     );
                 }
 
+                $this->write($handle, "\n");
+            }
+
+            foreach ($foreignKeyStatements as $foreignKeyStatement) {
+                $this->write($handle, $foreignKeyStatement . "\n");
+            }
+
+            if ($foreignKeyStatements !== []) {
                 $this->write($handle, "\n");
             }
 
