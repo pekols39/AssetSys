@@ -33,14 +33,14 @@ try {
             action: 'download_database_backup',
             module: 'administration',
             entityType: 'database_backup',
-            description: 'Downloaded a database backup.',
+            description: 'Downloaded a SQL database backup.',
             newValues: ['filename' => $filename]
         );
     } catch (Throwable $auditError) {
         error_log('Database backup download audit logging failed: ' . $auditError->getMessage());
     }
 
-    header('Content-Type: application/gzip');
+    header('Content-Type: application/sql; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Content-Length: ' . (string) filesize($path));
     header('X-Content-Type-Options: nosniff');
