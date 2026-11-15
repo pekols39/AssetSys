@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 
-use App\Core\Auth;
 use App\Middleware\AuthMiddleware;
 use App\Services\AuthorizationService;
 use App\Services\DatabaseBackupService;
@@ -30,13 +29,13 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     <div class="mb-4">
         <h1 class="h3 mb-1">Database Backup</h1>
         <p class="text-muted mb-0">
-            Create and download compressed database backups.
+            Create and download SQL database dumps.
         </p>
     </div>
 
     <?php if (isset($_GET['success'])): ?>
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-            Database backup created successfully.
+            SQL database backup created successfully.
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     <?php endif; ?>
@@ -49,8 +48,8 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
     <div class="alert alert-warning">
         <i class="fa-solid fa-triangle-exclamation me-2"></i>
-        Backups contain sensitive company and user information. Keep downloaded copies in a secure location.
-        Database restoration is not enabled yet.
+        SQL backups contain sensitive company and user information. Store downloaded copies securely.
+        Importing a dump can replace tables with the versions in that backup. Database restoration is not enabled in AssetSys yet.
     </div>
 
     <div class="card border-0 shadow-sm mb-4">
@@ -59,13 +58,13 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         </div>
         <div class="card-body">
             <p class="text-muted">
-                AssetSys exports database table definitions, table records, and database triggers into a compressed file.
+                AssetSys exports table definitions, table records, and database triggers into a standard .sql file.
             </p>
             <form method="post" action="<?= e(base_url('/public/administration/database_backup_process.php')) ?>">
                 <?= \App\Helpers\Csrf::field() ?>
                 <button type="submit" class="btn btn-primary">
                     <i class="fa-solid fa-database me-1"></i>
-                    Create Database Backup
+                    Create SQL Backup
                 </button>
             </form>
         </div>
@@ -90,14 +89,14 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     <?php if ($backups === []): ?>
                         <tr>
                             <td colspan="4" class="text-center text-muted py-4">
-                                No database backups have been created.
+                                No SQL database backups have been created.
                             </td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($backups as $backup): ?>
                             <tr>
                                 <td class="text-break">
-                                    <i class="fa-solid fa-file-zipper text-primary me-2"></i>
+                                    <i class="fa-solid fa-file-code text-primary me-2"></i>
                                     <?= e($backup['filename']) ?>
                                 </td>
                                 <td class="text-nowrap"><?= e($backup['modified_at']) ?></td>
