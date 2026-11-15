@@ -93,7 +93,7 @@ class DatabaseBackupService
                     $this->writeRecord($handle, [
                         'record' => 'row',
                         'table' => $table,
-                        'data' => $row,
+                        'data' => $this->encodeRow($row),
                     ], $bytesWritten);
                 }
             }
@@ -195,6 +195,23 @@ class DatabaseBackupService
         }
 
         return $path;
+    }
+
+    /**
+     * Encode every non-NULL database value as base64 to preserve binary and
+     * non-UTF8 column contents exactly in the JSON backup stream.
+     */
+    private function encodeRow(array $row): array
+    {
+        $encoded = [];
+
+        foreach ($row as $column => $value) {
+            $encoded[$column] = $value === null
+                ? null
+                : ['base64' => base64_encode((string) $value)];
+        }
+
+        return $encoded;
     }
 
     private function writeRecord($handle, array $record, int &$bytesWritten): void
