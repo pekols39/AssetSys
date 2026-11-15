@@ -58,7 +58,8 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         </div>
         <div class="card-body">
             <p class="text-muted">
-                AssetSys exports table definitions, table records, and database triggers into a standard .sql file.
+                AssetSys exports base-table definitions, table records, and database triggers into a standard .sql file.
+                Views, stored procedures, stored functions, and scheduled events are not included.
             </p>
             <form method="post" action="<?= e(base_url('/public/administration/database_backup_process.php')) ?>">
                 <?= \App\Helpers\Csrf::field() ?>
