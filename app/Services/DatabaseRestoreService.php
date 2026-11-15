@@ -234,9 +234,7 @@ class DatabaseRestoreService
                     $buffer .= $char;
                 }
 
-                if (!$lineComment) {
-                    $buffer .= "\n";
-                }
+                $buffer .= "\n";
             }
 
             $remaining = trim($buffer);
