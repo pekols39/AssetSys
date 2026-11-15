@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 
-use App\\Core\\Auth;
-use App\\Core\\Database;
-use App\\Helpers\\Csrf;
-use App\\Middleware\\AuthMiddleware;
-use App\\Services\\AuditLogService;
-use App\\Services\\AuthorizationService;
-use App\\Services\\DatabaseBackupService;
+use App\Core\Auth;
+use App\Core\Database;
+use App\Helpers\Csrf;
+use App\Middleware\AuthMiddleware;
+use App\Services\AuditLogService;
+use App\Services\AuthorizationService;
+use App\Services\DatabaseBackupService;
 
 AuthMiddleware::handle();
 
