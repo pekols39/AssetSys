@@ -21,15 +21,10 @@ class DatabaseBackupService
     }
 
     /**
-     * Create a compressed, line-oriented JSON backup using PDO.
-     * The format is streamed so the complete database is not held in memory.
+     * Stream a plain SQL dump so large databases are not held in memory.
      */
     public function createBackup(): array
     {
-        if (!extension_loaded('zlib')) {
-            throw new RuntimeException('PHP zlib extension is required for database backups.');
-        }
-
         if (
             !is_dir($this->backupDirectory)
             && !mkdir($this->backupDirectory, 0700, true)
@@ -42,33 +37,29 @@ class DatabaseBackupService
             throw new RuntimeException('The backup directory is not writable.');
         }
 
-        $filename = 'assetsys-db-' . date('Ymd-His') . '-' . bin2hex(random_bytes(4)) . '.jsonl.gz';
+        $filename = 'assetsys-db-' . date('Ymd-His') . '-' . bin2hex(random_bytes(4)) . '.sql';
         $path = $this->backupDirectory . DIRECTORY_SEPARATOR . $filename;
-        $handle = gzopen($path, 'wb9');
+        $handle = fopen($path, 'xb');
 
         if ($handle === false) {
-            throw new RuntimeException('Unable to create the backup file.');
+            throw new RuntimeException('Unable to create the SQL backup file.');
         }
 
-        $bytesWritten = 0;
         $transactionStarted = false;
 
         try {
-            // Use one InnoDB consistent snapshot so concurrent row changes
-            // do not produce a mixed-time backup.
             $this->db->exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
             $this->db->exec('START TRANSACTION WITH CONSISTENT SNAPSHOT');
             $transactionStarted = true;
 
-            $this->writeRecord($handle, [
-                'record' => 'header',
-                'format' => 'assetsys-pdo-backup',
-                'format_version' => 1,
-                'database' => DB_DATABASE,
-                'created_at' => date(DATE_ATOM),
-                'php_version' => PHP_VERSION,
-                'server_version' => (string) $this->db->getAttribute(PDO::ATTR_SERVER_VERSION),
-            ], $bytesWritten);
+            $this->write($handle, "-- AssetSys database backup\n");
+            $this->write($handle, "-- Database: " . $this->safeComment((string) DB_DATABASE) . "\n");
+            $this->write($handle, "-- Generated: " . date(DATE_ATOM) . "\n");
+            $this->write($handle, "-- PHP: " . PHP_VERSION . "\n");
+            $this->write($handle, "-- MySQL/MariaDB: " . $this->safeComment((string) $this->db->getAttribute(PDO::ATTR_SERVER_VERSION)) . "\n\n");
+            $this->write($handle, "SET NAMES utf8mb4;\n");
+            $this->write($handle, "SET FOREIGN_KEY_CHECKS=0;\n");
+            $this->write($handle, "SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';\n\n");
 
             $tables = $this->db->query(
                 "SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'"
@@ -88,21 +79,59 @@ class DatabaseBackupService
                     throw new RuntimeException('Unable to read table definition: ' . $table);
                 }
 
-                $this->writeRecord($handle, [
-                    'record' => 'table',
-                    'name' => $table,
-                    'create_sql' => $create['Create Table'],
-                ], $bytesWritten);
+                $this->write($handle, "-- --------------------------------------------------------\n");
+                $this->write($handle, "-- Table structure for " . $this->safeComment($table) . "\n");
+                $this->write($handle, "-- --------------------------------------------------------\n");
+                $this->write($handle, "DROP TABLE IF EXISTS " . $quotedTable . ";\n");
+                $this->write($handle, $create['Create Table'] . ";\n\n");
+
+                $columns = $this->db->query('SHOW FULL COLUMNS FROM ' . $quotedTable)
+                    ->fetchAll(PDO::FETCH_ASSOC);
+                $binaryColumns = [];
+
+                foreach ($columns as $column) {
+                    $type = strtolower((string) ($column['Type'] ?? ''));
+                    $name = (string) ($column['Field'] ?? '');
+
+                    if ($name !== '' && preg_match('/^(binary|varbinary|tinyblob|blob|mediumblob|longblob)/', $type)) {
+                        $binaryColumns[$name] = true;
+                    }
+                }
 
                 $select = $this->db->query('SELECT * FROM ' . $quotedTable);
+                $columnNames = array_map(
+                    fn (array $column): string => $this->quoteIdentifier((string) $column['Field']),
+                    $columns
+                );
 
                 while ($row = $select->fetch(PDO::FETCH_ASSOC)) {
-                    $this->writeRecord($handle, [
-                        'record' => 'row',
-                        'table' => $table,
-                        'data' => $this->encodeRow($row),
-                    ], $bytesWritten);
+                    $values = [];
+
+                    foreach ($row as $column => $value) {
+                        if ($value === null) {
+                            $values[] = 'NULL';
+                        } elseif (isset($binaryColumns[$column])) {
+                            $values[] = '0x' . bin2hex((string) $value);
+                        } else {
+                            $quotedValue = $this->db->quote((string) $value);
+
+                            if ($quotedValue === false) {
+                                throw new RuntimeException('Unable to encode a value in table: ' . $table);
+                            }
+
+                            $values[] = $quotedValue;
+                        }
+                    }
+
+                    $this->write(
+                        $handle,
+                        'INSERT INTO ' . $quotedTable
+                        . ' (' . implode(', ', $columnNames) . ') VALUES ('
+                        . implode(', ', $values) . ");\n"
+                    );
                 }
+
+                $this->write($handle, "\n");
             }
 
             $triggers = $this->db->query('SHOW TRIGGERS')->fetchAll(PDO::FETCH_ASSOC);
@@ -114,25 +143,30 @@ class DatabaseBackupService
                     continue;
                 }
 
-                $quotedTrigger = $this->quoteIdentifier($triggerName);
-                $definition = $this->db->query('SHOW CREATE TRIGGER ' . $quotedTrigger)->fetch(PDO::FETCH_ASSOC);
+                $definition = $this->db->query(
+                    'SHOW CREATE TRIGGER ' . $this->quoteIdentifier($triggerName)
+                )->fetch(PDO::FETCH_ASSOC);
                 $createSql = $definition['SQL Original Statement'] ?? null;
 
                 if (!is_string($createSql) || trim($createSql) === '') {
                     throw new RuntimeException('Unable to read trigger definition: ' . $triggerName);
                 }
 
-                $this->writeRecord($handle, [
-                    'record' => 'trigger',
-                    'name' => $triggerName,
-                    'create_sql' => $createSql,
-                ], $bytesWritten);
+                $this->write($handle, "-- Trigger: " . $this->safeComment($triggerName) . "\n");
+                $this->write($handle, "DROP TRIGGER IF EXISTS " . $this->quoteIdentifier($triggerName) . ";\n");
+                $this->write($handle, "DELIMITER $$\n");
+                $this->write($handle, rtrim($createSql, ";\r\n") . "$$\n");
+                $this->write($handle, "DELIMITER ;\n\n");
             }
 
-            $this->writeRecord($handle, ['record' => 'end'], $bytesWritten);
+            $this->write($handle, "SET FOREIGN_KEY_CHECKS=1;\n");
 
-            if (!gzclose($handle)) {
-                throw new RuntimeException('Unable to finalize the compressed backup.');
+            if (!fflush($handle)) {
+                throw new RuntimeException('Unable to flush the SQL backup file.');
+            }
+
+            if (!fclose($handle)) {
+                throw new RuntimeException('Unable to finalize the SQL backup file.');
             }
 
             $handle = null;
@@ -144,7 +178,7 @@ class DatabaseBackupService
             }
 
             if (is_resource($handle)) {
-                gzclose($handle);
+                fclose($handle);
             }
 
             if (is_file($path)) {
@@ -164,9 +198,6 @@ class DatabaseBackupService
         ];
     }
 
-    /**
-     * Return backup metadata without exposing filesystem paths.
-     */
     public function getBackups(): array
     {
         if (!is_dir($this->backupDirectory)) {
@@ -175,7 +206,7 @@ class DatabaseBackupService
 
         $items = [];
 
-        foreach (glob($this->backupDirectory . DIRECTORY_SEPARATOR . 'assetsys-db-*.jsonl.gz') ?: [] as $path) {
+        foreach (glob($this->backupDirectory . DIRECTORY_SEPARATOR . 'assetsys-db-*.sql') ?: [] as $path) {
             if (!is_file($path) || is_link($path)) {
                 continue;
             }
@@ -192,12 +223,9 @@ class DatabaseBackupService
         return $items;
     }
 
-    /**
-     * Resolve only generated backup filenames inside the protected directory.
-     */
     public function resolveBackup(string $filename): string
     {
-        if (!preg_match('/\Aassetsys-db-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}\.jsonl\.gz\z/', $filename)) {
+        if (!preg_match('/\Aassetsys-db-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}\.sql\z/', $filename)) {
             throw new RuntimeException('Invalid backup filename.');
         }
 
@@ -210,41 +238,30 @@ class DatabaseBackupService
         return $path;
     }
 
-    /**
-     * Encode every non-NULL database value as base64 to preserve binary and
-     * non-UTF8 column contents exactly in the JSON backup stream.
-     */
-    private function encodeRow(array $row): array
+    private function write($handle, string $content): void
     {
-        $encoded = [];
+        $length = strlen($content);
+        $offset = 0;
 
-        foreach ($row as $column => $value) {
-            $encoded[$column] = $value === null
-                ? null
-                : ['base64' => base64_encode((string) $value)];
+        while ($offset < $length) {
+            $written = fwrite($handle, substr($content, $offset));
+
+            if ($written === false || $written === 0) {
+                throw new RuntimeException('A SQL backup record could not be written.');
+            }
+
+            $offset += $written;
         }
-
-        return $encoded;
-    }
-
-    private function writeRecord($handle, array $record, int &$bytesWritten): void
-    {
-        $json = json_encode(
-            $record,
-            JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE
-        );
-
-        $written = gzwrite($handle, $json . "\n");
-
-        if ($written === false) {
-            throw new RuntimeException('A backup record could not be written.');
-        }
-
-        $bytesWritten += $written;
     }
 
     private function quoteIdentifier(string $identifier): string
     {
-        return '`' . str_replace('`', '``', $identifier) . '`';
+        $tick = chr(96);
+        return $tick . str_replace($tick, $tick . $tick, $identifier) . $tick;
+    }
+
+    private function safeComment(string $value): string
+    {
+        return str_replace(["\r", "\n", "\0"], ' ', $value);
     }
 }
