@@ -182,8 +182,8 @@ class DatabaseBackupService
 
                 $this->write($handle, "-- Trigger: " . $this->safeComment($triggerName) . "\n");
                 $this->write($handle, "DROP TRIGGER IF EXISTS " . $this->quoteIdentifier($triggerName) . ";\n");
-                $this->write($handle, "DELIMITER $\n");
-                $this->write($handle, rtrim($createSql, ";\r\n") . "$\n");
+                $this->write($handle, "DELIMITER $$\n");
+                $this->write($handle, rtrim($createSql, ";\r\n") . "$$\n");
                 $this->write($handle, "DELIMITER ;\n\n");
             }
 
