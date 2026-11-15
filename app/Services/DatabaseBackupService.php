@@ -172,10 +172,18 @@ class DatabaseBackupService
                     throw new RuntimeException('Unable to read trigger definition: ' . $triggerName);
                 }
 
+                // Omit the source server's DEFINER so the dump can be restored
+                // by the database account available on another environment.
+                $createSql = preg_replace(
+                    '/\s+DEFINER\s*=\s*(?:\x60[^\x60]*\x60@\x60[^\x60]*\x60|CURRENT_USER(?:\(\))?)/i',
+                    '',
+                    $createSql
+                ) ?? $createSql;
+
                 $this->write($handle, "-- Trigger: " . $this->safeComment($triggerName) . "\n");
                 $this->write($handle, "DROP TRIGGER IF EXISTS " . $this->quoteIdentifier($triggerName) . ";\n");
-                $this->write($handle, "DELIMITER $$\n");
-                $this->write($handle, rtrim($createSql, ";\r\n") . "$$\n");
+                $this->write($handle, "DELIMITER $\n");
+                $this->write($handle, rtrim($createSql, ";\r\n") . "$\n");
                 $this->write($handle, "DELIMITER ;\n\n");
             }
 
