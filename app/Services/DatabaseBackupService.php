@@ -96,7 +96,7 @@ class DatabaseBackupService
                 }
 
                 $tableDefinition = implode("\n", $tableDefinitionLines);
-                $tableDefinition = preg_replace('/,\s*\)\s*$/', "\n)", $tableDefinition) ?? $tableDefinition;
+                $tableDefinition = preg_replace('/,(\s*\))/u', '$1', $tableDefinition) ?? $tableDefinition;
 
                 $this->write($handle, "-- --------------------------------------------------------\n");
                 $this->write($handle, "-- Table structure for " . $this->safeComment($table) . "\n");
