@@ -58,6 +58,14 @@ $isAdministrationSettings = str_ends_with(
     '/administration/settings.php'
 );
 
+$isAdministrationDatabaseBackups = str_contains(
+    $currentPath,
+    '/administration/database_backup'
+) || str_ends_with(
+    $currentPath,
+    '/administration/database_backups.php'
+);
+
 $isAdministrationAuditTrail =
     str_ends_with($currentPath, '/administration/audit_trail.php')
     || str_ends_with($currentPath, '/administration/audit_log_details.php');
@@ -350,6 +358,17 @@ $isAdministrationAuditTrail =
 
                     <span class="app-sidebar-link-text">
                         Audit Trail
+                    </span>
+                </a>
+
+                <a href="<?= e(base_url('/public/administration/database_backups.php')) ?>"
+                    class="app-sidebar-link <?= $isAdministrationDatabaseBackups ? 'active' : '' ?>">
+                    <span class="app-sidebar-link-icon">
+                        <i class="fa-solid fa-database"></i>
+                    </span>
+
+                    <span class="app-sidebar-link-text">
+                        Database Backup
                     </span>
                 </a>
 
