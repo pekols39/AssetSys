@@ -138,7 +138,8 @@ class DatabaseRestoreService
 
         try {
             while (($line = fgets($handle)) !== false) {
-                if ($buffer === '' && preg_match('/^\s*DELIMITER\s+(\S+)\s*$/i', rtrim($line, "\r\n"), $match)) {
+                if (trim($buffer) === '' && preg_match('/^\s*DELIMITER\s+(\S+)\s*$/i', rtrim($line, "\r\n"), $match)) {
+                    $buffer = '';
                     $delimiter = $match[1];
                     continue;
                 }
