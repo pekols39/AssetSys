@@ -112,10 +112,8 @@ class DatabaseRestoreService
             throw new RuntimeException('This file is not an AssetSys-generated SQL backup.');
         }
 
-        $expectedDatabaseLine = '-- Database: ' . DB_DATABASE;
-
-        if (trim((string) $databaseLine) !== $expectedDatabaseLine) {
-            throw new RuntimeException('The selected backup belongs to a different database configuration.');
+        if (!is_string($databaseLine) || !preg_match('/\A-- Database: [A-Za-z0-9_$-]+\s*\z/', $databaseLine)) {
+            throw new RuntimeException('The SQL backup database header is invalid.');
         }
     }
 
