@@ -93,21 +93,41 @@ class DatabaseBackupService
                     $type = strtolower((string) ($column['Type'] ?? ''));
                     $name = (string) ($column['Field'] ?? '');
 
-                    if ($name !== '' && preg_match('/^(binary|varbinary|tinyblob|blob|mediumblob|longblob)/', $type)) {
+                    if ($name !== '' && preg_match('/^(binary|varbinary|bit|tinyblob|blob|mediumblob|longblob|geometry|point|linestring|polygon|multipoint|multilinestring|multipolygon|geometrycollection)\\b/', $type)) {
                         $binaryColumns[$name] = true;
+                    }
+                }
+
+                $insertableColumns = [];
+
+                foreach ($columns as $column) {
+                    $columnName = (string) ($column['Field'] ?? '');
+                    $extra = strtoupper((string) ($column['Extra'] ?? ''));
+
+                    if (
+                        $columnName !== ''
+                        && !str_contains($extra, 'VIRTUAL GENERATED')
+                        && !str_contains($extra, 'STORED GENERATED')
+                        && !str_contains($extra, 'INVISIBLE')
+                    ) {
+                        $insertableColumns[$columnName] = true;
                     }
                 }
 
                 $select = $this->db->query('SELECT * FROM ' . $quotedTable);
                 $columnNames = array_map(
-                    fn (array $column): string => $this->quoteIdentifier((string) $column['Field']),
-                    $columns
+                    fn (string $column): string => $this->quoteIdentifier($column),
+                    array_keys($insertableColumns)
                 );
 
                 while ($row = $select->fetch(PDO::FETCH_ASSOC)) {
                     $values = [];
 
                     foreach ($row as $column => $value) {
+                        if (!isset($insertableColumns[$column])) {
+                            continue;
+                        }
+
                         if ($value === null) {
                             $values[] = 'NULL';
                         } elseif (isset($binaryColumns[$column])) {
