@@ -222,7 +222,7 @@ try {
         }
     }
 
-    $db = \\App\\Core\\Database::connection();
+    $db = \App\Core\Database::connection();
     $db->beginTransaction();
 
     foreach ($validatedSettings as $key => $value) {
@@ -256,7 +256,7 @@ try {
 
     $db->commit();
 } catch (Throwable $exception) {
-    if (isset($db) && $db instanceof \\PDO && $db->inTransaction()) {
+    if (isset($db) && $db instanceof \PDO && $db->inTransaction()) {
         $db->rollBack();
     }
 
