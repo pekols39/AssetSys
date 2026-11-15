@@ -6,6 +6,7 @@ use App\Core\Auth;
 use App\Helpers\Csrf;
 use App\Models\Setting;
 use App\Middleware\AuthMiddleware;
+use App\Services\AuditLogService;
 
 require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 
@@ -183,7 +184,7 @@ foreach ($submittedSettings as $key => $rawValue) {
 
 /*
 |--------------------------------------------------------------------------
-| Save validated settings
+| Save validated settings and audit the change
 |--------------------------------------------------------------------------
 */
 
@@ -196,6 +197,34 @@ try {
         exit;
     }
 
+    // Record only changed, non-sensitive configuration values.
+    // Secret-bearing setting values must never enter the audit log.
+    $sensitiveSettingKey = static function (string $key): bool {
+        return preg_match(
+            '/password|token|secret|credential|api.?key|private|smtp|mail_/i',
+            $key
+        ) === 1;
+    };
+
+    $oldAuditValues = [];
+    $newAuditValues = [];
+
+    foreach ($validatedSettings as $key => $value) {
+        $oldValue = (string) ($settingsByKey[$key]['setting_value'] ?? '');
+
+        if ($oldValue === $value) {
+            continue;
+        }
+
+        if (!$sensitiveSettingKey($key)) {
+            $oldAuditValues[$key] = $oldValue;
+            $newAuditValues[$key] = $value;
+        }
+    }
+
+    $db = \\App\\Core\\Database::connection();
+    $db->beginTransaction();
+
     foreach ($validatedSettings as $key => $value) {
         $settingModel->updateEditable(
             $key,
@@ -203,7 +232,34 @@ try {
             $userId
         );
     }
+
+    $changedCount = 0;
+    foreach ($validatedSettings as $key => $value) {
+        if ((string) ($settingsByKey[$key]['setting_value'] ?? '') !== $value) {
+            $changedCount++;
+        }
+    }
+
+    if ($changedCount > 0) {
+        (new AuditLogService())->log(
+            action: 'update_application_settings',
+            module: 'administration',
+            entityType: 'settings',
+            description: 'Administrator updated application settings.',
+            oldValues: $oldAuditValues,
+            newValues: array_merge(
+                $newAuditValues,
+                ['changed_setting_count' => $changedCount]
+            )
+        );
+    }
+
+    $db->commit();
 } catch (Throwable $exception) {
+    if (isset($db) && $db instanceof \\PDO && $db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log(
         'AssetSys settings update failed: '
         . $exception->getMessage()
