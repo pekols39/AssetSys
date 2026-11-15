@@ -79,7 +79,6 @@ try {
             result: 'failure',
             newValues: [
                 'filename' => $filename,
-                'error' => $e->getMessage(),
             ]
         );
     } catch (Throwable $auditError) {
