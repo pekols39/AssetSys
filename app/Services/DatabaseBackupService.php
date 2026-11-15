@@ -51,8 +51,15 @@ class DatabaseBackupService
         }
 
         $bytesWritten = 0;
+        $transactionStarted = false;
 
         try {
+            // Use one InnoDB consistent snapshot so concurrent row changes
+            // do not produce a mixed-time backup.
+            $this->db->exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+            $this->db->exec('START TRANSACTION WITH CONSISTENT SNAPSHOT');
+            $transactionStarted = true;
+
             $this->writeRecord($handle, [
                 'record' => 'header',
                 'format' => 'assetsys-pdo-backup',
@@ -129,7 +136,13 @@ class DatabaseBackupService
             }
 
             $handle = null;
+            $this->db->commit();
+            $transactionStarted = false;
         } catch (Throwable $e) {
+            if ($transactionStarted && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
             if (is_resource($handle)) {
                 gzclose($handle);
             }
