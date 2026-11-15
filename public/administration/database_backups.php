@@ -63,7 +63,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     <div class="alert alert-warning">
         <i class="fa-solid fa-triangle-exclamation me-2"></i>
         SQL backups contain sensitive company and user information. Store downloaded copies securely.
-        Importing a dump can replace tables with the versions in that backup. Database restoration is not enabled in AssetSys yet.
+        Restoring a dump replaces the current tables and records. AssetSys creates a safety backup before starting a restore.
     </div>
 
     <div class="card border-0 shadow-sm mb-4">
