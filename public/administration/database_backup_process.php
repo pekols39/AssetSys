@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 
-use App\Core\Auth;
-use App\Core\Database;
 use App\Helpers\Csrf;
 use App\Middleware\AuthMiddleware;
 use App\Services\AuditLogService;
@@ -40,7 +38,7 @@ try {
             action: 'create_database_backup',
             module: 'administration',
             entityType: 'database_backup',
-            description: 'Created a compressed database backup.',
+            description: 'Created a SQL database backup.',
             newValues: [
                 'filename' => $backup['filename'],
                 'size_bytes' => $backup['size'],
@@ -60,7 +58,7 @@ try {
             action: 'create_database_backup',
             module: 'administration',
             entityType: 'database_backup',
-            description: 'Database backup creation failed.',
+            description: 'SQL database backup creation failed.',
             result: 'failure'
         );
     } catch (Throwable $auditError) {
