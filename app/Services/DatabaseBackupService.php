@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\\Services;
+namespace App\Services;
 
-use App\\Core\\Database;
+use App\Core\Database;
 use PDO;
 use RuntimeException;
 use Throwable;
@@ -184,7 +184,7 @@ class DatabaseBackupService
      */
     public function resolveBackup(string $filename): string
     {
-        if (!preg_match('/\\Aassetsys-db-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}\\.jsonl\\.gz\\z/', $filename)) {
+        if (!preg_match('/\Aassetsys-db-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}\.jsonl\.gz\z/', $filename)) {
             throw new RuntimeException('Invalid backup filename.');
         }
 
@@ -221,7 +221,7 @@ class DatabaseBackupService
             JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE
         );
 
-        $written = gzwrite($handle, $json . "\\n");
+        $written = gzwrite($handle, $json . "\n");
 
         if ($written === false) {
             throw new RuntimeException('A backup record could not be written.');
