@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 
-use App\\Core\\Auth;
-use App\\Middleware\\AuthMiddleware;
-use App\\Services\\AuthorizationService;
-use App\\Services\\DatabaseBackupService;
+use App\Core\Auth;
+use App\Middleware\AuthMiddleware;
+use App\Services\AuthorizationService;
+use App\Services\DatabaseBackupService;
 
 AuthMiddleware::handle();
 
@@ -62,7 +62,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                 AssetSys exports database table definitions, table records, and database triggers into a compressed file.
             </p>
             <form method="post" action="<?= e(base_url('/public/administration/database_backup_process.php')) ?>">
-                <?= \\App\\Helpers\\Csrf::field() ?>
+                <?= \App\Helpers\Csrf::field() ?>
                 <button type="submit" class="btn btn-primary">
                     <i class="fa-solid fa-database me-1"></i>
                     Create Database Backup
