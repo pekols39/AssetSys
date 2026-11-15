@@ -267,6 +267,7 @@ class DatabaseRestoreService
             || preg_match('/\ASET\s+SQL_MODE\s*=\s*\'(?:[A-Z0-9_, -]*)\'\z/i', $statement)
             || preg_match('/\ADROP\s+TABLE\s+IF\s+EXISTS\s+' . $quotedIdentifier . '\z/i', $statement)
             || preg_match('/\ACREATE\s+TABLE\s+' . $quotedIdentifier . '\s*\(/i', $statement)
+            || preg_match('/\AALTER\s+TABLE\s+' . $quotedIdentifier . '\s+ADD\s+CONSTRAINT\s+' . $quotedIdentifier . '\s+FOREIGN\s+KEY\s*\(.+\)\s+REFERENCES\s+' . $quotedIdentifier . '\s*\(.+\)(?:\s+ON\s+DELETE\s+(?:RESTRICT|CASCADE|SET\s+NULL|NO\s+ACTION))?(?:\s+ON\s+UPDATE\s+(?:RESTRICT|CASCADE|SET\s+NULL|NO\s+ACTION))?\z/is', $statement)
             || preg_match('/\AINSERT\s+INTO\s+' . $quotedIdentifier . '\s*\(.*\)\s+VALUES\s*\(/is', $statement)
             || preg_match('/\ADROP\s+TRIGGER\s+IF\s+EXISTS\s+' . $quotedIdentifier . '\z/i', $statement)
             || preg_match('/\ACREATE\s+TRIGGER\b/i', $statement);
