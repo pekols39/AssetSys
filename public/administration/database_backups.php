@@ -46,6 +46,20 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         </div>
     <?php endif; ?>
 
+    <?php if (isset($_GET['restored'])): ?>
+        <div class="alert alert-success" role="alert">
+            Database restore completed. A safety backup was created:
+            <strong><?= e($_GET['safety'] ?? 'See backup list') ?></strong>
+        </div>
+    <?php endif; ?>
+
+    <?php if (isset($_GET['restore_error'])): ?>
+        <div class="alert alert-danger" role="alert">
+            Database restore failed or was stopped. The database may be partially restored.
+            Check the application error log and use the safety backup if recovery is required.
+        </div>
+    <?php endif; ?>
+
     <div class="alert alert-warning">
         <i class="fa-solid fa-triangle-exclamation me-2"></i>
         SQL backups contain sensitive company and user information. Store downloaded copies securely.
@@ -83,7 +97,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                             <th>Backup File</th>
                             <th>Created</th>
                             <th>File Size</th>
-                            <th class="text-end">Action</th>
+                            <th class="text-end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -102,11 +116,16 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                 </td>
                                 <td class="text-nowrap"><?= e($backup['modified_at']) ?></td>
                                 <td><?= number_format($backup['size'] / 1048576, 2) ?> MB</td>
-                                <td class="text-end">
+                                <td class="text-end text-nowrap">
                                     <a class="btn btn-sm btn-outline-primary"
                                        href="<?= e(base_url('/public/administration/database_backup_download.php?file=' . rawurlencode($backup['filename']))) ?>">
                                         <i class="fa-solid fa-download me-1"></i>
                                         Download
+                                    </a>
+                                    <a class="btn btn-sm btn-outline-danger ms-1"
+                                       href="<?= e(base_url('/public/administration/database_restore_confirm.php?file=' . rawurlencode($backup['filename']))) ?>">
+                                        <i class="fa-solid fa-rotate-left me-1"></i>
+                                        Restore
                                     </a>
                                 </td>
                             </tr>
