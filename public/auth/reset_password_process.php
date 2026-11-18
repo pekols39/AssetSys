@@ -270,24 +270,6 @@ try {
     $rememberMeService = new RememberMeService();
     $rememberMeService->clearAllTokensForUser($userId);
 
-    // Invalidate existing authenticated sessions for this account.
-    $stmt = $db->prepare(
-        'UPDATE users
-     SET session_version = session_version + 1
-     WHERE id = :user_id
-     LIMIT 1'
-    );
-
-    $stmt->execute([
-        'user_id' => $userId,
-    ]);
-
-    if ($stmt->rowCount() !== 1) {
-        throw new RuntimeException(
-            'Could not invalidate existing user sessions.'
-        );
-    }
-
     $db->commit();
 
     logPasswordResetEvent(
