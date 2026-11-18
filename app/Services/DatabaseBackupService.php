@@ -45,6 +45,15 @@ class DatabaseBackupService
             throw new RuntimeException('Unable to create the SQL backup file.');
         }
 
+        // SQL dumps contain sensitive company and user data. Restrict new
+        // backup files to the process owner wherever filesystem permissions
+        // are supported (for example, Linux production hosting).
+        if (!chmod($path, 0600)) {
+            fclose($handle);
+            @unlink($path);
+            throw new RuntimeException('Unable to secure the SQL backup file permissions.');
+        }
+
         $transactionStarted = false;
 
         try {
