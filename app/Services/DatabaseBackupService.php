@@ -234,6 +234,33 @@ class DatabaseBackupService
             }
 
             $handle = null;
+
+            $hmac = hash_hmac_file('sha256', $path, $this->getBackupHmacKey());
+
+            if (!is_string($hmac)) {
+                throw new RuntimeException('Unable to calculate the SQL backup integrity signature.');
+            }
+
+            $signatureHandle = fopen($path, 'ab');
+
+            if ($signatureHandle === false) {
+                throw new RuntimeException('Unable to append the SQL backup integrity signature.');
+            }
+
+            try {
+                $this->write($signatureHandle, "-- AssetSys HMAC-SHA256: " . $hmac . "\n");
+
+                if (!fflush($signatureHandle)) {
+                    throw new RuntimeException('Unable to flush the SQL backup integrity signature.');
+                }
+            } finally {
+                fclose($signatureHandle);
+            }
+
+            if (!chmod($path, 0600)) {
+                throw new RuntimeException('Unable to secure the signed SQL backup file permissions.');
+            }
+
             $this->db->commit();
             $transactionStarted = false;
         } catch (Throwable $e) {
@@ -260,6 +287,79 @@ class DatabaseBackupService
             'size' => (int) filesize($path),
             'created_at' => date(DATE_ATOM),
         ];
+    }
+
+    /**
+     * Verify the HMAC footer before a backup is considered safe to restore.
+     * The SQL body is hashed as a stream to avoid loading large dumps into memory.
+     */
+    public function verifyBackupIntegrity(string $path): void
+    {
+        $key = $this->getBackupHmacKey();
+        $size = filesize($path);
+
+        if (!is_int($size) || $size < 80) {
+            throw new RuntimeException('The SQL backup is too small or unreadable.');
+        }
+
+        $handle = fopen($path, 'rb');
+
+        if ($handle === false) {
+            throw new RuntimeException('Unable to read the selected SQL backup.');
+        }
+
+        try {
+            $tailLength = min(256, $size);
+            if (fseek($handle, -$tailLength, SEEK_END) !== 0) {
+                throw new RuntimeException('Unable to inspect the SQL backup integrity signature.');
+            }
+
+            $tail = stream_get_contents($handle);
+
+            if (!is_string($tail) || !preg_match('/\\n-- AssetSys HMAC-SHA256: ([a-f0-9]{64})\\r?\\n?\\z/i', $tail, $match, PREG_OFFSET_CAPTURE)) {
+                throw new RuntimeException('This backup is unsigned or its integrity signature is missing.');
+            }
+
+            $footerOffset = ($size - $tailLength) + $match[0][1] + 1;
+            $expected = strtolower($match[1][0]);
+
+            if ($footerOffset <= 0 || fseek($handle, 0, SEEK_SET) !== 0) {
+                throw new RuntimeException('The SQL backup integrity signature is invalid.');
+            }
+
+            $context = hash_init('sha256', HASH_HMAC, $key);
+            $remaining = $footerOffset;
+
+            while ($remaining > 0) {
+                $chunk = fread($handle, min(1024 * 1024, $remaining));
+
+                if ($chunk === false || $chunk === '') {
+                    throw new RuntimeException('Unable to read the complete SQL backup for integrity verification.');
+                }
+
+                hash_update($context, $chunk);
+                $remaining -= strlen($chunk);
+            }
+
+            $actual = hash_final($context);
+
+            if (!hash_equals($expected, $actual)) {
+                throw new RuntimeException('The SQL backup integrity check failed. The file may be corrupted or modified.');
+            }
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    private function getBackupHmacKey(): string
+    {
+        $key = defined('BACKUP_HMAC_KEY') ? BACKUP_HMAC_KEY : '';
+
+        if (!is_string($key) || !preg_match('/\\A[a-f0-9]{64}\\z/i', $key)) {
+            throw new RuntimeException('Database backup signing is not configured. Set BACKUP_HMAC_KEY to a 64-character hexadecimal secret.');
+        }
+
+        return hex2bin($key) ?: throw new RuntimeException('The database backup signing key is invalid.');
     }
 
     public function getBackups(): array
