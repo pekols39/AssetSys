@@ -275,7 +275,7 @@ class AdministrationUserService
             $this->db->commit();
 
             return true;
-        } catch (\\Throwable $e) {
+        } catch (\Throwable $e) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
             }
