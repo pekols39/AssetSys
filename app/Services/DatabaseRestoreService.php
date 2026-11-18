@@ -95,6 +95,8 @@ class DatabaseRestoreService
 
     private function validateBackup(string $path): void
     {
+        $this->backupService->verifyBackupIntegrity($path);
+
         $handle = fopen($path, 'rb');
 
         if ($handle === false) {
