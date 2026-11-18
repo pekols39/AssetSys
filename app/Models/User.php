@@ -165,7 +165,8 @@ class User
              password_changed_at = NOW(),
              must_change_password = 0,
              failed_attempts = 0,
-             locked_until = NULL
+             locked_until = NULL,
+             session_version = session_version + 1
          WHERE id = :id
          LIMIT 1'
         );
