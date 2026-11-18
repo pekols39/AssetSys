@@ -136,72 +136,123 @@ class AdministrationUserService
      */
     public function update(int $userId, array $data): bool
     {
-        // Capture the existing account values before updating.
-        // This is an internal lookup, so it does not create a separate view audit log.
-        $existing = null;
+        $this->db->beginTransaction();
 
-        $existingStmt = $this->db->prepare(
-            'SELECT employee_number, first_name, middle_name, last_name,
-                username, email, role_id, department_id, position,
-                account_status, is_active, must_change_password
-         FROM users
-         WHERE id = :user_id
-         LIMIT 1'
-        );
+        try {
+            // Lock the account row so concurrent administrator updates cannot
+            // compare against stale security-sensitive account values.
+            $existingStmt = $this->db->prepare(
+                'SELECT employee_number, first_name, middle_name, last_name,
+                    username, email, role_id, department_id, position,
+                    account_status, is_active, must_change_password
+                 FROM users
+                 WHERE id = :user_id
+                 LIMIT 1
+                 FOR UPDATE'
+            );
 
-        $existingStmt->execute([
-            'user_id' => $userId,
-        ]);
+            $existingStmt->execute([
+                'user_id' => $userId,
+            ]);
 
-        $existing = $existingStmt->fetch(PDO::FETCH_ASSOC);
+            $existing = $existingStmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($existing === false) {
-            $existing = null;
-        }
+            if ($existing === false) {
+                $this->db->rollBack();
+                return false;
+            }
 
-        // Keep the existing account update query and parameter mapping.
-        $stmt = $this->db->prepare(
-            'UPDATE users
-         SET employee_number = :employee_number,
-             first_name = :first_name,
-             middle_name = :middle_name,
-             last_name = :last_name,
-             username = :username,
-             email = :email,
-             role_id = :role_id,
-             department_id = :department_id,
-             position = :position,
-             account_status = :account_status,
-             is_active = :is_active,
-             must_change_password = :must_change_password
-         WHERE id = :user_id'
-        );
+            // Changes to identity, role, department, account state, or the
+            // forced-password-change flag require a fresh authenticated session.
+            $securitySensitiveFields = [
+                'username',
+                'email',
+                'role_id',
+                'department_id',
+                'account_status',
+                'is_active',
+                'must_change_password',
+            ];
 
-        $stmt->execute([
-            'employee_number' => $data['employee_number'],
-            'first_name' => $data['first_name'],
-            'middle_name' => $data['middle_name'] ?? null,
-            'last_name' => $data['last_name'],
-            'username' => $data['username'],
-            'email' => $data['email'],
-            'role_id' => $data['role_id'],
-            'department_id' => $data['department_id'] ?? null,
-            'position' => $data['position'] ?? null,
-            'account_status' => $data['account_status'],
-            'is_active' => $data['is_active'],
-            'must_change_password' => $data['must_change_password'] ?? 0,
-            'user_id' => $userId,
-        ]);
+            $invalidateSessions = false;
 
-        $success = $stmt->rowCount() > 0;
+            foreach ($securitySensitiveFields as $field) {
+                $oldValue = $existing[$field] ?? null;
+                $newValue = $data[$field] ?? null;
 
-        if ($success) {
+                if ((string) ($oldValue ?? '') !== (string) ($newValue ?? '')) {
+                    $invalidateSessions = true;
+                    break;
+                }
+            }
+
+            $sessionVersionUpdate = $invalidateSessions
+                ? ', session_version = session_version + 1'
+                : '';
+
+            $stmt = $this->db->prepare(
+                'UPDATE users
+                 SET employee_number = :employee_number,
+                     first_name = :first_name,
+                     middle_name = :middle_name,
+                     last_name = :last_name,
+                     username = :username,
+                     email = :email,
+                     role_id = :role_id,
+                     department_id = :department_id,
+                     position = :position,
+                     account_status = :account_status,
+                     is_active = :is_active,
+                     must_change_password = :must_change_password'
+                     . $sessionVersionUpdate . '
+                 WHERE id = :user_id'
+            );
+
+            $stmt->execute([
+                'employee_number' => $data['employee_number'],
+                'first_name' => $data['first_name'],
+                'middle_name' => $data['middle_name'] ?? null,
+                'last_name' => $data['last_name'],
+                'username' => $data['username'],
+                'email' => $data['email'],
+                'role_id' => $data['role_id'],
+                'department_id' => $data['department_id'] ?? null,
+                'position' => $data['position'] ?? null,
+                'account_status' => $data['account_status'],
+                'is_active' => $data['is_active'],
+                'must_change_password' => $data['must_change_password'] ?? 0,
+                'user_id' => $userId,
+            ]);
+
+            $success = $stmt->rowCount() > 0;
+
+            if (!$success) {
+                $this->db->rollBack();
+                return false;
+            }
+
+            if ($invalidateSessions) {
+                // Revoke persistent Remember Me credentials as well as
+                // active sessions, so an old browser token cannot silently
+                // establish a new session after an access/identity change.
+                $rememberTokenStmt = $this->db->prepare(
+                    'DELETE FROM remember_tokens
+                     WHERE user_id = :user_id'
+                );
+
+                $rememberTokenStmt->execute([
+                    'user_id' => $userId,
+                ]);
+            }
+
             (new AuditLogService())->log(
                 action: 'update_user_account',
                 module: 'administration',
                 entityType: 'user',
                 entityId: $userId,
-                description: 'User account updated successfully.',
+                description: $invalidateSessions
+                    ? 'User account updated; existing sessions and Remember Me tokens were invalidated.'
+                    : 'User account updated successfully.',
                 oldValues: $existing,
                 newValues: [
                     'employee_number' => $data['employee_number'],
@@ -216,12 +267,23 @@ class AdministrationUserService
                     'account_status' => $data['account_status'],
                     'is_active' => $data['is_active'],
                     'must_change_password' => $data['must_change_password'] ?? 0,
+                    'sessions_invalidated' => $invalidateSessions,
+                    'remember_tokens_revoked' => $invalidateSessions,
                 ]
             );
-        }
 
-        return $success;
+            $this->db->commit();
+
+            return true;
+        } catch (\\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $e;
+        }
     }
+
     /**
      * Create an administrator-managed user account.
      *
