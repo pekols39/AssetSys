@@ -210,10 +210,39 @@ try {
         exit;
     }
 
-    Session::set(
-        'user.must_change_password',
-        0
+    // Keep the current authenticated session aligned with the
+    // incremented database session_version. Other sessions are
+    // invalidated by the version change in User::updatePassword().
+    $updatedUser = $userModel->findById(
+        (int) $user['user_id']
     );
+
+    if (!$updatedUser) {
+        Auth::logout();
+
+        header(
+            'Location: ' . base_url('/public/login.php')
+        );
+
+        exit;
+    }
+
+    $sessionUser = Session::get('user', []);
+
+    if (!is_array($sessionUser)) {
+        Auth::logout();
+
+        header(
+            'Location: ' . base_url('/public/login.php')
+        );
+
+        exit;
+    }
+
+    $sessionUser['must_change_password'] = 0;
+    $sessionUser['session_version'] = (int) $updatedUser['session_version'];
+
+    Session::set('user', $sessionUser);
 
     header(
         'Location: ' . base_url('/public/dashboard/')
