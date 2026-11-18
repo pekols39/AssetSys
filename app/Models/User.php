@@ -127,33 +127,105 @@ class User
         ]);
     }
 
-    public function incrementFailedAttempts(int $id): bool
-    {
-        $stmt = $this->db->prepare(
-            'UPDATE users
-             SET failed_attempts = failed_attempts + 1
-             WHERE id = :id
-             LIMIT 1'
-        );
+    /**
+     * Atomically record a failed login and apply the configured lockout.
+     *
+     * The user row is locked inside a transaction so concurrent failed
+     * login requests cannot calculate the threshold from stale counters.
+     *
+     * @return array{
+     *     failed_attempts:int,
+     *     locked:bool,
+     *     newly_locked:bool,
+     *     locked_until:?string
+     * }
+     */
+    public function recordFailedLoginAttempt(
+        int $id,
+        int $maxAttempts,
+        int $lockoutMinutes
+    ): array {
+        $maxAttempts = max(1, $maxAttempts);
+        $lockoutMinutes = max(1, $lockoutMinutes);
 
-        return $stmt->execute([
-            'id' => $id,
-        ]);
-    }
+        $this->db->beginTransaction();
 
-    public function lockUntil(int $id, string $lockedUntil): bool
-    {
-        $stmt = $this->db->prepare(
-            'UPDATE users
-             SET locked_until = :locked_until
-             WHERE id = :id
-             LIMIT 1'
-        );
+        try {
+            $stmt = $this->db->prepare(
+                'SELECT failed_attempts, locked_until
+                 FROM users
+                 WHERE id = :id
+                 LIMIT 1
+                 FOR UPDATE'
+            );
+            $stmt->execute(['id' => $id]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        return $stmt->execute([
-            'id' => $id,
-            'locked_until' => $lockedUntil,
-        ]);
+            if (!$user) {
+                throw new RuntimeException(
+                    'The account could not be found while recording a failed login.'
+                );
+            }
+
+            $now = time();
+            $lockedUntil = $user['locked_until'] ?? null;
+
+            if (
+                $lockedUntil !== null
+                && $lockedUntil !== ''
+                && strtotime((string) $lockedUntil) > $now
+            ) {
+                $this->db->commit();
+
+                return [
+                    'failed_attempts' => (int) $user['failed_attempts'],
+                    'locked' => true,
+                    'newly_locked' => false,
+                    'locked_until' => (string) $lockedUntil,
+                ];
+            }
+
+            // Start a fresh counter after a previous lockout has expired.
+            $currentAttempts = (
+                $lockedUntil !== null
+                && $lockedUntil !== ''
+                && strtotime((string) $lockedUntil) <= $now
+            ) ? 0 : (int) $user['failed_attempts'];
+
+            $failedAttempts = $currentAttempts + 1;
+            $newlyLocked = $failedAttempts >= $maxAttempts;
+            $newLockedUntil = $newlyLocked
+                ? date('Y-m-d H:i:s', $now + ($lockoutMinutes * 60))
+                : null;
+
+            $update = $this->db->prepare(
+                'UPDATE users
+                 SET failed_attempts = :failed_attempts,
+                     locked_until = :locked_until
+                 WHERE id = :id
+                 LIMIT 1'
+            );
+            $update->execute([
+                'failed_attempts' => $failedAttempts,
+                'locked_until' => $newLockedUntil,
+                'id' => $id,
+            ]);
+
+            $this->db->commit();
+
+            return [
+                'failed_attempts' => $failedAttempts,
+                'locked' => $newlyLocked,
+                'newly_locked' => $newlyLocked,
+                'locked_until' => $newLockedUntil,
+            ];
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $e;
+        }
     }
     public function updatePassword(
         int $id,
