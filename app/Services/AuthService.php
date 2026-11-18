@@ -159,9 +159,6 @@ class AuthService
                 (string) $user['password_hash']
             )
         ) {
-            $failedAttempts =
-                ((int) ($user['failed_attempts'] ?? 0)) + 1;
-
             $maxAttempts = max(
                 1,
                 $this->settingModel->getInt(
@@ -178,25 +175,27 @@ class AuthService
                 )
             );
 
-            if ($failedAttempts >= $maxAttempts) {
+            $attemptResult = $this->userModel->recordFailedLoginAttempt(
+                $userId,
+                $maxAttempts,
+                $lockoutMinutes
+            );
 
-                $lockedUntil = date(
-                    'Y-m-d H:i:s',
-                    time() + ($lockoutMinutes * 60)
-                );
+            $failedAttempts = $attemptResult['failed_attempts'];
+            $lockedUntil = $attemptResult['locked_until'];
 
-                $this->userModel->lockUntil(
-                    $userId,
-                    $lockedUntil
-                );
-
+            if ($attemptResult['locked']) {
                 $this->logAuthenticationEvent(
                     action: 'login_failed',
-                    description: 'Login failed and the account was temporarily locked after reaching the maximum failed attempts.',
+                    description: $attemptResult['newly_locked']
+                        ? 'Login failed and the account was temporarily locked after reaching the maximum failed attempts.'
+                        : 'Login failed because the account became temporarily locked while processing the request.',
                     result: 'failure',
                     actorUserId: $userId,
                     newValues: [
-                        'reason' => 'maximum_failed_attempts',
+                        'reason' => $attemptResult['newly_locked']
+                            ? 'maximum_failed_attempts'
+                            : 'account_locked',
                         'failed_attempts' => $failedAttempts,
                         'maximum_attempts' => $maxAttempts,
                         'locked_until' => $lockedUntil,
@@ -208,10 +207,6 @@ class AuthService
                     . 'Your account has been temporarily locked.'
                 );
             }
-
-            $this->userModel->incrementFailedAttempts(
-                $userId
-            );
 
             $this->logAuthenticationEvent(
                 action: 'login_failed',
