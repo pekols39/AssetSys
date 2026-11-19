@@ -33,6 +33,7 @@ define('DB_PORT', $_ENV['DB_PORT'] ?? '3306');
 define('DB_DATABASE', $_ENV['DB_DATABASE'] ?? 'assetsys');
 define('DB_USERNAME', $_ENV['DB_USERNAME'] ?? 'root');
 define('DB_PASSWORD', $_ENV['DB_PASSWORD'] ?? '');
+define('BACKUP_HMAC_KEY', trim((string) ($_ENV['BACKUP_HMAC_KEY'] ?? '')));
 
 define(
     'SESSION_NAME',
