@@ -47,6 +47,41 @@ class AssetQrCode
     }
 
     /**
+     * Find an active QR record by its ID and associated asset.
+     */
+    public function findActiveByIdForAsset(
+        int $qrCodeId,
+        int $assetId
+    ): array|false {
+        if ($qrCodeId <= 0 || $assetId <= 0) {
+            return false;
+        }
+
+        $stmt = $this->db->prepare(
+            'SELECT
+                id,
+                asset_id,
+                qr_token,
+                is_active,
+                created_by,
+                created_at,
+                updated_at
+             FROM asset_qr_codes
+             WHERE id = :id
+               AND asset_id = :asset_id
+               AND is_active = 1
+             LIMIT 1'
+        );
+
+        $stmt->execute([
+            'id' => $qrCodeId,
+            'asset_id' => $assetId,
+        ]);
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Find a QR record by its opaque token.
      *
      * Inactive tokens are not returned.

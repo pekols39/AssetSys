@@ -65,3 +65,13 @@ docker-compose.override.yml
 /tools/niimbot/printer.py.before-b1-fix
 /tools/niimbot/test-label.png
 /tools/niimbot/*.log
+/tools/niimbot/agent-config.json
+
+# NIIMBOT generated files
+__pycache__/
+*.py[cod]
+/tools/niimbot/test-qr.png
+/tools/niimbot/test-label-finance-ffe.png
+
+# Allow the NIIMBOT print-job migration
+!/database/migrations/2026_11_19_niimbot_print_jobs.sql
