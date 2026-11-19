@@ -34,6 +34,15 @@ define('DB_DATABASE', $_ENV['DB_DATABASE'] ?? 'assetsys');
 define('DB_USERNAME', $_ENV['DB_USERNAME'] ?? 'root');
 define('DB_PASSWORD', $_ENV['DB_PASSWORD'] ?? '');
 define('BACKUP_HMAC_KEY', trim((string) ($_ENV['BACKUP_HMAC_KEY'] ?? '')));
+define(
+    'NIIMBOT_AGENT_TOKEN_HASH',
+    strtolower(trim((string) ($_ENV['NIIMBOT_AGENT_TOKEN_HASH'] ?? '')))
+);
+
+define(
+    'NIIMBOT_AGENT_DEVICE_ID',
+    trim((string) ($_ENV['NIIMBOT_AGENT_DEVICE_ID'] ?? 'property-custodian-b1'))
+);
 
 define(
     'SESSION_NAME',

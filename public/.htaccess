@@ -2,6 +2,9 @@ Options -Indexes
 
 RewriteEngine On
 
+# Preserve the agent's Bearer token for PHP authentication.
+RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
 # Support existing application URLs containing /public/
 # when this directory is the web document root.
 RewriteRule ^public/(.*)$ $1 [L]
