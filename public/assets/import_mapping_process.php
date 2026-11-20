@@ -43,11 +43,28 @@ try {
     header('Location: ' . base_url('/public/assets/import_mapping.php?id=' . (int) $batchId . '&saved=1'));
     exit;
 } catch (RuntimeException $exception) {
-    http_response_code(422);
-    $message = htmlspecialchars($exception->getMessage(), ENT_QUOTES, 'UTF-8');
-    exit('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Mapping failed</title></head><body><h1>Mapping failed</h1><p>' . $message . '</p><p><a href="' . htmlspecialchars(base_url('/public/assets/import_mapping.php?id=' . (int) ($_POST['batch_id'] ?? 0)), ENT_QUOTES, 'UTF-8') . '">Return to mappings</a></p></body></html>');
+    \App\Core\Session::set('swal_flash', [
+        'icon' => 'error',
+        'title' => 'Mapping failed',
+        'text' => $exception->getMessage(),
+    ]);
+    $batchId = filter_var($_POST['batch_id'] ?? null, FILTER_VALIDATE_INT);
+    $target = ($batchId !== false && $batchId > 0)
+        ? '/public/assets/import_mapping.php?id=' . (int) $batchId
+        : '/public/assets/import_history.php';
+    header('Location: ' . base_url($target));
+    exit;
 } catch (Throwable $exception) {
     error_log('Asset inventory mapping failed: ' . $exception->getMessage());
-    http_response_code(500);
-    exit('Unable to save asset mappings. Check the application error log.');
+    \App\Core\Session::set('swal_flash', [
+        'icon' => 'error',
+        'title' => 'Mapping failed',
+        'text' => 'Unable to save asset mappings. Check the application error log.',
+    ]);
+    $batchId = filter_var($_POST['batch_id'] ?? null, FILTER_VALIDATE_INT);
+    $target = ($batchId !== false && $batchId > 0)
+        ? '/public/assets/import_mapping.php?id=' . (int) $batchId
+        : '/public/assets/import_history.php';
+    header('Location: ' . base_url($target));
+    exit;
 }
