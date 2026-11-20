@@ -388,10 +388,8 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                         <?php endforeach; ?>
                     </tbody>
 
-                    </table>
-                <div class="text-muted small mt-2">The table shows the 12 official inventory fields. Purchase Cost and Current Book Value above are separate AssetSys accounting/depreciation metrics.</div>
-                <tfoot>
                 </table>
+                <div class="text-muted small mt-2">The table shows the 12 official inventory fields. Purchase Cost and Current Book Value above are separate AssetSys accounting/depreciation metrics.</div>
             </div>
 
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mt-3">
