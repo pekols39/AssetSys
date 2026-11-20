@@ -82,8 +82,9 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         <div class="col-md-4"><label class="form-label" for="supplier_id">Linked Supplier Record</label><select class="form-select" id="supplier_id" name="supplier_id"><option value="">Not linked</option><?php foreach ($vendors as $vendor): ?><option value="<?= (int) $vendor['id'] ?>"><?= e($vendor['name']) ?></option><?php endforeach; ?></select></div>
         <div class="col-md-4"><label class="form-label" for="warranty_start">Warranty Start</label><input type="date" class="form-control" id="warranty_start" name="warranty_start"></div>
         <div class="col-md-4"><label class="form-label" for="warranty_end">Warranty End</label><input type="date" class="form-control" id="warranty_end" name="warranty_end"></div>
-        <div class="col-md-4"><label class="form-label" for="useful_life_years">Useful Life (Years)</label><input type="number" class="form-control" id="useful_life_years" name="useful_life_years" min="0.01" step="0.01"></div>
+        <div class="col-md-4"><label class="form-label" for="useful_life_years">Useful Life (Years) (optional)</label><input type="number" class="form-control" id="useful_life_years" name="useful_life_years" min="0.01" step="0.01"></div>
         <div class="col-md-4"><label class="form-label" for="salvage_value">Salvage Value</label><input type="number" class="form-control" id="salvage_value" name="salvage_value" min="0" step="0.01" value="0"></div>
+        <div class="col-12"><p class="form-text mb-0">Useful life is optional. Leave it blank when it is unknown or the asset is not being depreciated. A depreciation schedule requires a valid useful life. Salvage value defaults to zero.</p></div>
         <input type="hidden" name="depreciation_method" value="straight_line">
     </div></div>
 </details>
