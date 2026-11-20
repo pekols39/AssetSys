@@ -87,14 +87,21 @@
                 refreshSelection();
             });
         });
-        bulkForm.addEventListener('submit', function (event) {
+        let confirmationInProgress = false;
+        bulkForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            if (confirmationInProgress) return;
+
             const allFiltered = Boolean(selectAll && selectAll.checked);
             bulkForm.querySelectorAll('.bulk-generated-selection').forEach(function (input) { input.remove(); });
             if (allFiltered) {
                 modeInput.value = 'all_filtered';
             } else {
                 const selectedIds = rowChecks.filter(function (checkbox) { return checkbox.checked; }).map(function (checkbox) { return checkbox.value; });
-                if (selectedIds.length === 0) { event.preventDefault(); return; }
+                if (selectedIds.length === 0) {
+                    await Swal.fire({ icon: 'info', title: 'No assets selected', text: 'Select at least one asset to continue.', confirmButtonColor: '#007472' });
+                    return;
+                }
                 modeInput.value = 'selected';
                 selectedIds.forEach(function (id) {
                     const input = document.createElement('input');
@@ -105,13 +112,28 @@
                     bulkForm.appendChild(input);
                 });
             }
+
             const count = allFiltered ? totalFiltered : rowChecks.filter(function (checkbox) { return checkbox.checked; }).length;
-            const action = event.submitter && event.submitter.value === 'print' ? 'print' : 'generate';
-            const message = action === 'print'
-                ? 'Queue NIIMBOT printing for ' + count.toLocaleString() + ' selected asset(s) that already have active QR identities? Assets without an active QR identity will be skipped.'
-                : 'Generate or reuse QR identities for ' + count.toLocaleString() + ' selected asset(s)? This will not send anything to the printer.';
-            if (!window.confirm(message)) event.preventDefault();
-        });
+            const isPrint = event.submitter && event.submitter.value === 'print';
+            const result = await Swal.fire({
+                icon: 'question',
+                title: isPrint ? 'Print QR Labels?' : 'Generate QR Codes?',
+                text: isPrint
+                    ? 'Queue ' + count.toLocaleString() + ' selected label(s) for NIIMBOT printing? Only assets with active QR identities will be queued.'
+                    : 'Generate or reuse QR identities for ' + count.toLocaleString() + ' selected asset(s)? Nothing will be sent to the printer.',
+                showCancelButton: true,
+                confirmButtonText: isPrint ? 'Yes, Queue Printing' : 'Yes, Generate QR Codes',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#007472',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            });
+
+            if (!result.isConfirmed) return;
+            confirmationInProgress = true;
+            if (event.submitter && event.submitter.formAction) bulkForm.action = event.submitter.formAction;
+            HTMLFormElement.prototype.submit.call(bulkForm);
+        });;
         refreshSelection();
     }
 

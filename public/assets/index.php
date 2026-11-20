@@ -286,26 +286,6 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
             </form>
         </div>
 
-        <?php if (isset($_GET['bulk_qr']) && $_GET['bulk_qr'] === '1'): ?>
-            <div class="alert alert-info" role="status">
-                <strong>QR generation completed.</strong>
-                New QR identities: <?= (int) ($_GET['created'] ?? 0) ?>.
-                Existing QR identities reused: <?= (int) ($_GET['reused'] ?? 0) ?>.
-                Skipped: <?= (int) ($_GET['skipped'] ?? 0) ?>.
-                Failed: <?= (int) ($_GET['failed'] ?? 0) ?>.
-                No print jobs were created. Use the separate Print QR Labels action when ready.
-            </div>
-        <?php endif; ?>
-        <?php if (isset($_GET['bulk_print']) && $_GET['bulk_print'] === '1'): ?>
-            <div class="alert alert-info" role="status">
-                <strong>Print batch queued.</strong>
-                Print jobs queued: <?= (int) ($_GET['queued'] ?? 0) ?>.
-                Skipped (missing or inactive QR identity): <?= (int) ($_GET['skipped'] ?? 0) ?>.
-                Failed: <?= (int) ($_GET['failed'] ?? 0) ?>.
-                The NIIMBOT agent will process the selected labels one at a time.
-            </div>
-        <?php endif; ?>
-
         <?php if (empty($assets)): ?>
 
             <div class="text-center py-5">

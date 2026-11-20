@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 
+use App\Core\Session;
 use App\Helpers\Csrf;
 use App\Middleware\AuthMiddleware;
 use App\Models\Asset;
@@ -11,10 +12,15 @@ use App\Models\AssetQrCode;
 use App\Models\NiimbotPrintJob;
 use App\Services\AuthorizationService;
 
+$returnTo = base_url('/public/assets/index.php');
+$showSwal = static function (string $icon, string $title, string $message) use ($returnTo): never {
+    Session::set('swal_flash', ['icon' => $icon, 'title' => $title, 'text' => $message]);
+    header('Location: ' . $returnTo, true, 303);
+    exit;
+};
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-    http_response_code(405);
-    header('Allow: POST');
-    exit('Method not allowed.');
+    $showSwal('error', 'Invalid request', 'Please submit this action from the Asset Register.');
 }
 
 AuthMiddleware::handle();
@@ -22,19 +28,16 @@ $authorization = new AuthorizationService();
 $currentUser = $authorization->currentUser();
 
 if ($currentUser === null || !$authorization->canAccessAssetOperations()) {
-    http_response_code(403);
-    exit('You do not have permission to queue asset QR labels.');
+    $showSwal('error', 'Access denied', 'You do not have permission to queue asset QR labels.');
 }
 
 if (!Csrf::validate($_POST[CSRF_TOKEN_NAME] ?? null)) {
-    http_response_code(419);
-    exit('Your security token is invalid or expired. Refresh the page and try again.');
+    $showSwal('warning', 'Session expired', 'Refresh the Asset Register and try again.');
 }
 
 $userId = (int) ($currentUser['id'] ?? $currentUser['user_id'] ?? 0);
 if ($userId <= 0) {
-    http_response_code(401);
-    exit('Unable to identify the requesting user.');
+    $showSwal('error', 'Session expired', 'Please sign in again before printing QR labels.');
 }
 
 $rawFilters = is_array($_POST['filters'] ?? null) ? $_POST['filters'] : [];
@@ -51,8 +54,7 @@ $assetIds = [];
 if ($selectionMode === 'selected') {
     $rawIds = $_POST['asset_ids'] ?? [];
     if (!is_array($rawIds)) {
-        http_response_code(400);
-        exit('Invalid asset selection.');
+        $showSwal('error', 'Invalid selection', 'Please select valid assets and try again.');
     }
     foreach ($rawIds as $rawId) {
         $id = filter_var($rawId, FILTER_VALIDATE_INT);
@@ -77,13 +79,11 @@ if ($selectionMode === 'selected') {
         $page++;
     } while ($page <= (int) ($result['total_pages'] ?? 1));
 } else {
-    http_response_code(400);
-    exit('Invalid selection mode.');
+    $showSwal('error', 'Invalid selection', 'Please select assets again and retry.');
 }
 
 if ($assetIds === []) {
-    http_response_code(400);
-    exit('Select at least one asset to print.');
+    $showSwal('info', 'No assets selected', 'Select the QR labels you want to print.');
 }
 
 set_time_limit(0);
@@ -122,10 +122,8 @@ foreach ($assetIds as $assetId) {
     }
 }
 
-$query['page'] = 1;
-$query['bulk_print'] = '1';
-$query['queued'] = $queued;
-$query['skipped'] = $skipped;
-$query['failed'] = $failed;
-header('Location: ' . base_url('/public/assets/index.php?' . http_build_query($query)), true, 303);
-exit;
+$showSwal(
+    $failed > 0 || $skipped > 0 ? 'warning' : 'success',
+    'Print batch queued',
+    sprintf('Print jobs queued: %d. Skipped (missing or inactive QR identity): %d. Failed: %d. The NIIMBOT agent will process the queue.', $queued, $skipped, $failed)
+);
