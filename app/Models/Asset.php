@@ -355,6 +355,8 @@ class Asset
 
             LEFT JOIN users assigned
                 ON assigned.id = a.assigned_to_user_id
+            LEFT JOIN asset_qr_codes qr
+                ON qr.asset_id = a.id
         ';
 
         $conditions = [];
@@ -592,6 +594,8 @@ class Asset
                 a.finance_price,
                 a.finance_price_text,
                 a.finance_date_purchase_text,
+                qr.id AS qr_code_id,
+                qr.is_active AS qr_is_active,
                 c.name AS category_name,
                 s.name AS status_name,
                 ac.name AS condition_name,

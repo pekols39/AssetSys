@@ -57,7 +57,8 @@
         const modeInput = document.getElementById('bulkSelectionMode');
         const countLabel = document.getElementById('bulkSelectedCount');
         const summary = document.getElementById('bulkSelectionSummary');
-        const submit = document.getElementById('bulkQrSubmit');
+        const generateSubmit = document.getElementById('bulkQrGenerateSubmit');
+        const printSubmit = document.getElementById('bulkQrPrintSubmit');
         const totalFiltered = Number(bulkForm.dataset.totalFiltered || 0);
         const refreshSelection = function () {
             const allFiltered = Boolean(selectAll && selectAll.checked);
@@ -67,8 +68,9 @@
             countLabel.textContent = selectedCount.toLocaleString() + ' selected';
             summary.textContent = allFiltered
                 ? 'All ' + totalFiltered.toLocaleString() + ' assets matching the current filters are selected across every page.'
-                : 'Select assets on this page, or use the header checkbox to select every matching asset across all pages.';
-            submit.disabled = selectedCount < 1;
+                : 'Select assets on this page, or use the header checkbox to select every matching asset across all pages. Generate and print are separate actions.';
+            generateSubmit.disabled = selectedCount < 1;
+            printSubmit.disabled = selectedCount < 1;
         };
         if (selectAll) {
             selectAll.addEventListener('change', function () {
@@ -104,7 +106,11 @@
                 });
             }
             const count = allFiltered ? totalFiltered : rowChecks.filter(function (checkbox) { return checkbox.checked; }).length;
-            if (!window.confirm('Generate or reuse QR identities and queue printable NIIMBOT labels for ' + count.toLocaleString() + ' asset(s)? The connected NIIMBOT agent will print queued labels automatically.')) event.preventDefault();
+            const action = event.submitter && event.submitter.value === 'print' ? 'print' : 'generate';
+            const message = action === 'print'
+                ? 'Queue NIIMBOT printing for ' + count.toLocaleString() + ' selected asset(s) that already have active QR identities? Assets without an active QR identity will be skipped.'
+                : 'Generate or reuse QR identities for ' + count.toLocaleString() + ' selected asset(s)? This will not send anything to the printer.';
+            if (!window.confirm(message)) event.preventDefault();
         });
         refreshSelection();
     }

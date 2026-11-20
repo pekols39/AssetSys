@@ -288,12 +288,21 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
         <?php if (isset($_GET['bulk_qr']) && $_GET['bulk_qr'] === '1'): ?>
             <div class="alert alert-info" role="status">
-                <strong>Bulk QR batch completed.</strong>
-                QR identities created: <?= (int) ($_GET['created'] ?? 0) ?>.
-                Print jobs queued: <?= (int) ($_GET['queued'] ?? 0) ?>.
+                <strong>QR generation completed.</strong>
+                New QR identities: <?= (int) ($_GET['created'] ?? 0) ?>.
+                Existing QR identities reused: <?= (int) ($_GET['reused'] ?? 0) ?>.
                 Skipped: <?= (int) ($_GET['skipped'] ?? 0) ?>.
                 Failed: <?= (int) ($_GET['failed'] ?? 0) ?>.
-                The NIIMBOT agent will process queued labels one at a time.
+                No print jobs were created. Use the separate Print QR Labels action when ready.
+            </div>
+        <?php endif; ?>
+        <?php if (isset($_GET['bulk_print']) && $_GET['bulk_print'] === '1'): ?>
+            <div class="alert alert-info" role="status">
+                <strong>Print batch queued.</strong>
+                Print jobs queued: <?= (int) ($_GET['queued'] ?? 0) ?>.
+                Skipped (missing or inactive QR identity): <?= (int) ($_GET['skipped'] ?? 0) ?>.
+                Failed: <?= (int) ($_GET['failed'] ?? 0) ?>.
+                The NIIMBOT agent will process the selected labels one at a time.
             </div>
         <?php endif; ?>
 
@@ -330,14 +339,18 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                 <?php endforeach; ?>
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                     <div>
-                        <div class="fw-semibold">Bulk QR label printing</div>
-                        <div class="small text-muted" id="bulkSelectionSummary">Select assets on this page or select all matching assets across every page.</div>
+                        <div class="fw-semibold">Bulk QR management</div>
+                        <div class="small text-muted" id="bulkSelectionSummary">Select assets to generate QR identities or print existing QR labels. These are separate actions.</div>
                     </div>
                     <div class="d-flex flex-wrap align-items-center gap-2">
                         <span class="small text-muted" id="bulkSelectedCount">0 selected</span>
-                        <button type="submit" class="btn btn-primary" id="bulkQrSubmit" disabled>
+                        <button type="submit" class="btn btn-primary" id="bulkQrGenerateSubmit" value="generate" formaction="<?= e(base_url('/public/assets/bulk-qr-generate.php')) ?>" disabled>
                             <i class="fa-solid fa-qrcode me-1"></i>
-                            Generate QR &amp; Queue Labels
+                            Generate QR Codes
+                        </button>
+                        <button type="submit" class="btn btn-outline-primary" id="bulkQrPrintSubmit" value="print" formaction="<?= e(base_url('/public/assets/bulk-qr-print.php')) ?>" disabled>
+                            <i class="fa-solid fa-print me-1"></i>
+                            Print QR Labels
                         </button>
                     </div>
                 </div>
@@ -351,6 +364,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                         <tr>
                             <th class="text-center"><input type="checkbox" class="form-check-input" id="selectAllFilteredAssets" aria-label="Select all filtered assets across all pages" title="Select all filtered assets across all pages"></th>
                             <th>Asset Code</th>
+                            <th>QR Status</th>
                             <th>Location (Main)</th>
                             <th>Owner / Department</th>
                             <th>Category</th>
@@ -379,6 +393,15 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                             <tr>
                                 <td class="text-center"><input type="checkbox" class="form-check-input asset-row-select" value="<?= (int) $asset['id'] ?>" aria-label="Select asset <?= e($asset['asset_code'] ?? '') ?>"></td>
                                 <td><span class="asset-code"><?= e($financeValue($asset['asset_code'] ?? null)) ?></span></td>
+                                <td>
+                                    <?php if ((int) ($asset['qr_is_active'] ?? 0) === 1): ?>
+                                        <span class="badge bg-success">Generated</span>
+                                    <?php elseif (isset($asset['qr_code_id'])): ?>
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-dark border">Not generated</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?= e($financeValue($asset['finance_main_location'] ?? null)) ?></td>
                                 <td><?= e($financeValue($asset['finance_owner_department'] ?? null)) ?></td>
                                 <td><?= e($asset['category_name'] ?? '—') ?></td>
