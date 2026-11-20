@@ -33,7 +33,11 @@ $filters = [
     'status_id' => (string) ($_GET['status_id'] ?? ''),
     'condition_id' => (string) ($_GET['condition_id'] ?? ''),
     'location_id' => (string) ($_GET['location_id'] ?? ''),
-    'sort' => (string) ($_GET['sort'] ?? 'created_at'),
+    'finance_owner_department' => trim((string) ($_GET['finance_owner_department'] ?? '')),
+    'finance_main_location' => trim((string) ($_GET['finance_main_location'] ?? '')),
+    'finance_status' => trim((string) ($_GET['finance_status'] ?? '')),
+    'finance_supplier' => trim((string) ($_GET['finance_supplier'] ?? '')),
+    'sort => (string) ($_GET['sort'] ?? 'created_at'),
     'direction' => (string) ($_GET['direction'] ?? 'desc'),
 ];
 
@@ -251,18 +255,31 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     </div>
 
                     <div class="col-12 col-sm-6 col-xl-3">
-                        <label for="location-filter" class="form-label">Location</label>
-                        <select id="location-filter" name="location_id"
-                                class="form-select">
-                            <option value="">All locations</option>
+                        <label for="location-filter" class="form-label">Current Physical Location (AssetSys)</label>
+                        <select id="location-filter" name="location_id" class="form-select">
+                            <option value="">All physical locations</option>
                             <?php foreach ($locations as $location): ?>
-                                <option value="<?= (int) $location['id'] ?>"
-                                    <?= (string) $filters['location_id'] ===
-                                        (string) $location['id'] ? 'selected' : '' ?>>
+                                <option value="<?= (int) $location['id'] ?>" <?= (string) $filters['location_id'] === (string) $location['id'] ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($location['name']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <label for="finance-owner-filter" class="form-label">Owner / Department</label>
+                        <input id="finance-owner-filter" name="finance_owner_department" class="form-control" value="<?= e($filters['finance_owner_department']) ?>" placeholder="Filter owner / department">
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <label for="finance-main-location-filter" class="form-label">Location (Main)</label>
+                        <input id="finance-main-location-filter" name="finance_main_location" class="form-control" value="<?= e($filters['finance_main_location']) ?>" placeholder="Filter main location">
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <label for="finance-status-filter" class="form-label">Finance Status</label>
+                        <input id="finance-status-filter" name="finance_status" class="form-control" value="<?= e($filters['finance_status']) ?>" placeholder="Filter finance status">
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <label for="finance-supplier-filter" class="form-label">Supplier</label>
+                        <input id="finance-supplier-filter" name="finance_supplier" class="form-control" value="<?= e($filters['finance_supplier']) ?>" placeholder="Filter supplier">
                     </div>
                 </div>
             </form>
