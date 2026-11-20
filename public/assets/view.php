@@ -323,35 +323,9 @@ function displayDate(
 
                         <div>
 
-                            <div class="asset-code-large">
-                                <?= e($asset['asset_code']) ?>
-                            </div>
-
                             <h2 class="asset-name mb-2">
-                                <?= e($asset['asset_name']) ?>
+                                <?= e($asset['finance_item_name'] ?? 'Asset Record') ?>
                             </h2>
-
-                            <?php if (!empty($asset['asset_tag'])): ?>
-
-                                <div class="text-muted small">
-                                    Asset Tag:
-                                    <strong>
-                                        <?= e($asset['asset_tag']) ?>
-                                    </strong>
-                                </div>
-
-                            <?php endif; ?>
-
-                            <?php if (!empty($asset['serial_number'])): ?>
-
-                                <div class="text-muted small">
-                                    Serial Number:
-                                    <strong>
-                                        <?= e($asset['serial_number']) ?>
-                                    </strong>
-                                </div>
-
-                            <?php endif; ?>
 
                         </div>
 
@@ -392,102 +366,18 @@ function displayDate(
 
                 <div class="card-body">
 
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Asset Code
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayValue($asset['asset_code']) ?>
-                        </span>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Asset Tag
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayValue($asset['asset_tag']) ?>
-                        </span>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Serial Number
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayValue($asset['serial_number']) ?>
-                        </span>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Asset Name
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayValue($asset['asset_name']) ?>
-                        </span>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Category
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayValue($asset['category_name']) ?>
-                        </span>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Manufacturer
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayValue($asset['manufacturer']) ?>
-                        </span>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Model
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayValue($asset['model']) ?>
-                        </span>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Model Number
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayValue($asset['model_number']) ?>
-                        </span>
-                    </div>
-
-                    <hr class="my-3">
-                    <h6 class="text-muted mb-3">Official Asset Information</h6>
-
-                    <div class="detail-row"><span class="detail-label">1. Location (Main)</span><span class="detail-value"><?= displayValue($asset['finance_main_location'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">2. Owner / Department</span><span class="detail-value"><?= displayValue($asset['finance_owner_department'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">3. Category</span><span class="detail-value"><?= displayValue($asset['category_name'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">4. Item ID</span><span class="detail-value"><?= displayValue($asset['finance_item_id'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">5. Item Name</span><span class="detail-value"><?= displayValue($asset['finance_item_name'] ?? $asset['asset_name'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">6. FFE Number</span><span class="detail-value"><?= displayValue($asset['finance_ffe_number'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">7. Code</span><span class="detail-value"><?= displayValue($asset['finance_code'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">8. Status</span><span class="detail-value"><?= displayValue($asset['finance_status'] ?? $asset['status_name'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">9. Supplier</span><span class="detail-value"><?= displayValue($asset['finance_supplier'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">10. PO Number</span><span class="detail-value"><?= displayValue($asset['finance_po_number'] ?? $asset['purchase_order_number'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">11. Price</span><span class="detail-value"><?= displayValue($asset['finance_price_text'] ?? $asset['finance_price'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">12. Date Purchase</span><span class="detail-value"><?= displayValue($asset['finance_date_purchase_text'] ?? $asset['purchase_date'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">Additional source LOCATION</span><span class="detail-value"><?= displayValue($asset['finance_location'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Location (Main)</span><span class="detail-value"><?= displayValue($asset['finance_main_location'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Owner / Department</span><span class="detail-value"><?= displayValue($asset['department_name'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Category</span><span class="detail-value"><?= displayValue($asset['category_name'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Item ID</span><span class="detail-value"><?= displayValue($asset['finance_item_id'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Item Name</span><span class="detail-value"><?= displayValue($asset['finance_item_name'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">FFE Number</span><span class="detail-value"><?= displayValue($asset['finance_ffe_number'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Code</span><span class="detail-value"><?= displayValue($asset['finance_code'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value"><?= displayValue($asset['finance_status'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Supplier</span><span class="detail-value"><?= displayValue($asset['finance_supplier'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">PO Number</span><span class="detail-value"><?= displayValue($asset['finance_po_number'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Price</span><span class="detail-value"><?= displayValue($asset['finance_price_text'] ?? $asset['finance_price'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Date Purchase</span><span class="detail-value"><?= displayValue($asset['finance_date_purchase_text'] ?? null) ?></span></div>
 
                 </div>
 
@@ -538,7 +428,7 @@ function displayDate(
                         </span>
 
                         <span class="detail-value">
-                            <?= displayValue($asset['finance_location'] ?? null) ?>
+                            <?= displayValue($asset['location_name'] ?? null) ?>
                         </span>
                     </div>
 
