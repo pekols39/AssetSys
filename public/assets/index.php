@@ -222,7 +222,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     </div>
 
                     <div class="col-12 col-sm-6 col-xl-3">
-                        <label for="status-filter" class="form-label">Status</label>
+                        <label for="status-filter" class="form-label">Operational Status</label>
                         <select id="status-filter" name="status_id" class="form-select">
                             <option value="">All statuses</option>
                             <?php foreach ($statuses as $status): ?>
