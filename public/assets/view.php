@@ -402,7 +402,7 @@ function displayDate(
 
                     <div class="detail-row">
                         <span class="detail-label">
-                            Status
+                            Operational Status
                         </span>
 
                         <span class="detail-value">
