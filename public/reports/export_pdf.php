@@ -37,6 +37,10 @@ $filters = [
     'status_id' => trim((string) ($_GET['status_id'] ?? '')),
     'condition_id' => trim((string) ($_GET['condition_id'] ?? '')),
     'location_id' => trim((string) ($_GET['location_id'] ?? '')),
+    'finance_owner_department' => trim((string) ($_GET['finance_owner_department'] ?? '')),
+    'finance_main_location' => trim((string) ($_GET['finance_main_location'] ?? '')),
+    'finance_status' => trim((string) ($_GET['finance_status'] ?? '')),
+    'finance_supplier' => trim((string) ($_GET['finance_supplier'] ?? '')),
 ];
 
 try {
@@ -84,13 +88,13 @@ try {
 
             body {
                 font-family: DejaVu Sans, sans-serif;
-                font-size: 9px;
+                font-size: 6.5px;
                 color: #202b35;
             }
 
             .company-header {
                 width: 100%;
-                margin: 0 0 12px 0;
+                margin: 0 0 8px 0;
                 padding: 0;
                 line-height: 0;
             }
@@ -141,7 +145,7 @@ try {
 
             th, td {
                 border: 1px solid #d9e1e7;
-                padding: 5px;
+                padding: 3px;
                 vertical-align: top;
             }
 
@@ -182,64 +186,58 @@ try {
         <div class="summary">
             <span><strong>Total assets:</strong> '
         . number_format(count($assets)) . '</span>
-            <span><strong>Purchase cost:</strong> PHP '
+            <span><strong>AssetSys purchase cost:</strong> PHP '
         . number_format($totalPurchaseCost, 2) . '</span>
-            <span><strong>Current book value:</strong> PHP '
+            <span><strong>AssetSys current book value:</strong> PHP '
         . number_format($totalBookValue, 2) . '</span>
         </div>
 
         <table>
             <thead>
                 <tr>
-                    <th>Asset Code</th>
-                    <th>Asset Name</th>
+                    <th>Location (Main)</th>
+                    <th>Owner / Department</th>
                     <th>Category</th>
+                    <th>Item ID</th>
+                    <th>Item Name</th>
+                    <th>FFE Number</th>
+                    <th>Code</th>
                     <th>Status</th>
-                    <th>Condition</th>
-                    <th>Location</th>
-                    <th>Assigned To</th>
-                    <th>Purchase Date</th>
-                    <th class="number">Purchase Cost</th>
-                    <th class="number">Book Value</th>
+                    <th>Supplier</th>
+                    <th>PO Number</th>
+                    <th>Price</th>
+                    <th>Date Purchase</th>
                 </tr>
             </thead>
             <tbody>';
 
     foreach ($assets as $asset) {
-        $assignedName = trim(
-            (string) ($asset['assigned_first_name'] ?? '')
-            . ' '
-            . (string) ($asset['assigned_last_name'] ?? '')
-        );
-
         $html .= '<tr>
-            <td>' . $escape($asset['asset_code'] ?? '') . '</td>
-            <td>' . $escape($asset['asset_name'] ?? '') . '</td>
+            <td>' . $escape($asset['finance_main_location'] ?? '—') . '</td>
+            <td>' . $escape($asset['finance_owner_department'] ?? '—') . '</td>
             <td>' . $escape($asset['category_name'] ?? '—') . '</td>
-            <td>' . $escape($asset['status_name'] ?? '—') . '</td>
-            <td>' . $escape($asset['condition_name'] ?? '—') . '</td>
-            <td>' . $escape($asset['location_name'] ?? '—') . '</td>
-            <td>' . $escape($assignedName !== '' ? $assignedName : 'Unassigned') . '</td>
-            <td>' . $escape($asset['purchase_date'] ?? '—') . '</td>
-            <td class="number">' . number_format((float) ($asset['purchase_cost'] ?? 0), 2) . '</td>
-            <td class="number">' . number_format((float) ($asset['current_book_value'] ?? 0), 2) . '</td>
+            <td>' . $escape($asset['finance_item_id'] ?? '—') . '</td>
+            <td>' . $escape($asset['finance_item_name'] ?? '—') . '</td>
+            <td>' . $escape($asset['finance_ffe_number'] ?? '—') . '</td>
+            <td>' . $escape($asset['finance_code'] ?? '—') . '</td>
+            <td>' . $escape($asset['finance_status'] ?? '—') . '</td>
+            <td>' . $escape($asset['finance_supplier'] ?? '—') . '</td>
+            <td>' . $escape($asset['finance_po_number'] ?? '—') . '</td>
+            <td>' . $escape($asset['finance_price_text'] ?? '—') . '</td>
+            <td>' . $escape($asset['finance_date_purchase_text'] ?? '—') . '</td>
         </tr>';
     }
 
     if ($assets === []) {
-        $html .= '<tr><td colspan="10">No matching assets found.</td></tr>';
+        $html .= '<tr><td colspan="12">No matching assets found.</td></tr>';
     }
 
     $html .= '
             </tbody>
-            <tfoot>
-                <tr>
-                    <th colspan="8" class="number">Filtered Totals</th>
-                    <th class="number">PHP ' . number_format($totalPurchaseCost, 2) . '</th>
-                    <th class="number">PHP ' . number_format($totalBookValue, 2) . '</th>
-                </tr>
-            </tfoot>
         </table>
+        <div class="footer">
+            The table contains the 12 official inventory fields. Purchase Cost and Current Book Value in the summary are separate AssetSys accounting/depreciation metrics.
+        </div>
 
         <div class="footer">
             AssetSys — Company Asset Management System
