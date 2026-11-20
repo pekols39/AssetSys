@@ -121,12 +121,6 @@ def render_label(job, output_path):
 
     y = draw_field(
         draw, x, y, "ASSET TAG",
-        job.get("asset_tag") or "-",
-        max_width, label_font, value_font, max_lines=2
-    )
-
-    y = draw_field(
-        draw, x, y, "FINANCE FFE NUMBER",
         job.get("finance_ffe_number") or "-",
         max_width, label_font, value_font, max_lines=4
     )

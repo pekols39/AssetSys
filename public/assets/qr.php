@@ -265,7 +265,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
             <dd class="col-sm-9"><?= e($asset['asset_name'] ?? '') ?></dd>
 
             <dt class="col-sm-3">Asset Tag</dt>
-            <dd class="col-sm-9"><?= e($asset['asset_tag'] ?? '—') ?></dd>
+            <dd class="col-sm-9"><?= e($asset['finance_ffe_number'] ?? '—') ?></dd>
         </dl>
     </div>
 </div>
@@ -355,9 +355,9 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                 Code: <?= e($asset['asset_code'] ?? '—') ?>
             </p>
 
-            <?php if (!empty($asset['asset_tag'])): ?>
+            <?php if (!empty($asset['finance_ffe_number'])): ?>
                 <p class="label-tag">
-                    Tag: <?= e($asset['asset_tag']) ?>
+                    Asset Tag: <?= e($asset['finance_ffe_number']) ?>
                 </p>
             <?php endif; ?>
         </div>
