@@ -37,7 +37,7 @@ $filters = [
     'finance_main_location' => trim((string) ($_GET['finance_main_location'] ?? '')),
     'finance_status' => trim((string) ($_GET['finance_status'] ?? '')),
     'finance_supplier' => trim((string) ($_GET['finance_supplier'] ?? '')),
-    'sort => (string) ($_GET['sort'] ?? 'created_at'),
+    'sort' => (string) ($_GET['sort'] ?? 'created_at'),
     'direction' => (string) ($_GET['direction'] ?? 'desc'),
 ];
 
