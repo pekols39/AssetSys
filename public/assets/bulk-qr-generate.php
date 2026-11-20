@@ -73,30 +73,38 @@ if ($selectionMode === 'all_filtered' && is_array($_POST['excluded_ids'] ?? null
 set_time_limit(0);
 $assetService = new AssetService();
 $qrService = new AssetQrCodeService();
+$qrModel = new AssetQrCode();
 $created = 0;
 $reused = 0;
 $skipped = 0;
 $failed = 0;
 
 $processAsset = static function (int $assetId) use (
-    $authorization, $qrService, &$created, &$reused, &$skipped, &$failed
+    $authorization, $qrService, $qrModel, &$created, &$reused, &$skipped, &$failed
 ): void {
     try {
         if (!$authorization->canAccessAsset($assetId)) {
             $skipped++;
             return;
         }
+        $existingQr = $qrModel->findByAssetId($assetId);
+        if (is_array($existingQr) && (int) ($existingQr['is_active'] ?? 0) !== 1) {
+            $skipped++;
+            return;
+        }
+
+        // Reuse the existing secure QR identity when active; otherwise let the
+        // service create a new permanent token and its audit entry.
         $qrRecord = $qrService->createForAsset($assetId);
         if ((int) ($qrRecord['is_active'] ?? 0) !== 1) {
             $skipped++;
             return;
         }
-        // A QR identity is permanent: createForAsset returns an existing active
-        // identity unchanged, or creates a new secure token when none exists.
-        if (strtotime((string) ($qrRecord['created_at'] ?? '')) >= time() - 5) {
-            $created++;
-        } else {
+
+        if (is_array($existingQr)) {
             $reused++;
+        } else {
+            $created++;
         }
     } catch (Throwable $e) {
         $failed++;

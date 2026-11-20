@@ -355,8 +355,6 @@ class Asset
 
             LEFT JOIN users assigned
                 ON assigned.id = a.assigned_to_user_id
-            LEFT JOIN asset_qr_codes qr
-                ON qr.asset_id = a.id
         ';
 
         $conditions = [];
@@ -527,6 +525,8 @@ class Asset
                 ON v.id = a.supplier_id
             LEFT JOIN users assigned
                 ON assigned.id = a.assigned_to_user_id
+            LEFT JOIN asset_qr_codes qr
+                ON qr.asset_id = a.id
         ';
 
         $countStmt = $this->db->prepare(
