@@ -133,7 +133,7 @@
             confirmationInProgress = true;
             if (event.submitter && event.submitter.formAction) bulkForm.action = event.submitter.formAction;
             HTMLFormElement.prototype.submit.call(bulkForm);
-        });;
+        });
         refreshSelection();
     }
 
