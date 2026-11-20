@@ -57,7 +57,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 </div>
 
 <div class="alert alert-warning">
-    Map each source Item ID to an AssetSys category and each source Status to an AssetSys status.
+    The Finance workbook does not contain a separate Category column. Map each source Item ID to the appropriate configurable AssetSys Category, then map each source Status to an AssetSys Status.
     Finance status INSTALLED is preselected as AssetSys In Use because it describes location-based deployment,
     not assignment to an employee. Review every mapping before saving. Original source values remain unchanged.
 </div>
@@ -67,7 +67,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     <input type="hidden" name="batch_id" value="<?= (int) $batchId ?>">
 
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white"><h2 class="h5 mb-0">Asset Item ID → AssetSys Category</h2></div>
+        <div class="card-header bg-white"><h2 class="h5 mb-0">Finance Item ID → AssetSys Category</h2></div>
         <div class="card-body">
             <?php foreach ($options['item_ids'] as $value): ?>
                 <div class="row align-items-center g-2 mb-3">
@@ -90,7 +90,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     </div>
 
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white"><h2 class="h5 mb-0">Asset Status → AssetSys Status</h2></div>
+        <div class="card-header bg-white"><h2 class="h5 mb-0">Finance Status → AssetSys Status</h2></div>
         <div class="card-body">
             <?php foreach ($options['statuses'] as $value): ?>
                 <?php
