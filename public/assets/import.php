@@ -61,7 +61,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     required
                 >
-                <div class="form-text">Maximum file size: 20 MB. Required columns: LOCATION (Main), OWNER / DEPARTMENT, Item ID, Item name, FFE NUMBER, CODE, Status, SUPPLIER, PO NUMBER, Price, DATE PURCHASE, and LOCATION. The additional LOCATION column is retained as source data. The QR Code Generator column is not imported; AssetSys manages QR identities separately.</div>
+                <div class="form-text">Maximum file size: 20 MB. The main inventory sheet must include LOCATION (or LOCATION (Main)), OWNER / DEPARTMENT, CATEGORY, Item ID, Item name, FFE NUMBER, CODE, Status, SUPPLIER, PO NUMBER, Price, and DATE PURCHASE. If both LOCATION (Main) and LOCATION columns are present, the second LOCATION is retained as additional source data. The QR Code Generator column is not imported; AssetSys manages QR identities separately.</div>
             </div>
             <button type="submit" class="btn btn-primary">
                 <i class="fa-solid fa-upload me-1"></i> Upload and Preview
