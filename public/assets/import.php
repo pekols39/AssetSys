@@ -24,7 +24,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     <div>
         <div class="text-muted small mb-1">Asset Management</div>
         <h1 class="h3 mb-1">Import Asset Inventory</h1>
-        <p class="text-muted mb-0">Upload the Asset .xlsx workbook for review and staging.</p>
+        <p class="text-muted mb-0">Upload the official Finance asset inventory workbook (.xlsx). Asset categories and statuses are matched or added automatically.</p>
     </div>
     <div class="d-flex gap-2">
         <a href="<?= e(base_url('/public/assets/import_history.php')) ?>" class="btn btn-outline-primary">
@@ -39,8 +39,8 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 <div class="card border-0 shadow-sm">
     <div class="card-body p-4">
         <div class="alert alert-info">
-            <strong>Staging only:</strong> this upload stores the source asset records for review.
-            It does not create assets, change departments or locations, or alter existing records.
+            <strong>Safe preview first:</strong> uploading only stages the source rows. No assets or dropdown values are created until you confirm the import.
+            During import, missing Finance Category and Status values are added automatically. Blank Category becomes UNCATEGORIZED; blank Status becomes AVAILABLE.
         </div>
 
         <form method="post"
@@ -48,7 +48,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
               enctype="multipart/form-data"
               data-swal-confirm="true"
               data-swal-title="Upload asset workbook?"
-              data-swal-text="The workbook will be uploaded for review. No assets will be created yet."
+              data-swal-text="The workbook will be staged for preview. No assets or dropdown values will be created until you confirm the import."
               data-swal-confirm-text="Yes, Upload">
             <?= Csrf::field() ?>
             <div class="mb-3">
@@ -61,7 +61,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     required
                 >
-                <div class="form-text">Maximum file size: 20 MB. The workbook must contain the 12 required inventory columns. The QR Code Generator column is not imported; AssetSys manages QR identities separately.</div>
+                <div class="form-text">Maximum file size: 20 MB. The main inventory sheet must include LOCATION (or LOCATION (Main)), OWNER / DEPARTMENT, CATEGORY, Item ID, Item name, FFE NUMBER, CODE, Status, SUPPLIER, PO NUMBER, Price, and DATE PURCHASE. If both LOCATION (Main) and LOCATION columns are present, the second LOCATION is retained as additional source data. The QR Code Generator column is not imported; AssetSys manages QR identities separately.</div>
             </div>
             <button type="submit" class="btn btn-primary">
                 <i class="fa-solid fa-upload me-1"></i> Upload and Preview

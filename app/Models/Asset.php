@@ -149,6 +149,19 @@ class Asset
             a.created_by,
             a.created_at,
             a.updated_at,
+            a.finance_item_id,
+            a.finance_item_name,
+            a.finance_ffe_number,
+            a.finance_code,
+            a.finance_main_location,
+            a.finance_owner_department,
+            a.finance_status,
+            a.finance_supplier,
+            a.finance_po_number,
+            a.finance_location,
+            a.finance_price,
+            a.finance_price_text,
+            a.finance_date_purchase_text,
 
             c.name AS category_name,
             s.name AS status_name,
@@ -475,6 +488,23 @@ class Asset
             }
         }
 
+        // Official Finance inventory filters use the source text fields.
+        $financeFilters = [
+            'finance_owner_department' => 'a.finance_owner_department',
+            'finance_main_location' => 'a.finance_main_location',
+            'finance_status' => 'a.finance_status',
+            'finance_supplier' => 'a.finance_supplier',
+        ];
+
+        foreach ($financeFilters as $key => $column) {
+            $value = trim((string) ($filters[$key] ?? ''));
+
+            if ($value !== '') {
+                $where[] = $column . ' LIKE :' . $key;
+                $params[$key] = '%' . $value . '%';
+            }
+        }
+
         $whereSql = $where === []
             ? ''
             : ' WHERE ' . implode(' AND ', $where);
@@ -631,7 +661,20 @@ class Asset
                 condition_id,
                 assigned_to_user_id,
                 assigned_to_name,
-                created_by
+                created_by,
+                finance_item_id,
+                finance_item_name,
+                finance_ffe_number,
+                finance_code,
+                finance_main_location,
+                finance_owner_department,
+                finance_status,
+                finance_supplier,
+                finance_po_number,
+                finance_location,
+                finance_price,
+                finance_price_text,
+                finance_date_purchase_text
             ) VALUES (
                 :asset_code,
                 :asset_tag,
@@ -659,7 +702,20 @@ class Asset
                 :condition_id,
                 :assigned_to_user_id,
                 :assigned_to_name,
-                :created_by
+                :created_by,
+                :finance_item_id,
+                :finance_item_name,
+                :finance_ffe_number,
+                :finance_code,
+                :finance_main_location,
+                :finance_owner_department,
+                :finance_status,
+                :finance_supplier,
+                :finance_po_number,
+                :finance_location,
+                :finance_price,
+                :finance_price_text,
+                :finance_date_purchase_text
             )'
         );
 
@@ -696,6 +752,19 @@ class Asset
             'assigned_to_name' =>
                 $data['assigned_to_name'] ?? null,
             'created_by' => (int) $data['created_by'],
+            'finance_item_id' => $data['finance_item_id'] ?? null,
+            'finance_item_name' => $data['finance_item_name'] ?? null,
+            'finance_ffe_number' => $data['finance_ffe_number'] ?? null,
+            'finance_code' => $data['finance_code'] ?? null,
+            'finance_main_location' => $data['finance_main_location'] ?? null,
+            'finance_owner_department' => $data['finance_owner_department'] ?? null,
+            'finance_status' => $data['finance_status'] ?? null,
+            'finance_supplier' => $data['finance_supplier'] ?? null,
+            'finance_po_number' => $data['finance_po_number'] ?? null,
+            'finance_location' => $data['finance_location'] ?? null,
+            'finance_price' => $data['finance_price'] ?? null,
+            'finance_price_text' => $data['finance_price_text'] ?? null,
+            'finance_date_purchase_text' => $data['finance_date_purchase_text'] ?? null,
         ]);
 
         return (int) $this->db->lastInsertId();
@@ -733,7 +802,20 @@ class Asset
                 location_id = :location_id,
                 condition_id = :condition_id,
                 assigned_to_user_id = :assigned_to_user_id,
-                assigned_to_name = :assigned_to_name
+                assigned_to_name = :assigned_to_name,
+                finance_item_id = :finance_item_id,
+                finance_item_name = :finance_item_name,
+                finance_ffe_number = :finance_ffe_number,
+                finance_code = :finance_code,
+                finance_main_location = :finance_main_location,
+                finance_owner_department = :finance_owner_department,
+                finance_status = :finance_status,
+                finance_supplier = :finance_supplier,
+                finance_po_number = :finance_po_number,
+                finance_location = :finance_location,
+                finance_price = :finance_price,
+                finance_price_text = :finance_price_text,
+                finance_date_purchase_text = :finance_date_purchase_text
              WHERE id = :id
              LIMIT 1'
         );
@@ -770,6 +852,19 @@ class Asset
                 $data['assigned_to_user_id'] ?? null,
             'assigned_to_name' =>
                 $data['assigned_to_name'] ?? null,
+            'finance_item_id' => $data['finance_item_id'] ?? null,
+            'finance_item_name' => $data['finance_item_name'] ?? null,
+            'finance_ffe_number' => $data['finance_ffe_number'] ?? null,
+            'finance_code' => $data['finance_code'] ?? null,
+            'finance_main_location' => $data['finance_main_location'] ?? null,
+            'finance_owner_department' => $data['finance_owner_department'] ?? null,
+            'finance_status' => $data['finance_status'] ?? null,
+            'finance_supplier' => $data['finance_supplier'] ?? null,
+            'finance_po_number' => $data['finance_po_number'] ?? null,
+            'finance_location' => $data['finance_location'] ?? null,
+            'finance_price' => $data['finance_price'] ?? null,
+            'finance_price_text' => $data['finance_price_text'] ?? null,
+            'finance_date_purchase_text' => $data['finance_date_purchase_text'] ?? null,
         ]);
     }
 }

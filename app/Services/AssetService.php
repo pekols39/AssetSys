@@ -79,7 +79,7 @@ class AssetService
         }
 
         $departmentName = trim(
-            (string) ($data['department_name'] ?? '')
+            (string) ($data['department_name'] ?? $data['finance_owner_department'] ?? '')
         );
 
         $locationName = trim(
@@ -160,6 +160,16 @@ class AssetService
                 throw new RuntimeException(
                     'The selected asset status does not exist.'
                 );
+            }
+
+            if (empty($data['finance_status'])) {
+                $data['finance_status'] = (string) $statusName;
+            }
+            if (empty($data['finance_owner_department'])) {
+                $data['finance_owner_department'] = $departmentName;
+            }
+            if (empty($data['finance_item_name'])) {
+                $data['finance_item_name'] = $data['asset_name'];
             }
 
             $normalizedStatus = strtolower(trim((string) $statusName));
@@ -257,6 +267,10 @@ class AssetService
                 'condition_id',
                 'assigned_to_user_id',
                 'assigned_to_name',
+                'finance_item_id', 'finance_item_name', 'finance_ffe_number', 'finance_code',
+                'finance_main_location', 'finance_owner_department', 'finance_status',
+                'finance_supplier', 'finance_po_number', 'finance_location', 'finance_price',
+                'finance_price_text', 'finance_date_purchase_text',
             ];
 
             $auditValues = array_intersect_key(
@@ -417,6 +431,10 @@ class AssetService
 
         $this->authorizeAssetUpdate($existing);
 
+        // Start from the saved record so fields outside the main form are never
+        // cleared by an ordinary edit. Submitted fields then override saved values.
+        $data = array_merge($existing, $data);
+
         // Preserve the system-generated asset code.
         $data['asset_code'] = $existing['asset_code'];
 
@@ -472,6 +490,13 @@ class AssetService
             throw new RuntimeException(
                 'The selected asset status does not exist.'
             );
+        }
+
+        if (empty($data['finance_status'])) {
+            $data['finance_status'] = (string) $statusName;
+        }
+        if (empty($data['finance_item_name'])) {
+            $data['finance_item_name'] = $data['asset_name'];
         }
 
         $requestedStatus = strtolower(
@@ -580,6 +605,10 @@ class AssetService
             'condition_id',
             'assigned_to_user_id',
             'assigned_to_name',
+            'finance_item_id', 'finance_item_name', 'finance_ffe_number', 'finance_code',
+            'finance_main_location', 'finance_owner_department', 'finance_status',
+            'finance_supplier', 'finance_po_number', 'finance_location', 'finance_price',
+            'finance_price_text', 'finance_date_purchase_text',
         ];
 
         $auditOldValues = array_intersect_key(
@@ -1079,6 +1108,28 @@ class AssetService
 
             'assigned_to_name' => $assignedToName,
 
+            // Finance's official asset information is retained independently
+            // from AssetSys operational/reference fields.
+            'finance_item_id' => $this->normalizeFinanceText($data['finance_item_id'] ?? null, 100),
+            'finance_item_name' => $this->normalizeFinanceText($data['finance_item_name'] ?? $assetName, 200),
+            'finance_ffe_number' => $this->normalizeFinanceText($data['finance_ffe_number'] ?? null, 150),
+            'finance_code' => $this->normalizeFinanceText($data['finance_code'] ?? null, 100),
+            'finance_main_location' => $this->normalizeFinanceText($data['finance_main_location'] ?? null, 150),
+            'finance_owner_department' => $this->normalizeFinanceText($data['finance_owner_department'] ?? null, 150),
+            'finance_status' => $this->normalizeFinanceText($data['finance_status'] ?? null, 50),
+            'finance_supplier' => $this->normalizeFinanceText($data['finance_supplier'] ?? null, 150),
+            'finance_po_number' => $this->normalizeFinanceText($data['finance_po_number'] ?? null, 100),
+            'finance_location' => $this->normalizeFinanceText($data['finance_location'] ?? null, 255),
+            'finance_price' => $this->normalizeOptionalFinancePrice(
+                array_key_exists('finance_price', $data) ? $data['finance_price'] : $purchaseCost
+            ),
+            'finance_price_text' => $this->normalizeFinanceText(
+                array_key_exists('finance_price_text', $data)
+                    ? $data['finance_price_text']
+                    : (array_key_exists('finance_price', $data) ? $data['finance_price'] : $purchaseCost),
+                100
+            ),
+            'finance_date_purchase_text' => $this->normalizeFinanceText($data['finance_date_purchase_text'] ?? ($data['purchase_date'] ?? null), 100),
         ];
     }
 
@@ -1272,6 +1323,43 @@ class AssetService
         return $value === ''
             ? null
             : $value;
+    }
+
+    /**
+     * Normalize Finance workbook text while preserving the supplied wording.
+     */
+    private function normalizeFinanceText(mixed $value, int $maxLength): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        if (mb_strlen($value) > $maxLength) {
+            throw new RuntimeException('An official asset information field exceeds its maximum length of ' . $maxLength . ' characters.');
+        }
+
+        return $value;
+    }
+
+    /**
+     * Normalize an optional Finance price without converting workbook display text.
+     */
+    private function normalizeOptionalFinancePrice(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (!is_numeric($value) || (float) $value < 0) {
+            throw new RuntimeException('Price must be a valid non-negative amount.');
+        }
+
+        return round((float) $value, 2);
     }
 
     /**

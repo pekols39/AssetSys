@@ -54,14 +54,28 @@ try {
         (int) $userId
     );
 
+    \App\Core\Session::set('swal_flash', [
+        'icon' => 'success',
+        'title' => 'Workbook staged',
+        'text' => 'The source records are ready for review. No assets have been created yet.',
+    ]);
     header('Location: ' . base_url('/public/assets/import_batch.php?id=' . $batchId));
     exit;
-} catch (RuntimeException $exception) {
-    http_response_code(422);
-    $message = htmlspecialchars($exception->getMessage(), ENT_QUOTES, 'UTF-8');
-    exit('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Import failed</title></head><body><h1>Import failed</h1><p>' . $message . '</p><p><a href="' . htmlspecialchars(base_url('/public/assets/import.php'), ENT_QUOTES, 'UTF-8') . '">Return to import</a></p></body></html>');
+ } catch (RuntimeException $exception) {
+    \App\Core\Session::set('swal_flash', [
+        'icon' => 'error',
+        'title' => 'Import failed',
+        'text' => $exception->getMessage(),
+    ]);
+    header('Location: ' . base_url('/public/assets/import.php'));
+    exit;
 } catch (Throwable $exception) {
     error_log('Asset inventory staging failed: ' . $exception->getMessage());
-    http_response_code(500);
-    exit('Unable to process the asset workbook. Check the application error log.');
+    \App\Core\Session::set('swal_flash', [
+        'icon' => 'error',
+        'title' => 'Import failed',
+        'text' => 'Unable to process the asset workbook. Check the application error log.',
+    ]);
+    header('Location: ' . base_url('/public/assets/import.php'));
+    exit;
 }

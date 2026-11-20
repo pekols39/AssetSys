@@ -34,14 +34,14 @@ if (!$batch) {
 $rows = $importService->getBatchRows((int) $batchId, 25);
 $failedRows = $importService->getFailedRows((int) $batchId, 100);
 $failedCount = $importService->countFailedRows((int) $batchId);
-$savedMapping = $importService->getSavedMapping((int) $batchId);
-$mappingComplete = !empty($savedMapping['item_ids']) && !empty($savedMapping['statuses']);
+$mappingOptions = $importService->getMappingOptions((int) $batchId);
 $pageTitle = 'Asset Import Batch #' . (int) $batch['id'];
 require_once dirname(__DIR__) . '/includes/app_header.php';
 
 $previewHeaders = [
     'LOCATION (Main)',
     'OWNER / DEPARTMENT',
+    'CATEGORY',
     'Item ID',
     'Item name',
     'FFE NUMBER',
@@ -51,7 +51,6 @@ $previewHeaders = [
     'PO NUMBER',
     'Price',
     'DATE PURCHASE',
-    'LOCATION',
 ];
 ?>
 
@@ -61,12 +60,7 @@ $previewHeaders = [
         <h1 class="h3 mb-1">Import Batch #<?= (int) $batch['id'] ?></h1>
         <p class="text-muted mb-0"><?= e($batch['original_filename']) ?></p>
     </div>
-    <?php if ($batch['batch_status'] === 'preview'): ?>
-        <a href="<?= e(base_url('/public/assets/import_mapping.php?id=' . (int) $batchId)) ?>" class="btn btn-primary">
-            <i class="fa-solid fa-list-check me-1"></i>
-            Review Category and Status Mapping
-        </a>
-    <?php endif; ?>
+
     <div class="d-flex flex-wrap gap-2">
         <a href="<?= e(base_url('/public/assets/import_history.php')) ?>" class="btn btn-outline-secondary">
             <i class="fa-solid fa-clock-rotate-left me-1"></i> Import History
@@ -108,28 +102,48 @@ $previewHeaders = [
     <div class="alert alert-success">
         The workbook has been staged. No AssetSys assets or reference records have been created or changed.
     </div>
-    <div class="alert <?= $mappingComplete ? 'alert-success' : 'alert-warning' ?>">
-        <?= $mappingComplete
-            ? 'Category and status mappings are saved. You can now import the staged records.'
-            : 'Review and save the Item ID and Status mappings before importing.' ?>
+    <div class="alert alert-info">
+        <strong>Automatic reference handling:</strong> existing categories and statuses will be reused;
+        missing values from the workbook will be added to Asset Dropdown Management during import.
+        Blank Category cells will use <strong>UNCATEGORIZED</strong>; blank Status cells will use <strong>AVAILABLE</strong>.
+        Finance Item ID and the original Finance Status are also retained in their dedicated fields.
     </div>
-    <?php if ($mappingComplete): ?>
-        <form method="post" action="<?= e(base_url('/public/assets/import_execute.php')) ?>"
-              data-swal-confirm="true" data-swal-title="Import staged assets?" data-swal-text="The staged records will be created in AssetSys. Existing assets will not be updated." data-swal-confirm-text="Yes, Import"
-              class="mb-4">
-            <?= Csrf::field() ?>
-            <input type="hidden" name="batch_id" value="<?= (int) $batchId ?>">
-            <button type="submit" class="btn btn-success">
-                <i class="fa-solid fa-database me-1"></i> Import Staged Records into AssetSys
-            </button>
-        </form>
-    <?php endif; ?>
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h6 mb-3">Detected Finance values</h2>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="fw-semibold mb-2">Categories (<?= count($mappingOptions['categories']) ?> distinct)</div>
+                    <div class="small text-muted"><?= e(implode(', ', array_filter($mappingOptions['categories'], static fn ($value) => $value !== '__BLANK__'))) ?></div>
+                    <?php if (($mappingOptions['blank_category_rows'] ?? 0) > 0): ?>
+                        <div class="small text-warning mt-1"><?= number_format((int) $mappingOptions['blank_category_rows']) ?> blank row(s) → UNCATEGORIZED</div>
+                    <?php endif; ?>
+                </div>
+                <div class="col-md-6">
+                    <div class="fw-semibold mb-2">Statuses (<?= count($mappingOptions['statuses']) ?> distinct)</div>
+                    <div class="small text-muted"><?= e(implode(', ', array_filter($mappingOptions['statuses'], static fn ($value) => $value !== '__BLANK__'))) ?></div>
+                    <?php if (($mappingOptions['blank_status_rows'] ?? 0) > 0): ?>
+                        <div class="small text-warning mt-1"><?= number_format((int) $mappingOptions['blank_status_rows']) ?> blank row(s) → AVAILABLE</div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+    <form method="post" action="<?= e(base_url('/public/assets/import_execute.php')) ?>"
+          data-swal-confirm="true" data-swal-title="Import staged assets?" data-swal-text="The staged records will be created in AssetSys. Missing categories and statuses will be added automatically. Existing assets will not be updated." data-swal-confirm-text="Yes, Import"
+          class="mb-4">
+        <?= Csrf::field() ?>
+        <input type="hidden" name="batch_id" value="<?= (int) $batchId ?>">
+        <button type="submit" class="btn btn-success">
+            <i class="fa-solid fa-database me-1"></i> Import Staged Records into AssetSys
+        </button>
+    </form>
 <?php elseif ($batch['batch_status'] === 'completed'): ?>
     <div class="alert alert-success">
         Import processing completed. <?= number_format((int) $batch['imported_rows']) ?> asset(s) created;
         <?= number_format((int) $batch['failed_rows']) ?> row(s) require review.
     </div>
-    <?php if ($failedCount > 0 && $mappingComplete): ?>
+    <?php if ($failedCount > 0): ?>
         <form method="post" action="<?= e(base_url('/public/assets/import_execute.php')) ?>"
               data-swal-confirm="true" data-swal-title="Retry failed rows?" data-swal-text="Only failed rows will be retried. The <?= number_format((int) $batch['imported_rows']) ?> assets already created will not be imported again." data-swal-confirm-text="Yes, Retry"
               class="mb-4">
@@ -156,12 +170,13 @@ $previewHeaders = [
         </div>
         <div class="table-responsive">
             <table class="table table-sm table-striped align-middle mb-0">
-                <thead><tr><th>Excel Row</th><th>Item Name</th><th>Asset Item ID</th><th>Asset Status</th><th>Reason</th></tr></thead>
+                <thead><tr><th>Excel Row</th><th>Item Name</th><th>Finance Category</th><th>Finance Item ID</th><th>Finance Status</th><th>Reason</th></tr></thead>
                 <tbody>
                 <?php foreach ($failedRows as $failed): ?>
                     <tr>
                         <td><?= (int) $failed['source_row_number'] ?></td>
                         <td><?= e((string) ($failed['source_values']['Item name'] ?? '')) ?></td>
+                        <td><?= e((string) ($failed['source_values']['CATEGORY'] ?? '')) ?></td>
                         <td><?= e((string) ($failed['source_values']['Item ID'] ?? '')) ?></td>
                         <td><?= e((string) ($failed['source_values']['Status'] ?? '')) ?></td>
                         <td class="text-danger"><?= e((string) ($failed['validation_errors'] ?? 'Unknown error')) ?></td>

@@ -190,7 +190,10 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                     </form>
 
                                     <form method="post" action="<?= e($pageUrl) ?>"
-                                        onsubmit="return confirm('Delete this dropdown value? If it is already used by an asset, it will be deactivated instead.');">
+                                        data-swal-confirm="true"
+                                        data-swal-title="Delete dropdown value?"
+                                        data-swal-text="If this value is already used by an asset, it will be deactivated instead."
+                                        data-swal-confirm-text="Yes, Continue">
                                         <?= Csrf::field() ?>
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="type" value="<?= e($type) ?>">

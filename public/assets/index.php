@@ -33,6 +33,10 @@ $filters = [
     'status_id' => (string) ($_GET['status_id'] ?? ''),
     'condition_id' => (string) ($_GET['condition_id'] ?? ''),
     'location_id' => (string) ($_GET['location_id'] ?? ''),
+    'finance_owner_department' => trim((string) ($_GET['finance_owner_department'] ?? '')),
+    'finance_main_location' => trim((string) ($_GET['finance_main_location'] ?? '')),
+    'finance_status' => trim((string) ($_GET['finance_status'] ?? '')),
+    'finance_supplier' => trim((string) ($_GET['finance_supplier'] ?? '')),
     'sort' => (string) ($_GET['sort'] ?? 'created_at'),
     'direction' => (string) ($_GET['direction'] ?? 'desc'),
 ];
@@ -173,7 +177,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                             id="asset-search"
                             name="search"
                             class="form-control"
-                            placeholder="Code, tag, serial, name..."
+                            placeholder="Item ID, Item Name, FFE Number, Code, Location, Owner / Department..."
                             value="<?= htmlspecialchars($filters['search']) ?>"
                         >
                     </div>
@@ -222,7 +226,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     </div>
 
                     <div class="col-12 col-sm-6 col-xl-3">
-                        <label for="status-filter" class="form-label">Status</label>
+                        <label for="status-filter" class="form-label">Operational Status</label>
                         <select id="status-filter" name="status_id" class="form-select">
                             <option value="">All statuses</option>
                             <?php foreach ($statuses as $status): ?>
@@ -251,18 +255,31 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     </div>
 
                     <div class="col-12 col-sm-6 col-xl-3">
-                        <label for="location-filter" class="form-label">Location</label>
-                        <select id="location-filter" name="location_id"
-                                class="form-select">
-                            <option value="">All locations</option>
+                        <label for="location-filter" class="form-label">Current Physical Location (AssetSys)</label>
+                        <select id="location-filter" name="location_id" class="form-select">
+                            <option value="">All physical locations</option>
                             <?php foreach ($locations as $location): ?>
-                                <option value="<?= (int) $location['id'] ?>"
-                                    <?= (string) $filters['location_id'] ===
-                                        (string) $location['id'] ? 'selected' : '' ?>>
+                                <option value="<?= (int) $location['id'] ?>" <?= (string) $filters['location_id'] === (string) $location['id'] ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($location['name']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <label for="finance-owner-filter" class="form-label">Owner / Department</label>
+                        <input id="finance-owner-filter" name="finance_owner_department" class="form-control" value="<?= e($filters['finance_owner_department']) ?>" placeholder="Filter owner / department">
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <label for="finance-main-location-filter" class="form-label">Location (Main)</label>
+                        <input id="finance-main-location-filter" name="finance_main_location" class="form-control" value="<?= e($filters['finance_main_location']) ?>" placeholder="Filter main location">
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <label for="finance-status-filter" class="form-label">Finance Status</label>
+                        <input id="finance-status-filter" name="finance_status" class="form-control" value="<?= e($filters['finance_status']) ?>" placeholder="Filter finance status">
+                    </div>
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <label for="finance-supplier-filter" class="form-label">Supplier</label>
+                        <input id="finance-supplier-filter" name="finance_supplier" class="form-control" value="<?= e($filters['finance_supplier']) ?>" placeholder="Filter supplier">
                     </div>
                 </div>
             </form>
@@ -298,199 +315,51 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                 <table id="assetsTable" class="table table-hover align-middle mb-0 asset-table">
 
                     <thead>
-
                         <tr>
-
-                            <th>
-                                Asset Code
-                            </th>
-
-                            <th>
-                                Asset
-                            </th>
-
-                            <th>Status (AssetSys)</th>
-
-                            <th>Item ID</th>
-                            <th>Item name (Workbook)</th>
-                            <th>FFE NUMBER</th>
-                            <th>CODE</th>
-                            <th>Status (Workbook)</th>
-                            <th>LOCATION (Main)</th>
-                            <th>OWNER / DEPARTMENT</th>
+                            <th>Location (Main)</th>
+                            <th>Owner / Department</th>
                             <th>Category</th>
-                            <th>SUPPLIER</th>
-                            <th>PO NUMBER</th>
+                            <th>Item ID</th>
+                            <th>Item Name</th>
+                            <th>FFE Number</th>
+                            <th>Code</th>
+                            <th>Status</th>
+                            <th>Supplier</th>
+                            <th>PO Number</th>
                             <th>Price</th>
-                            <th>DATE PURCHASE</th>
-                            <th>LOCATION</th>
-
-                            <th>
-                                Assigned Employee
-                            </th>
-
-                            <th class="text-end">
-                                Purchase Cost
-                            </th>
-
-                            <th class="text-end">
-                                Book Value
-                            </th>
-
-                            <th class="text-center">
-                                Action
-                            </th>
-
+                            <th>Date Purchase</th>
+                            <th class="text-center">Action</th>
                         </tr>
-
                     </thead>
 
                     <tbody>
 
                         <?php foreach ($assets as $asset): ?>
-                                <?php
-                                $assignedName = trim(
-                                    (string) ($asset['assigned_to_name'] ?? '')
-                                );
-
-                                if ($assignedName === '') {
-                                    $assignedName = trim(
-                                        ($asset['assigned_first_name'] ?? '')
-                                        . ' '
-                                        . ($asset['assigned_last_name'] ?? '')
-                                    );
-                                }
-
-                                $statusName = $asset['status_name'] ?? 'Unknown';
-                                $assignedName = $assignedName !== ''
-                                    ? $assignedName
-                                    : (strtolower($statusName) === 'in use'
-                                        ? 'No individual assignee'
-                                        : 'Unassigned');
-
-                                $financeValue = static function (mixed $value): string {
-                                    $value = trim((string) ($value ?? ''));
-                                    return $value === '' || strtolower($value) === 'null' ? '—' : $value;
-                                };
-
-                                $statusClass = match (strtolower($statusName)) {
-                                    'available' => 'status-available',
-                                    'assigned' => 'status-assigned',
-                                    'in use' => 'status-in-use',
-                                    'under maintenance' => 'status-maintenance',
-                                    'under repair' => 'status-repair',
-                                    'lost' => 'status-lost',
-                                    'damaged' => 'status-damaged',
-                                    'for disposal' => 'status-disposal',
-                                    'retired' => 'status-retired',
-                                    'disposed' => 'status-disposed',
-                                    default => 'status-default',
-                                };
-                                ?>
-
+                            <?php
+                            $financeValue = static function (mixed $value): string {
+                                $value = trim((string) ($value ?? ''));
+                                return $value === '' || strtolower($value) === 'null' ? '—' : $value;
+                            };
+                            ?>
                             <tr>
-
-                                <td>
-
-                                    <span class="asset-code">
-                                        <?= e(
-                                            $asset['asset_code']
-                                        ) ?>
-                                    </span>
-
-                                    <?php if (!empty($asset['asset_tag'])): ?>
-
-                                        <div class="text-muted small">
-                                            Tag:
-                                            <?= e($asset['asset_tag']) ?>
-                                        </div>
-
-                                    <?php endif; ?>
-
-                                </td>
-
-                                <td>
-
-                                    <div class="fw-semibold">
-                                        <?= e(
-                                            $asset['asset_name']
-                                        ) ?>
-                                    </div>
-
-                                    <?php if (!empty($asset['serial_number'])): ?>
-
-                                        <div class="text-muted small">
-                                            S/N:
-                                            <?= e(
-                                                $asset['serial_number']
-                                            ) ?>
-                                        </div>
-
-                                    <?php endif; ?>
-
-                                </td>
-
-                                <td>
-
-                                    <span class="badge asset-status <?= e($statusClass) ?>">
-                                        <?= e($statusName) ?>
-                                    </span>
-
-                                </td>
-
+                                <td><?= e($financeValue($asset['finance_main_location'] ?? null)) ?></td>
+                                <td><?= e($financeValue($asset['finance_owner_department'] ?? null)) ?></td>
+                                <td><?= e($asset['category_name'] ?? '—') ?></td>
                                 <td><?= e($financeValue($asset['finance_item_id'] ?? null)) ?></td>
                                 <td><?= e($financeValue($asset['finance_item_name'] ?? null)) ?></td>
                                 <td><?= e($financeValue($asset['finance_ffe_number'] ?? null)) ?></td>
                                 <td><?= e($financeValue($asset['finance_code'] ?? null)) ?></td>
                                 <td><?= e($financeValue($asset['finance_status'] ?? null)) ?></td>
-                                <td><?= e($financeValue($asset['finance_main_location'] ?? null)) ?></td>
-                                <td><?= e($financeValue($asset['finance_owner_department'] ?? null)) ?></td>
-                                <td><?= e($asset['category_name'] ?? '—') ?></td>
                                 <td><?= e($financeValue($asset['finance_supplier'] ?? null)) ?></td>
                                 <td><?= e($financeValue($asset['finance_po_number'] ?? null)) ?></td>
                                 <td class="text-nowrap"><?= e($financeValue($asset['finance_price_text'] ?? null)) ?></td>
                                 <td class="text-nowrap"><?= e($financeValue($asset['finance_date_purchase_text'] ?? null)) ?></td>
-                                <td><?= e($financeValue($asset['finance_location'] ?? null)) ?></td>
-
-                                <td>
-                                    <?= e($assignedName) ?>
-                                </td>
-
-                                <td class="text-end text-nowrap">
-                                    PHP
-                                    <?= e(
-                                        number_format(
-                                            (float) (
-                                                $asset['purchase_cost']
-                                                ?? 0
-                                            ),
-                                            2
-                                        )
-                                    ) ?>
-                                </td>
-
-                                <td class="text-end text-nowrap">
-                                    PHP
-                                    <?= e(
-                                        number_format(
-                                            (float) (
-                                                $asset['current_book_value']
-                                                ?? 0
-                                            ),
-                                            2
-                                        )
-                                    ) ?>
-                                </td>
-
                                 <td class="text-center">
-
                                     <a href="<?= e(base_url('/public/assets/view.php?id=' . $asset['id'])) ?>"
                                         class="btn btn-sm asset-view-button" title="View asset">
                                         <i class="fa-solid fa-eye"></i>
                                     </a>
-
                                 </td>
-
                             </tr>
 
                         <?php endforeach; ?>

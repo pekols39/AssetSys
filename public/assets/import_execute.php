@@ -38,6 +38,12 @@ try {
 
     $result = (new AssetImportService())->processBatch((int) $batchId, (int) $userId);
 
+    \App\Core\Session::set('swal_flash', [
+        'icon' => ((int) $result['failed'] > 0) ? 'warning' : 'success',
+        'title' => 'Asset import completed',
+        'text' => number_format((int) $result['imported']) . ' asset(s) created; '
+            . number_format((int) $result['failed']) . ' row(s) need review.',
+    ]);
     header(
         'Location: ' . base_url(
             '/public/assets/import_batch.php?id=' . (int) $batchId
@@ -47,11 +53,28 @@ try {
     );
     exit;
 } catch (RuntimeException $exception) {
-    http_response_code(422);
-    $message = htmlspecialchars($exception->getMessage(), ENT_QUOTES, 'UTF-8');
-    exit('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Import failed</title></head><body><h1>Import failed</h1><p>' . $message . '</p><p><a href="' . htmlspecialchars(base_url('/public/assets/index.php'), ENT_QUOTES, 'UTF-8') . '">Return to Assets</a></p></body></html>');
+    \App\Core\Session::set('swal_flash', [
+        'icon' => 'error',
+        'title' => 'Asset import failed',
+        'text' => $exception->getMessage(),
+    ]);
+    $batchId = filter_var($_POST['batch_id'] ?? null, FILTER_VALIDATE_INT);
+    $target = ($batchId !== false && $batchId > 0)
+        ? '/public/assets/import_batch.php?id=' . (int) $batchId
+        : '/public/assets/import_history.php';
+    header('Location: ' . base_url($target));
+    exit;
 } catch (Throwable $exception) {
     error_log('Asset import failed: ' . $exception->getMessage());
-    http_response_code(500);
-    exit('Unable to import the asset records. Check the application error log.');
+    \App\Core\Session::set('swal_flash', [
+        'icon' => 'error',
+        'title' => 'Asset import failed',
+        'text' => 'Unable to import the asset records. Check the application error log.',
+    ]);
+    $batchId = filter_var($_POST['batch_id'] ?? null, FILTER_VALIDATE_INT);
+    $target = ($batchId !== false && $batchId > 0)
+        ? '/public/assets/import_batch.php?id=' . (int) $batchId
+        : '/public/assets/import_history.php';
+    header('Location: ' . base_url($target));
+    exit;
 }

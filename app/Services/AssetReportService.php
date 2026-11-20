@@ -51,6 +51,17 @@ class AssetReportService
             a.purchase_date,
             a.purchase_cost,
             a.current_book_value,
+            a.finance_item_id,
+            a.finance_item_name,
+            a.finance_ffe_number,
+            a.finance_code,
+            a.finance_main_location,
+            a.finance_owner_department,
+            a.finance_status,
+            a.finance_supplier,
+            a.finance_po_number,
+            a.finance_price_text,
+            a.finance_date_purchase_text,
 
             c.name AS category_name,
             s.name AS status_name,
@@ -219,6 +230,22 @@ class AssetReportService
             }
         }
 
+        $financeFilters = [
+            'finance_owner_department' => 'a.finance_owner_department',
+            'finance_main_location' => 'a.finance_main_location',
+            'finance_status' => 'a.finance_status',
+            'finance_supplier' => 'a.finance_supplier',
+        ];
+
+        foreach ($financeFilters as $filter => $column) {
+            $value = trim((string) ($filters[$filter] ?? ''));
+
+            if ($value !== '') {
+                $whereSql .= " AND {$column} LIKE :{$filter}";
+                $params[$filter] = '%' . $value . '%';
+            }
+        }
+
         $search = trim(
             (string) ($filters['search'] ?? '')
         );
@@ -226,29 +253,41 @@ class AssetReportService
         if ($search !== '') {
             $whereSql .= '
             AND (
-                a.asset_code LIKE :search_code
-                OR a.asset_tag LIKE :search_tag
-                OR a.serial_number LIKE :search_serial
-                OR a.asset_name LIKE :search_name
-                OR a.manufacturer LIKE :search_manufacturer
-                OR a.model LIKE :search_model
-                OR v.name LIKE :search_supplier
-                OR assigned.first_name LIKE :search_first_name
-                OR assigned.last_name LIKE :search_last_name
+                a.finance_main_location LIKE :search_main_location
+                OR a.finance_owner_department LIKE :search_owner_department
+                OR c.name LIKE :search_category
+                OR a.finance_item_id LIKE :search_item_id
+                OR a.finance_item_name LIKE :search_item_name
+                OR a.finance_ffe_number LIKE :search_ffe
+                OR a.finance_code LIKE :search_finance_code
+                OR a.finance_status LIKE :search_finance_status
+                OR a.finance_supplier LIKE :search_finance_supplier
+                OR a.finance_po_number LIKE :search_po
+                OR a.finance_price_text LIKE :search_price
+                OR a.finance_date_purchase_text LIKE :search_purchase_date
+                OR a.finance_location LIKE :search_aux_location
             )
         ';
 
             $searchTerm = '%' . $search . '%';
 
-            $params['search_code'] = $searchTerm;
-            $params['search_tag'] = $searchTerm;
-            $params['search_serial'] = $searchTerm;
-            $params['search_name'] = $searchTerm;
-            $params['search_manufacturer'] = $searchTerm;
-            $params['search_model'] = $searchTerm;
-            $params['search_supplier'] = $searchTerm;
-            $params['search_first_name'] = $searchTerm;
-            $params['search_last_name'] = $searchTerm;
+            foreach ([
+                'search_main_location',
+                'search_owner_department',
+                'search_category',
+                'search_item_id',
+                'search_item_name',
+                'search_ffe',
+                'search_finance_code',
+                'search_finance_status',
+                'search_finance_supplier',
+                'search_po',
+                'search_price',
+                'search_purchase_date',
+                'search_aux_location',
+            ] as $parameter) {
+                $params[$parameter] = $searchTerm;
+            }
         }
 
         return [$whereSql, $params];

@@ -22,6 +22,13 @@ $firstName = $currentUser['first_name']
 
 $roleName = $currentUser['role_name']
     ?? 'User';
+
+$swalFlash = \App\Core\Session::get('swal_flash');
+if (is_array($swalFlash)) {
+    \App\Core\Session::remove('swal_flash');
+} else {
+    $swalFlash = null;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -75,6 +82,11 @@ $roleName = $currentUser['role_name']
     <link rel="icon" href="<?= e(asset('images/favicon.ico')) ?>">
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <?php if ($swalFlash !== null): ?>
+        <script>
+            window.ASSETSYS_SWAL_FLASH = <?= json_encode($swalFlash, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        </script>
+    <?php endif; ?>
 
 </head>
 

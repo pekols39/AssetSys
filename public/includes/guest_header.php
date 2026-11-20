@@ -50,6 +50,9 @@ $pageTitle = $pageTitle ?? APP_NAME;
     <!-- Favicon -->
     <link rel="icon" href="<?= e(asset('images/favicon.ico')) ?>">
 
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 </head>
 
 <body>

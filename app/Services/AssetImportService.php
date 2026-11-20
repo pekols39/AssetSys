@@ -27,6 +27,21 @@ class AssetImportService
         'PO NUMBER',
         'Price',
         'DATE PURCHASE',
+    ];
+
+    private const STAGED_HEADERS = [
+        'LOCATION (Main)',
+        'OWNER / DEPARTMENT',
+        'CATEGORY',
+        'Item ID',
+        'Item name',
+        'FFE NUMBER',
+        'CODE',
+        'Status',
+        'SUPPLIER',
+        'PO NUMBER',
+        'Price',
+        'DATE PURCHASE',
         'LOCATION',
     ];
 
@@ -85,6 +100,14 @@ class AssetImportService
                 }
             }
 
+            // The official workbook names the main location column LOCATION.
+            // Older templates used LOCATION (Main) and may also contain a second LOCATION column.
+            if (!isset($headerMap['LOCATION (Main)']) && isset($headerMap['LOCATION'])) {
+                $headerMap['LOCATION (Main)'] = $headerMap['LOCATION'];
+                unset($headerMap['LOCATION']);
+            }
+
+            $categoryHeaderPresent = isset($headerMap['CATEGORY']);
             $missing = array_values(array_diff(self::REQUIRED_HEADERS, array_keys($headerMap)));
             if ($missing !== []) {
                 throw new RuntimeException(
@@ -129,7 +152,13 @@ class AssetImportService
                 $rawValues = [];
                 $hasValue = false;
 
-                foreach (self::REQUIRED_HEADERS as $header) {
+                foreach (self::STAGED_HEADERS as $header) {
+                    if (!isset($headerMap[$header])) {
+                        $displayValues[$header] = null;
+                        $rawValues[$header] = null;
+                        continue;
+                    }
+
                     $column = $headerMap[$header];
                     $cell = $sheet->getCell([$column, $row]);
                     $raw = $cell->getValue();
@@ -151,6 +180,7 @@ class AssetImportService
                     [
                         'values' => $displayValues,
                         'raw_values' => $rawValues,
+                        'category_header_present' => $categoryHeaderPresent,
                     ],
                     JSON_UNESCAPED_UNICODE
                     | JSON_UNESCAPED_SLASHES
@@ -278,7 +308,7 @@ class AssetImportService
         return $rows;
     }
 
-    /** Return distinct Finance Item ID and Status values for manual mapping. */
+    /** Return distinct source Category and Status values for the automatic import preview. */
     public function getMappingOptions(int $batchId): array
     {
         $stmt = $this->db->prepare(
@@ -289,37 +319,47 @@ class AssetImportService
         );
         $stmt->execute(['batch_id' => $batchId]);
 
-        $itemIds = [];
+        $categories = [];
         $statuses = [];
+        $blankCategoryRows = 0;
+        $blankStatusRows = 0;
 
         while ($source = $stmt->fetchColumn()) {
             $decoded = json_decode((string) $source, true);
             $values = is_array($decoded['values'] ?? null) ? $decoded['values'] : [];
+            $categoryHeaderPresent = (bool) ($decoded['category_header_present'] ?? false);
 
-            $itemId = trim((string) ($values['Item ID'] ?? ''));
+            // Legacy workbooks had no CATEGORY column; retain their former Item ID mapping.
+            $categoryValue = $categoryHeaderPresent
+                ? trim((string) ($values['CATEGORY'] ?? ''))
+                : trim((string) ($values['Item ID'] ?? ''));
             $status = trim((string) ($values['Status'] ?? ''));
 
-            if ($itemId === '') {
-                $itemIds['__BLANK__'] = true;
+            if ($categoryValue === '') {
+                $categories['__BLANK__'] = true;
+                $blankCategoryRows++;
             } else {
-                $itemIds[$itemId] = true;
+                $categories[$categoryValue] = true;
             }
 
             if ($status === '') {
                 $statuses['__BLANK__'] = true;
+                $blankStatusRows++;
             } else {
                 $statuses[$status] = true;
             }
         }
 
-        $itemValues = array_keys($itemIds);
+        $categoryValues = array_keys($categories);
         $statusValues = array_keys($statuses);
-        natcasesort($itemValues);
+        natcasesort($categoryValues);
         natcasesort($statusValues);
 
         return [
-            'item_ids' => array_values($itemValues),
+            'categories' => array_values($categoryValues),
             'statuses' => array_values($statusValues),
+            'blank_category_rows' => $blankCategoryRows,
+            'blank_status_rows' => $blankStatusRows,
         ];
     }
 
@@ -345,14 +385,17 @@ class AssetImportService
         $categoryIds = array_map('intval', $categories);
         $statusIds = array_map('intval', $statuses);
 
-        $clean = ['item_ids' => [], 'statuses' => []];
+        $clean = ['categories' => [], 'statuses' => []];
+        $submittedCategories = is_array($mapping['categories'] ?? null)
+            ? $mapping['categories']
+            : (is_array($mapping['item_ids'] ?? null) ? $mapping['item_ids'] : []);
 
-        foreach ($options['item_ids'] as $value) {
-            $id = filter_var($mapping['item_ids'][$value] ?? null, FILTER_VALIDATE_INT);
+        foreach ($options['categories'] as $value) {
+            $id = filter_var($submittedCategories[$value] ?? null, FILTER_VALIDATE_INT);
             if ($id === false || !in_array((int) $id, $categoryIds, true)) {
-                throw new RuntimeException('Select a valid AssetSys category for Finance Item ID: ' . $value);
+                throw new RuntimeException('Select a valid AssetSys category for Finance Category: ' . $value);
             }
-            $clean['item_ids'][$value] = (int) $id;
+            $clean['categories'][$value] = (int) $id;
         }
 
         foreach ($options['statuses'] as $value) {
@@ -395,13 +438,13 @@ class AssetImportService
         $stmt->execute(['id' => $batchId]);
         $json = $stmt->fetchColumn();
         if (!is_string($json) || $json === '') {
-            return ['item_ids' => [], 'statuses' => []];
+            return ['categories' => [], 'statuses' => []];
         }
 
         $mapping = json_decode($json, true);
         return is_array($mapping)
             ? $mapping
-            : ['item_ids' => [], 'statuses' => []];
+            : ['categories' => [], 'statuses' => []];
     }
 
 
@@ -417,7 +460,7 @@ class AssetImportService
         }
 
         $batchStmt = $this->db->prepare(
-            'SELECT id, batch_status, mapping_data, failed_rows
+            'SELECT id, batch_status, failed_rows
              FROM asset_import_batches
              WHERE id = :id
              FOR UPDATE'
@@ -434,21 +477,6 @@ class AssetImportService
                 || ($batch['batch_status'] === 'completed' && (int) $batch['failed_rows'] <= 0)
             ) {
                 throw new RuntimeException('This import batch has no pending or failed rows available for processing.');
-            }
-
-            if (!is_string($batch['mapping_data']) || $batch['mapping_data'] === '') {
-                throw new RuntimeException('Save the category and status mappings before importing.');
-            }
-
-            $mapping = json_decode($batch['mapping_data'], true);
-            if (!is_array($mapping)) {
-                throw new RuntimeException('The saved reference mapping is invalid.');
-            }
-
-            $itemMappings = $mapping['item_ids'] ?? [];
-            $statusMappings = $mapping['statuses'] ?? [];
-            if (!is_array($itemMappings) || !is_array($statusMappings)) {
-                throw new RuntimeException('The saved reference mapping is invalid.');
             }
 
             $this->db->prepare(
@@ -507,19 +535,18 @@ class AssetImportService
                     $values = is_array($decoded['values'] ?? null) ? $decoded['values'] : [];
                     $raw = is_array($decoded['raw_values'] ?? null) ? $decoded['raw_values'] : [];
 
-                    $itemKey = trim((string) ($values['Item ID'] ?? '')) === ''
-                        ? '__BLANK__'
-                        : trim((string) $values['Item ID']);
-                    $statusKey = trim((string) ($values['Status'] ?? '')) === ''
-                        ? '__BLANK__'
-                        : trim((string) $values['Status']);
+                    $categoryHeaderPresent = (bool) ($decoded['category_header_present'] ?? false);
+                    $sourceCategory = $categoryHeaderPresent
+                        ? trim((string) ($values['CATEGORY'] ?? ''))
+                        : trim((string) ($values['Item ID'] ?? ''));
+                    $categoryName = $sourceCategory !== '' ? $sourceCategory : 'UNCATEGORIZED';
 
-                    $categoryId = filter_var($itemMappings[$itemKey] ?? null, FILTER_VALIDATE_INT);
-                    $statusId = filter_var($statusMappings[$statusKey] ?? null, FILTER_VALIDATE_INT);
+                    $sourceStatus = trim((string) ($values['Status'] ?? ''));
+                    $statusName = $sourceStatus !== '' ? $sourceStatus : 'AVAILABLE';
 
-                    if ($categoryId === false || $statusId === false) {
-                        throw new RuntimeException('A Finance Item ID or Status value has no saved AssetSys mapping.');
-                    }
+                    // Match existing dropdown values or create missing values automatically.
+                    $categoryId = $this->resolveImportReferenceId('asset_categories', $categoryName);
+                    $statusId = $this->resolveImportReferenceId('asset_statuses', $statusName);
 
                     $assetName = trim((string) ($values['Item name'] ?? ''));
                     if ($assetName === '') {
@@ -627,6 +654,62 @@ class AssetImportService
             }
             throw new RuntimeException('Unable to process the Finance inventory batch.', 0, $exception);
         }
+    }
+
+    /**
+     * Reuse an existing active import reference or create it automatically.
+     * Matching is case-insensitive and ignores surrounding whitespace.
+     */
+    private function resolveImportReferenceId(string $table, string $name): int
+    {
+        $allowedTables = ['asset_categories', 'asset_statuses'];
+        if (!in_array($table, $allowedTables, true)) {
+            throw new RuntimeException('Invalid import reference table.');
+        }
+
+        $name = trim($name);
+        if ($name === '') {
+            throw new RuntimeException('An import reference name cannot be blank.');
+        }
+
+        $maxLength = $table === 'asset_categories' ? 100 : 50;
+        if (mb_strlen($name) > $maxLength) {
+            throw new RuntimeException('An imported ' . ($table === 'asset_categories' ? 'category' : 'status') . ' exceeds ' . $maxLength . ' characters.');
+        }
+
+        $stmt = $this->db->prepare(
+            "SELECT id, is_active
+             FROM {$table}
+             WHERE LOWER(TRIM(name)) = LOWER(TRIM(:name))
+             LIMIT 1
+             FOR UPDATE"
+        );
+        $stmt->execute(['name' => $name]);
+        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($existing) {
+            if ((int) $existing['is_active'] !== 1) {
+                throw new RuntimeException(
+                    'The existing ' . ($table === 'asset_categories' ? 'category' : 'status')
+                    . ' "' . $name . '" is inactive. Activate it in Asset Dropdown Management before importing.'
+                );
+            }
+
+            return (int) $existing['id'];
+        }
+
+        $insert = $this->db->prepare(
+            "INSERT INTO {$table} (name, is_active)
+             VALUES (:name, 1)"
+        );
+        $insert->execute(['name' => $name]);
+
+        $id = (int) $this->db->lastInsertId();
+        if ($id <= 0) {
+            throw new RuntimeException('Unable to create the imported reference value: ' . $name);
+        }
+
+        return $id;
     }
 
     private function nextImportAssetCode(): string

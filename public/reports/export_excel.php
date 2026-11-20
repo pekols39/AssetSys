@@ -42,6 +42,10 @@ $filters = [
     'status_id' => trim((string) ($_GET['status_id'] ?? '')),
     'condition_id' => trim((string) ($_GET['condition_id'] ?? '')),
     'location_id' => trim((string) ($_GET['location_id'] ?? '')),
+    'finance_owner_department' => trim((string) ($_GET['finance_owner_department'] ?? '')),
+    'finance_main_location' => trim((string) ($_GET['finance_main_location'] ?? '')),
+    'finance_status' => trim((string) ($_GET['finance_status'] ?? '')),
+    'finance_supplier' => trim((string) ($_GET['finance_supplier'] ?? '')),
 ];
 
 $spreadsheet = null;
@@ -66,16 +70,16 @@ try {
      * Report title and generation date.
      * No company header image is included in this Excel export.
      */
-    $sheet->mergeCells('A1:J1');
+    $sheet->mergeCells('A1:L1');
     $sheet->setCellValue('A1', 'ASSET INVENTORY REPORT');
 
-    $sheet->mergeCells('A2:J2');
+    $sheet->mergeCells('A2:L2');
     $sheet->setCellValue(
         'A2',
         'Generated: ' . date('F j, Y g:i A')
     );
 
-    $sheet->getStyle('A1:J1')->applyFromArray([
+    $sheet->getStyle('A1:L1')->applyFromArray([
         'font' => [
             'bold' => true,
             'size' => 16,
@@ -86,7 +90,7 @@ try {
         ],
     ]);
 
-    $sheet->getStyle('A2:J2')->applyFromArray([
+    $sheet->getStyle('A2:L2')->applyFromArray([
         'font' => [
             'italic' => true,
             'size' => 10,
@@ -95,25 +99,16 @@ try {
     ]);
 
     // Summary.
-    $sheet->mergeCells('A4:C4');
-    $sheet->setCellValue(
-        'A4',
-        'Total Assets: ' . count($assets)
-    );
+    $sheet->mergeCells('A4:D4');
+    $sheet->setCellValue('A4', 'Total Assets: ' . count($assets));
 
-    $sheet->mergeCells('D4:F4');
-    $sheet->setCellValue(
-        'D4',
-        'Purchase Cost: PHP ' . number_format($totalPurchaseCost, 2)
-    );
+    $sheet->mergeCells('E4:H4');
+    $sheet->setCellValue('E4', 'AssetSys Purchase Cost: PHP ' . number_format($totalPurchaseCost, 2));
 
-    $sheet->mergeCells('G4:J4');
-    $sheet->setCellValue(
-        'G4',
-        'Current Book Value: PHP ' . number_format($totalBookValue, 2)
-    );
+    $sheet->mergeCells('I4:L4');
+    $sheet->setCellValue('I4', 'AssetSys Current Book Value: PHP ' . number_format($totalBookValue, 2));
 
-    $sheet->getStyle('A4:J4')->applyFromArray([
+    $sheet->getStyle('A4:L4')->applyFromArray([
         'font' => [
             'bold' => true,
             'size' => 10,
@@ -130,16 +125,18 @@ try {
 
     // Table headings.
     $headers = [
-        'Asset Code',
-        'Asset Name',
+        'Location (Main)',
+        'Owner / Department',
         'Category',
+        'Item ID',
+        'Item Name',
+        'FFE Number',
+        'Code',
         'Status',
-        'Condition',
-        'Location',
-        'Assigned To',
-        'Purchase Date',
-        'Purchase Cost',
-        'Current Book Value',
+        'Supplier',
+        'PO Number',
+        'Price',
+        'Date Purchase',
     ];
 
     $headerRow = 6;
@@ -149,7 +146,7 @@ try {
         $sheet->setCellValue($column . $headerRow, $heading);
     }
 
-    $sheet->getStyle("A{$headerRow}:J{$headerRow}")
+    $sheet->getStyle("A{$headerRow}:L{$headerRow}")
         ->applyFromArray([
             'font' => [
                 'bold' => true,
@@ -170,21 +167,19 @@ try {
     $row = $headerRow + 1;
 
     foreach ($assets as $asset) {
-        $assignedName = trim(
-            (string) ($asset['assigned_first_name'] ?? '')
-            . ' '
-            . (string) ($asset['assigned_last_name'] ?? '')
-        );
-
         $textValues = [
-            'A' => $asset['asset_code'] ?? '',
-            'B' => $asset['asset_name'] ?? '',
+            'A' => $asset['finance_main_location'] ?? '',
+            'B' => $asset['finance_owner_department'] ?? '',
             'C' => $asset['category_name'] ?? '',
-            'D' => $asset['status_name'] ?? '',
-            'E' => $asset['condition_name'] ?? '',
-            'F' => $asset['location_name'] ?? '',
-            'G' => $assignedName !== '' ? $assignedName : 'Unassigned',
-            'H' => $asset['purchase_date'] ?? '',
+            'D' => $asset['finance_item_id'] ?? '',
+            'E' => $asset['finance_item_name'] ?? '',
+            'F' => $asset['finance_ffe_number'] ?? '',
+            'G' => $asset['finance_code'] ?? '',
+            'H' => $asset['finance_status'] ?? '',
+            'I' => $asset['finance_supplier'] ?? '',
+            'J' => $asset['finance_po_number'] ?? '',
+            'K' => $asset['finance_price_text'] ?? '',
+            'L' => $asset['finance_date_purchase_text'] ?? '',
         ];
 
         foreach ($textValues as $column => $value) {
@@ -195,87 +190,36 @@ try {
             );
         }
 
-        $sheet->setCellValue(
-            'I' . $row,
-            (float) ($asset['purchase_cost'] ?? 0)
-        );
-
-        $sheet->setCellValue(
-            'J' . $row,
-            (float) ($asset['current_book_value'] ?? 0)
-        );
-
         $row++;
     }
 
     if ($assets === []) {
-        $sheet->mergeCells("A{$row}:J{$row}");
+        $sheet->mergeCells("A{$row}:L{$row}");
         $sheet->setCellValue('A' . $row, 'No matching assets found.');
         $row++;
     }
 
-    // Filtered totals.
-    $totalRow = $row;
-
-    $sheet->mergeCells("A{$totalRow}:H{$totalRow}");
-    $sheet->setCellValue('A' . $totalRow, 'FILTERED TOTALS');
-    $sheet->setCellValue('I' . $totalRow, $totalPurchaseCost);
-    $sheet->setCellValue('J' . $totalRow, $totalBookValue);
-
-    $sheet->getStyle("A{$totalRow}:J{$totalRow}")
-        ->applyFromArray([
-            'font' => [
-                'bold' => true,
-            ],
-            'fill' => [
-                'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => 'EAF2F1'],
-            ],
-            'borders' => [
-                'top' => [
-                    'borderStyle' => Border::BORDER_THIN,
-                    'color' => ['rgb' => 'B8CECA'],
-                ],
-            ],
-        ]);
-
-    // Philippine peso formatting for purchase cost and book value.
-    $sheet->getStyle('I' . ($headerRow + 1) . ':J' . $totalRow)
-        ->getNumberFormat()
-        ->setFormatCode('"₱"#,##0.00;[Red]-"₱"#,##0.00;-');
+    // Official inventory table contains source fields only; accounting totals remain in the summary above.
+    $lastAssetRow = max($headerRow, $row - 1);
 
     // Table borders and vertical alignment.
-    $sheet->getStyle("A{$headerRow}:J{$totalRow}")
+    $sheet->getStyle("A{$headerRow}:L{$lastAssetRow}")
         ->getBorders()
         ->getAllBorders()
         ->setBorderStyle(Border::BORDER_THIN);
 
     $sheet->getStyle(
-        'I' . ($headerRow + 1) . ':J' . $totalRow
-    )->getAlignment()->setHorizontal(
-        Alignment::HORIZONTAL_RIGHT
-    );
-
-    $sheet->getStyle(
-        'A' . ($headerRow + 1) . ':J' . $totalRow
+        'A' . ($headerRow + 1) . ':L' . $lastAssetRow
     )->getAlignment()->setVertical(
         Alignment::VERTICAL_CENTER
     );
 
     // Column widths.
     $widths = [
-        'A' => 22,
-        'B' => 30,
-        'C' => 25,
-        'D' => 18,
-        'E' => 18,
-        'F' => 22,
-        'G' => 26,
-        'H' => 16,
-        'I' => 20,
-        'J' => 22,
+        'A' => 22, 'B' => 26, 'C' => 20, 'D' => 16,
+        'E' => 30, 'F' => 20, 'G' => 18, 'H' => 18,
+        'I' => 26, 'J' => 20, 'K' => 18, 'L' => 18,
     ];
-
     foreach ($widths as $column => $width) {
         $sheet->getColumnDimension($column)->setWidth($width);
     }
@@ -288,8 +232,7 @@ try {
     $sheet->freezePane('A7');
 
     // Enable filtering on the inventory table.
-    $lastAssetRow = max($headerRow, $row - 1);
-    $sheet->setAutoFilter("A{$headerRow}:J{$lastAssetRow}");
+    $sheet->setAutoFilter("A{$headerRow}:L{$lastAssetRow}");
 
     // Page setup for printing.
     $sheet->getPageSetup()->setOrientation(

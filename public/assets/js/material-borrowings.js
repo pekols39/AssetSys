@@ -2,23 +2,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiUrl = (name) => new URL(`../api/${name}`, window.location.href).toString();
 
     const showMessage = async (icon, title, text) => {
-        if (window.Swal) {
-            return Swal.fire({ icon, title, text, confirmButtonColor: '#007472' });
+        if (!window.Swal || typeof window.Swal.fire !== 'function') {
+            console.error('SweetAlert2 is unavailable; message not displayed:', title, text);
+            return undefined;
         }
-        window.alert(text || title);
-        return undefined;
+        return Swal.fire({ icon, title, text, confirmButtonColor: '#007472' });
     };
 
     const confirmAction = async (title, text, confirmText) => {
-        if (window.Swal) {
-            const result = await Swal.fire({
-                icon: 'question', title, text, showCancelButton: true,
-                confirmButtonText: confirmText, cancelButtonText: 'Cancel',
-                confirmButtonColor: '#007472', reverseButtons: true
-            });
-            return result.isConfirmed;
+        if (!window.Swal || typeof window.Swal.fire !== 'function') {
+            console.error('SweetAlert2 is unavailable; action blocked:', title, text);
+            return false;
         }
-        return window.confirm(`${title}\n\n${text}`);
+        const result = await Swal.fire({
+            icon: 'question', title, text, showCancelButton: true,
+            confirmButtonText: confirmText, cancelButtonText: 'Cancel',
+            confirmButtonColor: '#007472', reverseButtons: true
+        });
+        return result.isConfirmed;
     };
 
     const readJson = async (response) => {

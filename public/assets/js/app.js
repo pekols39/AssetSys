@@ -1,6 +1,18 @@
 (function () {
     'use strict';
 
+    const flashMessage = window.ASSETSYS_SWAL_FLASH;
+    if (flashMessage && window.Swal && typeof window.Swal.fire === 'function') {
+        delete window.ASSETSYS_SWAL_FLASH;
+        Swal.fire({
+            icon: flashMessage.icon || 'info',
+            title: flashMessage.title || 'Notice',
+            text: flashMessage.text || '',
+            confirmButtonText: 'Okay',
+            confirmButtonColor: '#007472'
+        });
+    }
+
     // Live date and time in Philippine time.
     const dateElement = document.getElementById('appTopbarDate');
     const timeElement = document.getElementById('appTopbarTime');
