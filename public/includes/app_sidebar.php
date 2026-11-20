@@ -179,6 +179,14 @@ $isAdministrationAuditTrail =
 
                 <?php if ($authorization->isPropertyCustodian()): ?>
 
+                    <a href="<?= e(base_url('/public/assets/reference_data.php')) ?>"
+                        class="app-sidebar-link <?= str_ends_with($currentPath, '/assets/reference_data.php') ? 'active' : '' ?>">
+                        <span class="app-sidebar-link-icon">
+                            <i class="fa-solid fa-list-check"></i>
+                        </span>
+                        <span class="app-sidebar-link-text">Asset Dropdown Management</span>
+                    </a>
+
                     <a href="<?= e(base_url('/public/materials/borrow.php')) ?>"
                         class="app-sidebar-link <?= $isMaterialBorrow ? 'active' : '' ?>">
                         <span class="app-sidebar-link-icon">
