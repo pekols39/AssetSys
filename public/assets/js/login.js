@@ -26,9 +26,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         }
 
-        // Fallback only if the SweetAlert2 CDN fails to load.
-        console.error("SweetAlert2 is unavailable:", title, message);
-        window.alert(`${title}\n\n${message}`);
+        console.error("SweetAlert2 is unavailable; login notification was not displayed:", title, message);
+        return undefined;
 
     };
 
