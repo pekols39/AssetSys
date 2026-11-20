@@ -79,7 +79,7 @@ class AssetService
         }
 
         $departmentName = trim(
-            (string) ($data['department_name'] ?? '')
+            (string) ($data['department_name'] ?? $data['finance_owner_department'] ?? '')
         );
 
         $locationName = trim(
@@ -1120,8 +1120,15 @@ class AssetService
             'finance_supplier' => $this->normalizeFinanceText($data['finance_supplier'] ?? null, 150),
             'finance_po_number' => $this->normalizeFinanceText($data['finance_po_number'] ?? null, 100),
             'finance_location' => $this->normalizeFinanceText($data['finance_location'] ?? null, 255),
-            'finance_price' => $this->normalizeOptionalFinancePrice($data['finance_price'] ?? $purchaseCost),
-            'finance_price_text' => $this->normalizeFinanceText($data['finance_price_text'] ?? ($data['finance_price'] ?? $purchaseCost), 100),
+            'finance_price' => $this->normalizeOptionalFinancePrice(
+                array_key_exists('finance_price', $data) ? $data['finance_price'] : $purchaseCost
+            ),
+            'finance_price_text' => $this->normalizeFinanceText(
+                array_key_exists('finance_price_text', $data)
+                    ? $data['finance_price_text']
+                    : (array_key_exists('finance_price', $data) ? $data['finance_price'] : $purchaseCost),
+                100
+            ),
             'finance_date_purchase_text' => $this->normalizeFinanceText($data['finance_date_purchase_text'] ?? ($data['purchase_date'] ?? null), 100),
         ];
     }
