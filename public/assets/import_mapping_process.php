@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 
-use App\\Helpers\\Csrf;
-use App\\Middleware\\AuthMiddleware;
-use App\\Services\\AuthorizationService;
+use App\Helpers\Csrf;
+use App\Middleware\AuthMiddleware;
+use App\Services\AuthorizationService;
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 AuthMiddleware::handle();
 
 if (!Csrf::validate($_POST[CSRF_TOKEN_NAME] ?? null)) {
-    \\App\\Core\\Session::set('swal_flash', [
+    \App\Core\Session::set('swal_flash', [
         'icon' => 'error',
         'title' => 'Session expired',
         'text' => 'Refresh the import preview and try again.',
@@ -33,7 +33,7 @@ if (!$authorization->canAccessAssetOperations()) {
 
 $batchId = filter_var($_POST['batch_id'] ?? null, FILTER_VALIDATE_INT);
 if ($batchId === false || $batchId <= 0) {
-    \\App\\Core\\Session::set('swal_flash', [
+    \App\Core\Session::set('swal_flash', [
         'icon' => 'error',
         'title' => 'Invalid import batch',
         'text' => 'Please open a valid import preview.',
@@ -42,7 +42,7 @@ if ($batchId === false || $batchId <= 0) {
     exit;
 }
 
-\\App\\Core\\Session::set('swal_flash', [
+\App\Core\Session::set('swal_flash', [
     'icon' => 'info',
     'title' => 'Manual mapping removed',
     'text' => 'Category and status values are now matched or created automatically from the workbook.',
