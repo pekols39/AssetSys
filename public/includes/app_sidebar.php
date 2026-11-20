@@ -21,11 +21,14 @@ $isDisposalRequests = str_ends_with(
 
 $isImportHistory = str_ends_with($currentPath, '/assets/import_history.php');
 
+$isReferenceData = str_ends_with($currentPath, '/assets/reference_data.php');
+
 $isAssets =
     str_contains($currentPath, '/assets/')
     && !$isDepartmentTransfers
     && !$isDisposalRequests
-    && !$isImportHistory;
+    && !$isImportHistory
+    && !$isReferenceData;
 
 $isInventoryReport =
     str_ends_with($currentPath, '/reports/index.php')
