@@ -40,6 +40,10 @@ $filters = [
     'status_id' => trim((string) ($_GET['status_id'] ?? '')),
     'condition_id' => trim((string) ($_GET['condition_id'] ?? '')),
     'location_id' => trim((string) ($_GET['location_id'] ?? '')),
+    'finance_owner_department' => trim((string) ($_GET['finance_owner_department'] ?? '')),
+    'finance_main_location' => trim((string) ($_GET['finance_main_location'] ?? '')),
+    'finance_status' => trim((string) ($_GET['finance_status'] ?? '')),
+    'finance_supplier' => trim((string) ($_GET['finance_supplier'] ?? '')),
 ];
 
 $categories = $referenceDataService->getAssetCategories();
@@ -169,7 +173,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         <h1 class="h3 mb-1">Asset Inventory Report</h1>
 
         <p class="text-muted mb-0">
-            Review company assets, current status, locations, and book values.
+            Official inventory fields with separate AssetSys accounting summary metrics.
         </p>
     </div>
 
@@ -246,7 +250,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                         id="search"
                         name="search"
                         value="<?= e($filters['search']) ?>"
-                        placeholder="Asset code, name, serial, supplier..."
+                        placeholder="Search all official inventory fields..."
                     >
                 </div>
 
@@ -265,49 +269,21 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     </select>
                 </div>
 
-                <div class="col-12 col-md-6 col-lg-2">
-                    <label for="status_id" class="form-label">Status</label>
-                    <select class="form-select" id="status_id" name="status_id">
-                        <option value="">All statuses</option>
-                        <?php foreach ($statuses as $status): ?>
-                            <option
-                                value="<?= (int) $status['id'] ?>"
-                                <?= $filters['status_id'] === (string) $status['id'] ? 'selected' : '' ?>
-                            >
-                                <?= e($status['name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label for="finance_owner_department" class="form-label">Owner / Department</label>
+                    <input class="form-control" id="finance_owner_department" name="finance_owner_department" value="<?= e($filters['finance_owner_department']) ?>" placeholder="Filter owner / department">
                 </div>
-
-                <div class="col-12 col-md-6 col-lg-2">
-                    <label for="condition_id" class="form-label">Condition</label>
-                    <select class="form-select" id="condition_id" name="condition_id">
-                        <option value="">All conditions</option>
-                        <?php foreach ($conditions as $condition): ?>
-                            <option
-                                value="<?= (int) $condition['id'] ?>"
-                                <?= $filters['condition_id'] === (string) $condition['id'] ? 'selected' : '' ?>
-                            >
-                                <?= e($condition['name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label for="finance_main_location" class="form-label">Location (Main)</label>
+                    <input class="form-control" id="finance_main_location" name="finance_main_location" value="<?= e($filters['finance_main_location']) ?>" placeholder="Filter main location">
                 </div>
-
-                <div class="col-12 col-md-6 col-lg-2">
-                    <label for="location_id" class="form-label">Location</label>
-                    <select class="form-select" id="location_id" name="location_id">
-                        <option value="">All locations</option>
-                        <?php foreach ($locations as $location): ?>
-                            <option
-                                value="<?= (int) $location['id'] ?>"
-                                <?= $filters['location_id'] === (string) $location['id'] ? 'selected' : '' ?>
-                            >
-                                <?= e($location['name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label for="finance_status" class="form-label">Finance Status</label>
+                    <input class="form-control" id="finance_status" name="finance_status" value="<?= e($filters['finance_status']) ?>" placeholder="Filter finance status">
+                </div>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <label for="finance_supplier" class="form-label">Supplier</label>
+                    <input class="form-control" id="finance_supplier" name="finance_supplier" value="<?= e($filters['finance_supplier']) ?>" placeholder="Filter supplier">
                 </div>
 
                 <div class="col-12 col-md-6 col-lg-2">
@@ -372,69 +348,49 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                 <table class="table table-hover align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Asset</th>
+                            <th>Location (Main)</th>
+                            <th>Owner / Department</th>
                             <th>Category</th>
+                            <th>Item ID</th>
+                            <th>Item Name</th>
+                            <th>FFE Number</th>
+                            <th>Code</th>
                             <th>Status</th>
-                            <th>Condition</th>
-                            <th>Location</th>
-                            <th>Assigned To</th>
-                            <th class="text-end">Purchase Cost</th>
-                            <th class="text-end">Book Value</th>
+                            <th>Supplier</th>
+                            <th>PO Number</th>
+                            <th>Price</th>
+                            <th>Date Purchase</th>
                         </tr>
                     </thead>
 
                     <tbody>
                         <?php foreach ($assets as $asset): ?>
                             <?php
-                            $assignedName = trim(
-                                (string) ($asset['assigned_first_name'] ?? '')
-                                . ' '
-                                . (string) ($asset['assigned_last_name'] ?? '')
-                            );
+                            $reportValue = static function (mixed $value): string {
+                                $value = trim((string) ($value ?? ''));
+                                return $value === '' || strtolower($value) === 'null' ? '—' : $value;
+                            };
                             ?>
                             <tr>
-                                <td>
-                                    <div class="fw-semibold">
-                                        <?= e($asset['asset_name'] ?? '') ?>
-                                    </div>
-                                    <div class="text-muted small">
-                                        <?= e($asset['asset_code'] ?? '') ?>
-                                    </div>
-                                    <?php if (!empty($asset['serial_number'])): ?>
-                                        <div class="text-muted small">
-                                            S/N: <?= e($asset['serial_number']) ?>
-                                        </div>
-                                    <?php endif; ?>
-                                </td>
-
-                                <td><?= e($asset['category_name'] ?? '—') ?></td>
-                                <td><?= e($asset['status_name'] ?? '—') ?></td>
-                                <td><?= e($asset['condition_name'] ?? '—') ?></td>
-                                <td><?= e($asset['location_name'] ?? '—') ?></td>
-                                <td><?= e($assignedName !== '' ? $assignedName : 'Unassigned') ?></td>
-
-                                <td class="text-end text-nowrap">
-                                    ₱<?= e(number_format((float) ($asset['purchase_cost'] ?? 0), 2)) ?>
-                                </td>
-
-                                <td class="text-end text-nowrap">
-                                    ₱<?= e(number_format((float) ($asset['current_book_value'] ?? 0), 2)) ?>
-                                </td>
+                                <td><?= e($reportValue($asset['finance_main_location'] ?? null)) ?></td>
+                                <td><?= e($reportValue($asset['finance_owner_department'] ?? null)) ?></td>
+                                <td><?= e($reportValue($asset['category_name'] ?? null)) ?></td>
+                                <td><?= e($reportValue($asset['finance_item_id'] ?? null)) ?></td>
+                                <td><?= e($reportValue($asset['finance_item_name'] ?? null)) ?></td>
+                                <td><?= e($reportValue($asset['finance_ffe_number'] ?? null)) ?></td>
+                                <td><?= e($reportValue($asset['finance_code'] ?? null)) ?></td>
+                                <td><?= e($reportValue($asset['finance_status'] ?? null)) ?></td>
+                                <td><?= e($reportValue($asset['finance_supplier'] ?? null)) ?></td>
+                                <td><?= e($reportValue($asset['finance_po_number'] ?? null)) ?></td>
+                                <td><?= e($reportValue($asset['finance_price_text'] ?? null)) ?></td>
+                                <td><?= e($reportValue($asset['finance_date_purchase_text'] ?? null)) ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
 
-                    <tfoot>
-                        <tr>
-                            <th colspan="6" class="text-end">Filtered Totals (all pages)</th>
-                            <th class="text-end text-nowrap">
-                                ₱<?= e(number_format($totalPurchaseCost, 2)) ?>
-                            </th>
-                            <th class="text-end text-nowrap">
-                                ₱<?= e(number_format($totalBookValue, 2)) ?>
-                            </th>
-                        </tr>
-                    </tfoot>
+                    </table>
+                <div class="text-muted small mt-2">The table shows the 12 official inventory fields. Purchase Cost and Current Book Value above are separate AssetSys accounting/depreciation metrics.</div>
+                <tfoot>
                 </table>
             </div>
 
