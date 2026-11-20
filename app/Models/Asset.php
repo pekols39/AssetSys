@@ -149,6 +149,19 @@ class Asset
             a.created_by,
             a.created_at,
             a.updated_at,
+            a.finance_item_id,
+            a.finance_item_name,
+            a.finance_ffe_number,
+            a.finance_code,
+            a.finance_main_location,
+            a.finance_owner_department,
+            a.finance_status,
+            a.finance_supplier,
+            a.finance_po_number,
+            a.finance_location,
+            a.finance_price,
+            a.finance_price_text,
+            a.finance_date_purchase_text,
 
             c.name AS category_name,
             s.name AS status_name,
@@ -472,6 +485,23 @@ class Asset
             ) {
                 $where[] = $column . ' = :' . $key;
                 $params[$key] = (int) $value;
+            }
+        }
+
+        // Official Finance inventory filters use the source text fields.
+        $financeFilters = [
+            'finance_owner_department' => 'a.finance_owner_department',
+            'finance_main_location' => 'a.finance_main_location',
+            'finance_status' => 'a.finance_status',
+            'finance_supplier' => 'a.finance_supplier',
+        ];
+
+        foreach ($financeFilters as $key => $column) {
+            $value = trim((string) ($filters[$key] ?? ''));
+
+            if ($value !== '') {
+                $where[] = $column . ' LIKE :' . $key;
+                $params[$key] = '%' . $value . '%';
             }
         }
 
