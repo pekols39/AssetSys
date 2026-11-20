@@ -49,6 +49,66 @@
         syncScrollbarSize();
     }
 
+
+    const bulkForm = document.getElementById('bulkQrForm');
+    if (bulkForm) {
+        const selectAll = document.getElementById('selectAllFilteredAssets');
+        const rowChecks = Array.from(table.querySelectorAll('.asset-row-select'));
+        const modeInput = document.getElementById('bulkSelectionMode');
+        const countLabel = document.getElementById('bulkSelectedCount');
+        const summary = document.getElementById('bulkSelectionSummary');
+        const submit = document.getElementById('bulkQrSubmit');
+        const totalFiltered = Number(bulkForm.dataset.totalFiltered || 0);
+        const refreshSelection = function () {
+            const allFiltered = Boolean(selectAll && selectAll.checked);
+            const selectedOnPage = rowChecks.filter(function (checkbox) { return checkbox.checked; }).length;
+            const selectedCount = allFiltered ? totalFiltered : selectedOnPage;
+            modeInput.value = allFiltered ? 'all_filtered' : 'selected';
+            countLabel.textContent = selectedCount.toLocaleString() + ' selected';
+            summary.textContent = allFiltered
+                ? 'All ' + totalFiltered.toLocaleString() + ' assets matching the current filters are selected across every page.'
+                : 'Select assets on this page, or use the header checkbox to select every matching asset across all pages.';
+            submit.disabled = selectedCount < 1;
+        };
+        if (selectAll) {
+            selectAll.addEventListener('change', function () {
+                rowChecks.forEach(function (checkbox) { checkbox.checked = selectAll.checked; });
+                refreshSelection();
+            });
+        }
+        rowChecks.forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                if (selectAll && selectAll.checked && !checkbox.checked) {
+                    selectAll.checked = false;
+                    rowChecks.forEach(function (other) { if (other !== checkbox) other.checked = false; });
+                }
+                refreshSelection();
+            });
+        });
+        bulkForm.addEventListener('submit', function (event) {
+            const allFiltered = Boolean(selectAll && selectAll.checked);
+            bulkForm.querySelectorAll('.bulk-generated-selection').forEach(function (input) { input.remove(); });
+            if (allFiltered) {
+                modeInput.value = 'all_filtered';
+            } else {
+                const selectedIds = rowChecks.filter(function (checkbox) { return checkbox.checked; }).map(function (checkbox) { return checkbox.value; });
+                if (selectedIds.length === 0) { event.preventDefault(); return; }
+                modeInput.value = 'selected';
+                selectedIds.forEach(function (id) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'asset_ids[]';
+                    input.value = id;
+                    input.className = 'bulk-generated-selection';
+                    bulkForm.appendChild(input);
+                });
+            }
+            const count = allFiltered ? totalFiltered : rowChecks.filter(function (checkbox) { return checkbox.checked; }).length;
+            if (!window.confirm('Generate or reuse QR identities and queue printable NIIMBOT labels for ' + count.toLocaleString() + ' asset(s)? The connected NIIMBOT agent will print queued labels automatically.')) event.preventDefault();
+        });
+        refreshSelection();
+    }
+
     rows.forEach(function (row) {
         row.addEventListener('click', function (event) {
             const action = event.target.closest(
