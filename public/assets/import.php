@@ -24,7 +24,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     <div>
         <div class="text-muted small mb-1">Asset Management</div>
         <h1 class="h3 mb-1">Import Asset Inventory</h1>
-        <p class="text-muted mb-0">Upload the Asset .xlsx workbook for review and staging.</p>
+        <p class="text-muted mb-0">Upload the official Finance asset inventory workbook (.xlsx) for review and staging.</p>
     </div>
     <div class="d-flex gap-2">
         <a href="<?= e(base_url('/public/assets/import_history.php')) ?>" class="btn btn-outline-primary">
@@ -61,7 +61,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     required
                 >
-                <div class="form-text">Maximum file size: 20 MB. The workbook must contain the 12 required inventory columns. The QR Code Generator column is not imported; AssetSys manages QR identities separately.</div>
+                <div class="form-text">Maximum file size: 20 MB. Required columns: LOCATION (Main), OWNER / DEPARTMENT, Item ID, Item name, FFE NUMBER, CODE, Status, SUPPLIER, PO NUMBER, Price, DATE PURCHASE, and LOCATION. The additional LOCATION column is retained as source data. The QR Code Generator column is not imported; AssetSys manages QR identities separately.</div>
             </div>
             <button type="submit" class="btn btn-primary">
                 <i class="fa-solid fa-upload me-1"></i> Upload and Preview
