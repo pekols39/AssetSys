@@ -132,15 +132,12 @@ $previewHeaders = [
     <form method="post" action="<?= e(base_url('/public/assets/import_execute.php')) ?>"
           data-swal-confirm="true" data-swal-title="Import staged assets?" data-swal-text="The staged records will be created in AssetSys. Missing categories and statuses will be added automatically. Existing assets will not be updated." data-swal-confirm-text="Yes, Import"
           class="mb-4">
-        <form method="post" action="<?= e(base_url('/public/assets/import_execute.php')) ?>"
-              data-swal-confirm="true" data-swal-title="Import staged assets?" data-swal-text="The staged records will be created in AssetSys. Existing assets will not be updated." data-swal-confirm-text="Yes, Import"
-              class="mb-4">
-            <?= Csrf::field() ?>
-            <input type="hidden" name="batch_id" value="<?= (int) $batchId ?>">
-            <button type="submit" class="btn btn-success">
-                <i class="fa-solid fa-database me-1"></i> Import Staged Records into AssetSys
-            </button>
-        </form>
+        <?= Csrf::field() ?>
+        <input type="hidden" name="batch_id" value="<?= (int) $batchId ?>">
+        <button type="submit" class="btn btn-success">
+            <i class="fa-solid fa-database me-1"></i> Import Staged Records into AssetSys
+        </button>
+    </form>
 <?php elseif ($batch['batch_status'] === 'completed'): ?>
     <div class="alert alert-success">
         Import processing completed. <?= number_format((int) $batch['imported_rows']) ?> asset(s) created;
