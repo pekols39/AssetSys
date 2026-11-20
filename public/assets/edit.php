@@ -48,6 +48,7 @@ $categories = $referenceDataService->getAssetCategories();
 $statuses = $referenceDataService->getAssetStatuses();
 $conditions = $referenceDataService->getAssetConditions();
 $vendors = $referenceDataService->getVendors();
+$departments = $referenceDataService->getDepartments();
 
 /*
  * Determine whether this asset already has an assignee.
