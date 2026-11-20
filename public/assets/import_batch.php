@@ -35,13 +35,15 @@ $rows = $importService->getBatchRows((int) $batchId, 25);
 $failedRows = $importService->getFailedRows((int) $batchId, 100);
 $failedCount = $importService->countFailedRows((int) $batchId);
 $savedMapping = $importService->getSavedMapping((int) $batchId);
-$mappingComplete = !empty($savedMapping['item_ids']) && !empty($savedMapping['statuses']);
+$categoryMappingSaved = !empty($savedMapping['categories']) || !empty($savedMapping['item_ids']);
+$mappingComplete = $categoryMappingSaved && !empty($savedMapping['statuses']);
 $pageTitle = 'Asset Import Batch #' . (int) $batch['id'];
 require_once dirname(__DIR__) . '/includes/app_header.php';
 
 $previewHeaders = [
     'LOCATION (Main)',
     'OWNER / DEPARTMENT',
+    'CATEGORY',
     'Item ID',
     'Item name',
     'FFE NUMBER',
@@ -111,7 +113,7 @@ $previewHeaders = [
     <div class="alert <?= $mappingComplete ? 'alert-success' : 'alert-warning' ?>">
         <?= $mappingComplete
             ? 'Category and status mappings are saved. You can now import the staged records.'
-            : 'Review and save the Item ID and Status mappings before importing.' ?>
+            : 'Review and save the Finance Category and Status mappings before importing.' ?>
     </div>
     <?php if ($mappingComplete): ?>
         <form method="post" action="<?= e(base_url('/public/assets/import_execute.php')) ?>"
