@@ -38,6 +38,12 @@ try {
 
     $result = (new AssetImportService())->processBatch((int) $batchId, (int) $userId);
 
+    \App\Core\Session::set('swal_flash', [
+        'icon' => ((int) $result['failed'] > 0) ? 'warning' : 'success',
+        'title' => 'Asset import completed',
+        'text' => number_format((int) $result['imported']) . ' asset(s) created; '
+            . number_format((int) $result['failed']) . ' row(s) need review.',
+    ]);
     header(
         'Location: ' . base_url(
             '/public/assets/import_batch.php?id=' . (int) $batchId
