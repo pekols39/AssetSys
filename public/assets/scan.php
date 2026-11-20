@@ -136,7 +136,7 @@ $pageTitle = 'Scanned Asset Details';
 
 $fields = [
     'Asset Code' => $asset['asset_code'] ?? null,
-    'Asset Tag' => $asset['asset_tag'] ?? null,
+    'Asset Tag' => $asset['finance_ffe_number'] ?? null,
     'Asset Name' => $asset['asset_name'] ?? null,
     'Category' => $asset['category_name'] ?? null,
     'Serial Number' => $asset['serial_number'] ?? null,
