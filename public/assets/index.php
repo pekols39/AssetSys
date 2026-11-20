@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 
+use App\Helpers\Csrf;
 use App\Middleware\AuthMiddleware;
 use App\Services\AssetService;
 use App\Services\AuthorizationService;
@@ -310,12 +311,40 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
         <?php else: ?>
 
+            <form id="bulkQrForm" data-total-filtered="<?= (int) $totalAssets ?>" method="POST" action="<?= e(base_url('/public/assets/bulk-qr-generate.php')) ?>" class="border rounded p-3 mb-3">
+                <?= Csrf::field() ?>
+                <input type="hidden" name="selection_mode" id="bulkSelectionMode" value="selected">
+                <?php foreach ($filters as $filterKey => $filterValue): ?>
+                    <input type="hidden" name="filters[<?= e($filterKey) ?>]" value="<?= e((string) $filterValue) ?>">
+                <?php endforeach; ?>
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div>
+                        <div class="fw-semibold">Bulk QR management</div>
+                        <div class="small text-muted" id="bulkSelectionSummary">Select assets to generate QR identities or print existing QR labels. These are separate actions.</div>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <span class="small text-muted" id="bulkSelectedCount">0 selected</span>
+                        <button type="submit" class="btn btn-primary" id="bulkQrGenerateSubmit" value="generate" formaction="<?= e(base_url('/public/assets/bulk-qr-generate.php')) ?>" disabled>
+                            <i class="fa-solid fa-qrcode me-1"></i>
+                            Generate QR Codes
+                        </button>
+                        <button type="submit" class="btn btn-outline-primary" id="bulkQrPrintSubmit" value="print" formaction="<?= e(base_url('/public/assets/bulk-qr-print.php')) ?>" disabled>
+                            <i class="fa-solid fa-print me-1"></i>
+                            Print QR Labels
+                        </button>
+                    </div>
+                </div>
+            </form>
+
             <div class="table-responsive" id="assetsTableScroll">
 
                 <table id="assetsTable" class="table table-hover align-middle mb-0 asset-table">
 
                     <thead>
                         <tr>
+                            <th class="text-center"><input type="checkbox" class="form-check-input" id="selectAllFilteredAssets" aria-label="Select all filtered assets across all pages" title="Select all filtered assets across all pages"></th>
+                            <th>Asset Code</th>
+                            <th>QR Status</th>
                             <th>Location (Main)</th>
                             <th>Owner / Department</th>
                             <th>Category</th>
@@ -342,6 +371,17 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                             };
                             ?>
                             <tr>
+                                <td class="text-center"><input type="checkbox" class="form-check-input asset-row-select" value="<?= (int) $asset['id'] ?>" aria-label="Select asset <?= e($asset['asset_code'] ?? '') ?>"></td>
+                                <td><span class="asset-code"><?= e($financeValue($asset['asset_code'] ?? null)) ?></span></td>
+                                <td>
+                                    <?php if ((int) ($asset['qr_is_active'] ?? 0) === 1): ?>
+                                        <span class="badge bg-success">Generated</span>
+                                    <?php elseif (isset($asset['qr_code_id'])): ?>
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-dark border">Not generated</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?= e($financeValue($asset['finance_main_location'] ?? null)) ?></td>
                                 <td><?= e($financeValue($asset['finance_owner_department'] ?? null)) ?></td>
                                 <td><?= e($asset['category_name'] ?? '—') ?></td>

@@ -369,6 +369,7 @@ function displayDate(
                     <div class="detail-row"><span class="detail-label">Location (Main)</span><span class="detail-value"><?= displayValue($asset['finance_main_location'] ?? null) ?></span></div>
                     <div class="detail-row"><span class="detail-label">Owner / Department</span><span class="detail-value"><?= displayValue($asset['finance_owner_department'] ?? null) ?></span></div>
                     <div class="detail-row"><span class="detail-label">Category</span><span class="detail-value"><?= displayValue($asset['category_name'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Asset Code (AssetSys)</span><span class="detail-value asset-code"><?= displayValue($asset['asset_code'] ?? null) ?></span></div>
                     <div class="detail-row"><span class="detail-label">Item ID</span><span class="detail-value"><?= displayValue($asset['finance_item_id'] ?? null) ?></span></div>
                     <div class="detail-row"><span class="detail-label">Item Name</span><span class="detail-value"><?= displayValue($asset['finance_item_name'] ?? null) ?></span></div>
                     <div class="detail-row"><span class="detail-label">FFE Number</span><span class="detail-value"><?= displayValue($asset['finance_ffe_number'] ?? null) ?></span></div>
