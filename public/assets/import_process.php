@@ -54,6 +54,11 @@ try {
         (int) $userId
     );
 
+    \App\Core\Session::set('swal_flash', [
+        'icon' => 'success',
+        'title' => 'Workbook staged',
+        'text' => 'The source records are ready for review. No assets have been created yet.',
+    ]);
     header('Location: ' . base_url('/public/assets/import_batch.php?id=' . $batchId));
     exit;
  } catch (RuntimeException $exception) {
