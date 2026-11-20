@@ -199,6 +199,27 @@ final class AssetReferenceDataService
             }
         }
 
+        $assetColumns = [
+            'categories' => 'category_id',
+            'statuses' => 'status_id',
+            'conditions' => 'condition_id',
+            'departments' => 'department_id',
+            'locations' => 'location_id',
+            'suppliers' => 'supplier_id',
+        ];
+
+        $assetColumn = $assetColumns[$type];
+        $usageStmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM assets WHERE {$assetColumn} = :id"
+        );
+        $usageStmt->execute(['id' => $id]);
+
+        if ((int) $usageStmt->fetchColumn() > 0) {
+            $this->setActive($type, $id, false);
+
+            return 'This value is already used by existing assets, so it was deactivated instead of permanently deleted.';
+        }
+
         try {
             $stmt = $this->db->prepare(
                 "DELETE FROM {$config['table']} WHERE id = :id"
