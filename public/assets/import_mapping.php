@@ -37,6 +37,7 @@ if ($batch['batch_status'] !== 'preview') {
 
 $options = $importService->getMappingOptions((int) $batchId);
 $saved = $importService->getSavedMapping((int) $batchId);
+$savedCategories = $saved['categories'] ?? $saved['item_ids'] ?? [];
 $referenceData = new ReferenceDataService();
 $categories = $referenceData->getAssetCategories();
 $statuses = $referenceData->getAssetStatuses();
@@ -57,7 +58,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 </div>
 
 <div class="alert alert-warning">
-    The Finance workbook does not contain a separate Category column. Map each source Item ID to the appropriate configurable AssetSys Category, then map each source Status to an AssetSys Status.
+    Map each source Finance Category to the appropriate configurable AssetSys Category, then map each source Status to an AssetSys Status. The Finance Item ID is preserved separately as its own asset information field. For older workbooks without a CATEGORY column, Item ID is used as the category-mapping fallback.
     Finance status INSTALLED is preselected as AssetSys In Use because it describes location-based deployment,
     not assignment to an employee. Review every mapping before saving. Original source values remain unchanged.
 </div>
@@ -67,17 +68,17 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     <input type="hidden" name="batch_id" value="<?= (int) $batchId ?>">
 
     <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white"><h2 class="h5 mb-0">Finance Item ID → AssetSys Category</h2></div>
+        <div class="card-header bg-white"><h2 class="h5 mb-0">Finance Category → AssetSys Category</h2></div>
         <div class="card-body">
-            <?php foreach ($options['item_ids'] as $value): ?>
+            <?php foreach ($options['categories'] as $value): ?>
                 <div class="row align-items-center g-2 mb-3">
                     <div class="col-md-5"><label class="form-label mb-md-0"><?= $value === '__BLANK__' ? '(Blank cell)' : e($value) ?></label></div>
                     <div class="col-md-7">
-                        <select class="form-select" name="mapping[item_ids][<?= e($value) ?>]" required>
+                        <select class="form-select" name="mapping[categories][<?= e($value) ?>]" required>
                             <option value="">Select AssetSys category</option>
                             <?php foreach ($categories as $category): ?>
                                 <option value="<?= (int) $category['id'] ?>"
-                                    <?= (int) ($saved['item_ids'][$value] ?? 0) === (int) $category['id'] ? 'selected' : '' ?>>
+                                    <?= (int) ($savedCategories[$value] ?? 0) === (int) $category['id'] ? 'selected' : '' ?>>
                                     <?= e($category['name']) ?>
                                 </option>
                             <?php endforeach; ?>
@@ -85,7 +86,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     </div>
                 </div>
             <?php endforeach; ?>
-            <?php if ($options['item_ids'] === []): ?><p class="text-muted mb-0">No non-empty Item ID values found.</p><?php endif; ?>
+            <?php if ($options['categories'] === []): ?><p class="text-muted mb-0">No Finance Category values found.</p><?php endif; ?>
         </div>
     </div>
 
