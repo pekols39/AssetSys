@@ -157,12 +157,13 @@ $previewHeaders = [
         </div>
         <div class="table-responsive">
             <table class="table table-sm table-striped align-middle mb-0">
-                <thead><tr><th>Excel Row</th><th>Item Name</th><th>Asset Item ID</th><th>Asset Status</th><th>Reason</th></tr></thead>
+                <thead><tr><th>Excel Row</th><th>Item Name</th><th>Finance Category</th><th>Finance Item ID</th><th>Finance Status</th><th>Reason</th></tr></thead>
                 <tbody>
                 <?php foreach ($failedRows as $failed): ?>
                     <tr>
                         <td><?= (int) $failed['source_row_number'] ?></td>
                         <td><?= e((string) ($failed['source_values']['Item name'] ?? '')) ?></td>
+                        <td><?= e((string) ($failed['source_values']['CATEGORY'] ?? '')) ?></td>
                         <td><?= e((string) ($failed['source_values']['Item ID'] ?? '')) ?></td>
                         <td><?= e((string) ($failed['source_values']['Status'] ?? '')) ?></td>
                         <td class="text-danger"><?= e((string) ($failed['validation_errors'] ?? 'Unknown error')) ?></td>
