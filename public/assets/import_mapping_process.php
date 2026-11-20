@@ -40,6 +40,11 @@ try {
 
     (new AssetImportService())->saveBatchMapping((int) $batchId, $mapping);
 
+    \App\Core\Session::set('swal_flash', [
+        'icon' => 'success',
+        'title' => 'Mappings saved',
+        'text' => 'Finance Category and Status mappings are saved for this batch.',
+    ]);
     header('Location: ' . base_url('/public/assets/import_mapping.php?id=' . (int) $batchId . '&saved=1'));
     exit;
 } catch (RuntimeException $exception) {
