@@ -367,7 +367,7 @@ function displayDate(
                 <div class="card-body">
 
                     <div class="detail-row"><span class="detail-label">Location (Main)</span><span class="detail-value"><?= displayValue($asset['finance_main_location'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">Owner / Department</span><span class="detail-value"><?= displayValue($asset['department_name'] ?? null) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Owner / Department</span><span class="detail-value"><?= displayValue($asset['finance_owner_department'] ?? null) ?></span></div>
                     <div class="detail-row"><span class="detail-label">Category</span><span class="detail-value"><?= displayValue($asset['category_name'] ?? null) ?></span></div>
                     <div class="detail-row"><span class="detail-label">Item ID</span><span class="detail-value"><?= displayValue($asset['finance_item_id'] ?? null) ?></span></div>
                     <div class="detail-row"><span class="detail-label">Item Name</span><span class="detail-value"><?= displayValue($asset['finance_item_name'] ?? null) ?></span></div>
@@ -2818,7 +2818,7 @@ function displayDate(
             </div>
         <?php endif; ?>
 
-        <!-- Purchase Information -->
+        <!-- Additional Purchase & Warranty Details -->
 
         <div class="col-lg-6">
 
@@ -2827,81 +2827,27 @@ function displayDate(
                 <div class="card-header bg-white">
                     <h5 class="mb-0">
                         <i class="fa-solid fa-cart-shopping text-teal me-2"></i>
-                        Purchase Information
+                        Additional Purchase & Warranty Details
                     </h5>
                 </div>
 
                 <div class="card-body">
 
                     <div class="detail-row">
-                        <span class="detail-label">
-                            Purchase Date
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayDate($asset['purchase_date']) ?>
-                        </span>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Purchase Cost
-                        </span>
-
+                        <span class="detail-label">Purchase Cost (Accounting)</span>
                         <span class="detail-value detail-money">
-                            PHP
-                            <?= number_format(
-                                (float) ($asset['purchase_cost'] ?? 0),
-                                2
-                            ) ?>
+                            PHP <?= number_format((float) ($asset['purchase_cost'] ?? 0), 2) ?>
                         </span>
                     </div>
 
-                    <div class="detail-row"><span class="detail-label">SUPPLIER (Workbook)</span><span class="detail-value"><?= displayValue($asset['finance_supplier'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">PO NUMBER (Workbook)</span><span class="detail-value"><?= displayValue($asset['finance_po_number'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">Price (Workbook)</span><span class="detail-value"><?= displayValue($asset['finance_price_text'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">DATE PURCHASE (Workbook)</span><span class="detail-value"><?= displayValue($asset['finance_date_purchase_text'] ?? null) ?></span></div>
-                    <div class="detail-row"><span class="detail-label">Supplier (AssetSys)</span><span class="detail-value"><?= displayValue($asset['supplier_name']) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Supplier (AssetSys Vendor)</span><span class="detail-value"><?= displayValue($asset['supplier_name']) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Invoice Number</span><span class="detail-value"><?= displayValue($asset['invoice_number']) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Warranty Start</span><span class="detail-value"><?= displayDate($asset['warranty_start']) ?></span></div>
+                    <div class="detail-row"><span class="detail-label">Warranty End</span><span class="detail-value"><?= displayDate($asset['warranty_end']) ?></span></div>
 
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Invoice Number
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayValue($asset['invoice_number']) ?>
-                        </span>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Purchase Order
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayValue($asset['purchase_order_number']) ?>
-                        </span>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Warranty Start
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayDate($asset['warranty_start']) ?>
-                        </span>
-                    </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">
-                            Warranty End
-                        </span>
-
-                        <span class="detail-value">
-                            <?= displayDate($asset['warranty_end']) ?>
-                        </span>
-                    </div>
+                    <p class="text-muted small mb-0 mt-3">
+                        Finance supplier, PO number, price, and purchase date are shown in Asset Information above. Purchase Cost remains available here for accounting and depreciation calculations.
+                    </p>
 
                 </div>
 
