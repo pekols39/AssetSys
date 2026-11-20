@@ -53,7 +53,6 @@ $previewHeaders = [
     'PO NUMBER',
     'Price',
     'DATE PURCHASE',
-    'LOCATION',
 ];
 ?>
 
