@@ -200,18 +200,13 @@ try {
     }
 
     // Official inventory table contains source fields only; accounting totals remain in the summary above.
+    $lastAssetRow = max($headerRow, $row - 1);
 
     // Table borders and vertical alignment.
     $sheet->getStyle("A{$headerRow}:L{$lastAssetRow}")
         ->getBorders()
         ->getAllBorders()
         ->setBorderStyle(Border::BORDER_THIN);
-
-    $sheet->getStyle(
-        'A' . ($headerRow + 1) . ':L' . $lastAssetRow
-    )->getAlignment()->setHorizontal(
-        Alignment::HORIZONTAL_RIGHT
-    );
 
     $sheet->getStyle(
         'A' . ($headerRow + 1) . ':L' . $lastAssetRow
@@ -237,7 +232,6 @@ try {
     $sheet->freezePane('A7');
 
     // Enable filtering on the inventory table.
-    $lastAssetRow = max($headerRow, $row - 1);
     $sheet->setAutoFilter("A{$headerRow}:L{$lastAssetRow}");
 
     // Page setup for printing.
