@@ -129,31 +129,6 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                 <div class="col-12 col-md-6">
 
-                    <label for="category_id" class="form-label">
-                        Category
-                        <span class="text-danger">*</span>
-                    </label>
-
-                    <select class="form-select" id="category_id" name="category_id" required>
-
-                        <option value="">
-                            Select category
-                        </option>
-
-                        <?php foreach ($categories as $category): ?>
-
-                            <option value="<?= e((string) $category['id']) ?>">
-                                <?= e($category['name']) ?>
-                            </option>
-
-                        <?php endforeach; ?>
-
-                    </select>
-
-                </div>
-
-                <div class="col-12 col-md-6">
-
                     <label for="status_id" class="form-label">
                         Status
                         <span class="text-danger">*</span>
@@ -451,17 +426,35 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                 <div class="col-12 col-md-4">
 
-                    <label for="department_name" class="form-label">
-                        Department <span class="text-danger">*</span>
+                    <label for="category_id" class="form-label">
+                        Category <span class="text-danger">*</span>
                     </label>
 
-                    <input type="text" class="form-control" id="department_name" name="department_name" maxlength="150"
-                        placeholder="Enter department name" required>
+                    <select class="form-select" id="category_id" name="category_id" required>
+                        <option value="">Select category</option>
+                        <?php foreach ($categories as $category): ?>
+                            <option value="<?= e((string) $category['id']) ?>">
+                                <?= e($category['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
 
-                    <div class="form-text">
-                        Enter the department responsible for this asset.
-                        Existing departments will be reused.
-                    </div>
+                </div>
+
+                <div class="col-12 col-md-4">
+
+                    <label for="department_name" class="form-label">
+                        Owner / Department <span class="text-danger">*</span>
+                    </label>
+
+                    <select class="form-select" id="department_name" name="department_name" required>
+                        <option value="">Select owner / department</option>
+                        <?php foreach ($departments as $department): ?>
+                            <option value="<?= e($department['name']) ?>">
+                                <?= e($department['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
 
                 </div>
 
@@ -472,8 +465,14 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                         <span class="text-danger d-none" id="locationRequiredMark">*</span>
                     </label>
 
-                    <input type="text" class="form-control" id="location_name" name="location_name" maxlength="150"
-                        placeholder="Enter location (optional)">
+                    <select class="form-select" id="location_name" name="location_name">
+                        <option value="">Select location (optional)</option>
+                        <?php foreach ($locations as $location): ?>
+                            <option value="<?= e($location['name']) ?>">
+                                <?= e($location['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
 
                 </div>
 

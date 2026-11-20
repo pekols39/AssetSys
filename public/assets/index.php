@@ -309,10 +309,6 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                 Asset
                             </th>
 
-                            <th>
-                                Category
-                            </th>
-
                             <th>Status (AssetSys)</th>
 
                             <th>Item ID</th>
@@ -322,6 +318,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                             <th>Status (Workbook)</th>
                             <th>LOCATION (Main)</th>
                             <th>OWNER / DEPARTMENT</th>
+                            <th>Category</th>
                             <th>SUPPLIER</th>
                             <th>PO NUMBER</th>
                             <th>Price</th>
@@ -434,13 +431,6 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                 </td>
 
                                 <td>
-                                    <?= e(
-                                        $asset['category_name']
-                                        ?? '—'
-                                    ) ?>
-                                </td>
-
-                                <td>
 
                                     <span class="badge asset-status <?= e($statusClass) ?>">
                                         <?= e($statusName) ?>
@@ -455,6 +445,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                                 <td><?= e($financeValue($asset['finance_status'] ?? null)) ?></td>
                                 <td><?= e($financeValue($asset['finance_main_location'] ?? null)) ?></td>
                                 <td><?= e($financeValue($asset['finance_owner_department'] ?? null)) ?></td>
+                                <td><?= e($asset['category_name'] ?? '—') ?></td>
                                 <td><?= e($financeValue($asset['finance_supplier'] ?? null)) ?></td>
                                 <td><?= e($financeValue($asset['finance_po_number'] ?? null)) ?></td>
                                 <td class="text-nowrap"><?= e($financeValue($asset['finance_price_text'] ?? null)) ?></td>

@@ -21,11 +21,14 @@ $isDisposalRequests = str_ends_with(
 
 $isImportHistory = str_ends_with($currentPath, '/assets/import_history.php');
 
+$isReferenceData = str_ends_with($currentPath, '/assets/reference_data.php');
+
 $isAssets =
     str_contains($currentPath, '/assets/')
     && !$isDepartmentTransfers
     && !$isDisposalRequests
-    && !$isImportHistory;
+    && !$isImportHistory
+    && !$isReferenceData;
 
 $isInventoryReport =
     str_ends_with($currentPath, '/reports/index.php')
@@ -178,6 +181,14 @@ $isAdministrationAuditTrail =
                 </a>
 
                 <?php if ($authorization->isPropertyCustodian()): ?>
+
+                    <a href="<?= e(base_url('/public/assets/reference_data.php')) ?>"
+                        class="app-sidebar-link <?= str_ends_with($currentPath, '/assets/reference_data.php') ? 'active' : '' ?>">
+                        <span class="app-sidebar-link-icon">
+                            <i class="fa-solid fa-list-check"></i>
+                        </span>
+                        <span class="app-sidebar-link-text">Asset Dropdown<br>Management</span>
+                    </a>
 
                     <a href="<?= e(base_url('/public/materials/borrow.php')) ?>"
                         class="app-sidebar-link <?= $isMaterialBorrow ? 'active' : '' ?>">
