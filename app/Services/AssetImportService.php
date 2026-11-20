@@ -557,7 +557,7 @@ class AssetImportService
                     $statusId = filter_var($statusMappings[$statusKey] ?? null, FILTER_VALIDATE_INT);
 
                     if ($categoryId === false || $statusId === false) {
-                        throw new RuntimeException('A Finance Item ID or Status value has no saved AssetSys mapping.');
+                        throw new RuntimeException('A Finance Category or Status value has no saved AssetSys mapping.');
                     }
 
                     $assetName = trim((string) ($values['Item name'] ?? ''));
