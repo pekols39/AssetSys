@@ -97,506 +97,87 @@ $workbookValue = static function (mixed $value): string {
 };
 ?>
 
-<div class="asset-edit-page">
-
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-        <div>
-            <div class="text-muted small mb-1">
-                Asset / Edit
-            </div>
-
-            <h1 class="h3 mb-1">
-                Edit Asset
-            </h1>
-
-            <p class="text-muted mb-0">
-                <?= e($asset['asset_code'] ?? '') ?>
-                —
-                <?= e($asset['asset_name'] ?? '') ?>
-            </p>
-        </div>
-
-        <a href="<?= e(
-            base_url(
-                '/public/assets/view.php?id='
-                . (int) $asset['id']
-            )
-        ) ?>" class="btn btn-outline-secondary">
-            <i class="fa-solid fa-arrow-left me-1"></i>
-            Back to Asset
-        </a>
-    </div>
-
-
-    <form id="assetEditForm" method="post" action="<?= e(
-        base_url('/public/assets/edit_process.php')
-    ) ?>" data-view-url="<?= e(
-         base_url(
-             '/public/assets/view.php?id='
-             . (int) $asset['id']
-         )
-     ) ?>" novalidate>
-
-        <?= \App\Helpers\Csrf::field() ?>
-
-        <input type="hidden" name="id" value="<?= (int) $asset['id'] ?>">
-
-        <div class="card shadow-sm mb-4">
-
-            <div class="card-header bg-white">
-                <h2 class="h5 mb-0">
-                    <i class="fa-solid fa-box-open me-2 text-teal"></i>
-                    Asset Information
-                </h2>
-            </div>
-
-            <div class="card-body">
-
-                <div class="row g-3">
-
-                    <div class="col-md-4">
-                        <label for="asset_code" class="form-label">
-                            Asset Code
-                        </label>
-
-                        <input type="text" class="form-control" id="asset_code"
-                            value="<?= e($asset['asset_code'] ?? '') ?>" readonly aria-describedby="asset-code-help">
-
-                        <div class="form-text" id="asset-code-help">
-                            Asset codes cannot be changed after creation.
-                        </div>
-                    </div>
-
-                    <div class="col-md-4">
-                        <label for="asset_tag" class="form-label">
-                            Asset Tag
-                        </label>
-
-                        <input type="text" class="form-control" id="asset_tag" name="asset_tag" maxlength="100" value="<?= e(
-                            $asset['asset_tag'] ?? ''
-                        ) ?>">
-                    </div>
-
-                    <div class="col-md-4">
-                        <label for="serial_number" class="form-label">
-                            Serial Number
-                        </label>
-
-                        <input type="text" class="form-control" id="serial_number" name="serial_number" maxlength="150"
-                            value="<?= e(
-                                $asset['serial_number'] ?? ''
-                            ) ?>">
-                    </div>
-
-                    <div class="col-md-8">
-                        <label for="asset_name" class="form-label">
-                            Asset Name
-                            <span class="text-danger">*</span>
-                        </label>
-
-                        <input type="text" class="form-control" id="asset_name" name="asset_name" maxlength="200" value="<?= e(
-                            $asset['asset_name'] ?? ''
-                        ) ?>" required>
-                    </div>
-
-                    <div class="col-md-4">
-                        <label for="category_id" class="form-label">
-                            Category
-                            <span class="text-danger">*</span>
-                        </label>
-
-                        <select class="form-select" id="category_id" name="category_id" required>
-                            <option value="">
-                                Select category
-                            </option>
-
-                            <?php foreach ($categories as $category): ?>
-                                <option value="<?= (int) $category['id'] ?>" <?= (int) $asset['category_id'] === (int) $category['id']
-                                       ? 'selected'
-                                       : '' ?>>
-                                    <?= e($category['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="col-md-4">
-                        <label for="status_id" class="form-label">
-                            Status
-                            <span class="text-danger">*</span>
-                        </label>
-
-                        <select class="form-select" id="status_id" name="status_id" required>
-                            <option value="">
-                                Select status
-                            </option>
-
-                            <?php foreach ($statuses as $status): ?>
-                                <option value="<?= (int) $status['id'] ?>" <?= (int) $asset['status_id'] === (int) $status['id']
-                                       ? 'selected'
-                                       : '' ?>>
-                                    <?= e($status['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <?php if (!$isCurrentlyAssigned): ?>
-                            <div class="form-text">
-                                To assign this asset, use the Assign Asset workflow
-                                from the asset details page.
-                            </div>
-                        <?php endif; ?>
-                    </div>
-
-                    <div class="col-md-4">
-                        <label for="condition_id" class="form-label">
-                            Condition
-                        </label>
-
-                        <select class="form-select" id="condition_id" name="condition_id">
-                            <option value="">
-                                Select condition
-                            </option>
-
-                            <?php foreach ($conditions as $condition): ?>
-                                <option value="<?= (int) $condition['id'] ?>" <?= (int) ($asset['condition_id'] ?? 0) === (int) $condition['id']
-                                       ? 'selected'
-                                       : '' ?>>
-                                    <?= e($condition['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="col-md-4">
-                        <label for="manufacturer" class="form-label">
-                            Manufacturer
-                        </label>
-
-                        <input type="text" class="form-control" id="manufacturer" name="manufacturer" maxlength="150"
-                            value="<?= e(
-                                $asset['manufacturer'] ?? ''
-                            ) ?>">
-                    </div>
-
-                    <div class="col-md-4">
-                        <label for="model" class="form-label">
-                            Model
-                        </label>
-
-                        <input type="text" class="form-control" id="model" name="model" maxlength="150" value="<?= e(
-                            $asset['model'] ?? ''
-                        ) ?>">
-                    </div>
-
-                    <div class="col-md-4">
-                        <label for="model_number" class="form-label">
-                            Model Number
-                        </label>
-
-                        <input type="text" class="form-control" id="model_number" name="model_number" maxlength="150"
-                            value="<?= e(
-                                $asset['model_number'] ?? ''
-                            ) ?>">
-                    </div>
-
-                    <div class="col-12">
-                        <label for="description" class="form-label">
-                            Description
-                        </label>
-
-                        <textarea class="form-control" id="description" name="description"
-                            rows="4"><?= e($asset['description'] ?? '') ?></textarea>
-                    </div>
-
-                </div>
-
-            </div>
-        </div>
-
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white">
-                <h2 class="h5 mb-0">
-                    <i class="fa-solid fa-file-excel me-2 text-teal"></i>
-                    Original Workbook Details
-                </h2>
-                <p class="text-muted small mb-0 mt-1">
-                    Imported source values are read-only and are preserved exactly as recorded in the original workbook.
-                </p>
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <?php
-                    $workbookFields = [
-                        'LOCATION (Main)' => $asset['finance_main_location'] ?? null,
-                        'OWNER / DEPARTMENT' => $asset['finance_owner_department'] ?? null,
-                        'Item ID' => $asset['finance_item_id'] ?? null,
-                        'Item name' => $asset['finance_item_name'] ?? null,
-                        'FFE NUMBER' => $asset['finance_ffe_number'] ?? null,
-                        'CODE' => $asset['finance_code'] ?? null,
-                        'Status' => $asset['finance_status'] ?? null,
-                        'SUPPLIER' => $asset['finance_supplier'] ?? null,
-                        'PO NUMBER' => $asset['finance_po_number'] ?? null,
-                        'Price' => $asset['finance_price_text'] ?? null,
-                        'DATE PURCHASE' => $asset['finance_date_purchase_text'] ?? null,
-                        'LOCATION' => $asset['finance_location'] ?? null,
-                    ];
-                    ?>
-                    <?php foreach ($workbookFields as $label => $value): ?>
-                        <div class="col-12 col-md-6 col-xl-4">
-                            <div class="border rounded p-3 h-100">
-                                <div class="text-muted small mb-1"><?= e($label) ?></div>
-                                <div class="fw-semibold text-break"><?= e($workbookValue($value)) ?></div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </div>
-
-        <div class="card shadow-sm mb-4">
-
-            <div class="card-header bg-white">
-                <h2 class="h5 mb-0">
-                    <i class="fa-solid fa-money-bill-wave me-2 text-teal"></i>
-                    Purchase Information
-                </h2>
-            </div>
-
-            <div class="card-body">
-
-                <div class="row g-3">
-
-                    <div class="col-md-4">
-                        <label for="purchase_date" class="form-label">
-                            Purchase Date
-                        </label>
-
-                        <input type="date" class="form-control" id="purchase_date" name="purchase_date" value="<?= e(
-                            $asset['purchase_date'] ?? ''
-                        ) ?>">
-                    </div>
-
-                    <div class="col-md-4">
-                        <label for="purchase_cost" class="form-label">
-                            Purchase Cost
-                        </label>
-
-                        <input type="number" class="form-control" id="purchase_cost" name="purchase_cost" min="0"
-                            step="0.01" value="<?= e(
-                                $asset['purchase_cost'] ?? '0.00'
-                            ) ?>">
-                    </div>
-
-                    <div class="col-md-4">
-                        <label for="supplier_id" class="form-label">
-                            Supplier
-                        </label>
-
-                        <select class="form-select" id="supplier_id" name="supplier_id">
-                            <option value="">
-                                Select supplier
-                            </option>
-
-                            <?php foreach ($vendors as $vendor): ?>
-                                <option value="<?= (int) $vendor['id'] ?>" <?= (int) ($asset['supplier_id'] ?? 0) === (int) $vendor['id']
-                                       ? 'selected'
-                                       : '' ?>>
-                                    <?= e($vendor['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label for="invoice_number" class="form-label">
-                            Invoice Number
-                        </label>
-
-                        <input type="text" class="form-control" id="invoice_number" name="invoice_number"
-                            maxlength="100" value="<?= e(
-                                $asset['invoice_number'] ?? ''
-                            ) ?>">
-                    </div>
-
-                    <div class="col-md-6">
-                        <label for="purchase_order_number" class="form-label">
-                            Purchase Order Number
-                        </label>
-
-                        <input type="text" class="form-control" id="purchase_order_number" name="purchase_order_number"
-                            maxlength="100" value="<?= e(
-                                $asset['purchase_order_number'] ?? ''
-                            ) ?>">
-                    </div>
-
-                    <div class="col-md-6">
-                        <label for="warranty_start" class="form-label">
-                            Warranty Start
-                        </label>
-
-                        <input type="date" class="form-control" id="warranty_start" name="warranty_start" value="<?= e(
-                            $asset['warranty_start'] ?? ''
-                        ) ?>">
-                    </div>
-
-                    <div class="col-md-6">
-                        <label for="warranty_end" class="form-label">
-                            Warranty End
-                        </label>
-
-                        <input type="date" class="form-control" id="warranty_end" name="warranty_end" value="<?= e(
-                            $asset['warranty_end'] ?? ''
-                        ) ?>">
-                    </div>
-
-                </div>
-
-            </div>
-        </div>
-
-        <div class="card shadow-sm mb-4">
-
-            <div class="card-header bg-white">
-                <h2 class="h5 mb-0">
-                    <i class="fa-solid fa-calculator me-2 text-teal"></i>
-                    Depreciation
-                </h2>
-            </div>
-
-            <div class="card-body">
-
-                <div class="row g-3">
-
-                    <div class="col-md-4">
-                        <label for="useful_life_years" class="form-label">
-                            Useful Life (Years)
-                        </label>
-
-                        <input type="number" class="form-control" id="useful_life_years" name="useful_life_years"
-                            min="0.01" step="0.01" value="<?= e(
-                                $asset['useful_life_years'] ?? ''
-                            ) ?>">
-                    </div>
-
-                    <div class="col-md-4">
-                        <label for="salvage_value" class="form-label">
-                            Salvage Value
-                        </label>
-
-                        <input type="number" class="form-control" id="salvage_value" name="salvage_value" min="0"
-                            step="0.01" value="<?= e(
-                                $asset['salvage_value'] ?? '0.00'
-                            ) ?>">
-                    </div>
-
-                    <div class="col-md-4">
-                        <label for="depreciation_method" class="form-label">
-                            Depreciation Method
-                        </label>
-
-                        <select class="form-select" id="depreciation_method" name="depreciation_method">
-                            <option value="straight_line" <?= ($asset['depreciation_method'] ?? 'straight_line') === 'straight_line'
-                                ? 'selected'
-                                : '' ?>>
-                                Straight Line
-                            </option>
-                        </select>
-                    </div>
-
-                </div>
-
-            </div>
-        </div>
-
-        <div class="card shadow-sm mb-4">
-
-            <div class="card-header bg-white">
-                <h2 class="h5 mb-0">
-                    <i class="fa-solid fa-location-dot me-2 text-teal"></i>
-                    Location & Assignment
-                </h2>
-            </div>
-
-            <div class="card-body">
-                <div class="row g-3">
-
-                    <div class="col-md-6">
-                        <div class="form-label">
-                            Current Location
-                        </div>
-
-                        <p class="form-control-plaintext mb-0">
-                            <?= e(
-                                ($asset['location_name'] ?? '') !== ''
-                                    ? $asset['location_name']
-                                    : (($asset['finance_location'] ?? '') !== ''
-                                        ? $asset['finance_location']
-                                        : 'Not set')
-                            ) ?>
-                        </p>
-                    </div>
-
-                    <div class="col-md-6">
-                        <div class="form-label">
-                            Assigned Employee
-                        </div>
-
-
-                        <?php
-                        $assignedName = trim(
-                            (string) ($asset['assigned_to_name'] ?? '')
-                        );
-
-                        if ($assignedName === '') {
-                            $assignedName = trim(
-                                (string) ($asset['assigned_first_name'] ?? '')
-                                . ' '
-                                . (string) ($asset['assigned_last_name'] ?? '')
-                            );
-                        }
-                        ?>
-
-                        <p class="form-control-plaintext mb-0">
-                            <?= $assignedName !== ''
-                                ? e($assignedName)
-                                : (strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
-                                    ? 'No individual assignee'
-                                    : 'Unassigned') ?>
-                        </p>
-
-                    </div>
-
-                </div>
-
-                <p class="form-text mt-3 mb-0">
-                    Use the assignment, return, or transfer actions
-                    on the Asset Details page to change these values.
-                    Those workflows preserve movement history.
-                </p>
-            </div>
-
-        </div>
-
-        <div class="d-flex justify-content-end gap-2 mb-5">
-
-            <a href="<?= e(
-                base_url(
-                    '/public/assets/view.php?id='
-                    . (int) $asset['id']
-                )
-            ) ?>" class="btn btn-outline-secondary">
-                Cancel
-            </a>
-
-            <button type="submit" class="btn btn-primary" id="saveAssetButton">
-                <i class="fa-solid fa-floppy-disk me-1"></i>
-                Save Changes
-            </button>
-
-        </div>
-
-    </form>
-
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div><div class="text-muted small mb-1">Asset Management / Edit</div><h1 class="h3 mb-1">Edit Asset</h1><p class="text-muted mb-0"><?= e($asset['asset_code'] ?? '') ?> — <?= e($asset['asset_name'] ?? '') ?></p></div>
+    <a href="<?= e(base_url('/public/assets/view.php?id=' . (int) $asset['id'])) ?>" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back to Asset</a>
 </div>
-
+<form id="assetEditForm" method="post" action="<?= e(base_url('/public/assets/edit_process.php')) ?>" data-view-url="<?= e(base_url('/public/assets/view.php?id=' . (int) $asset['id'])) ?>" novalidate>
+<?= \App\Helpers\Csrf::field() ?>
+<input type="hidden" name="id" value="<?= (int) $asset['id'] ?>">
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3"><h2 class="h5 mb-0"><i class="fa-solid fa-clipboard-list text-teal me-2"></i>Official Asset Information</h2><p class="text-muted small mb-0 mt-1">Update the official inventory details below. The AssetSys tracking code remains fixed.</p></div>
+    <div class="card-body"><div class="row g-3">
+        <div class="col-md-6"><label class="form-label">AssetSys Asset Code</label><input class="form-control" value="<?= e($asset['asset_code'] ?? '') ?>" readonly><div class="form-text">System-generated identifier used by AssetSys and QR labels.</div></div>
+        <div class="col-md-6"><label class="form-label" for="finance_main_location">1. Location (Main)</label><input class="form-control" id="finance_main_location" name="finance_main_location" maxlength="150" value="<?= e($asset['finance_main_location'] ?? '') ?>"></div>
+        <div class="col-md-6"><label class="form-label" for="finance_owner_department">2. Owner / Department</label><input class="form-control" id="finance_owner_department" name="finance_owner_department" maxlength="150" list="departmentOptions" value="<?= e($asset['finance_owner_department'] ?? $asset['department_name'] ?? '') ?>"><datalist id="departmentOptions"><?php foreach ($departments as $department): ?><option value="<?= e($department['name']) ?>"><?php endforeach; ?></datalist></div>
+        <div class="col-md-6"><label class="form-label" for="category_id">3. Category <span class="text-danger">*</span></label><select class="form-select" id="category_id" name="category_id" required><option value="">Select category</option><?php foreach ($categories as $category): ?><option value="<?= (int) $category['id'] ?>" <?= (int) $asset['category_id'] === (int) $category['id'] ? 'selected' : '' ?>><?= e($category['name']) ?></option><?php endforeach; ?></select></div>
+        <div class="col-md-6"><label class="form-label" for="finance_item_id">4. Item ID</label><input class="form-control" id="finance_item_id" name="finance_item_id" maxlength="100" value="<?= e($asset['finance_item_id'] ?? '') ?>"></div>
+        <div class="col-md-6"><label class="form-label" for="asset_name">5. Item Name <span class="text-danger">*</span></label><input class="form-control" id="asset_name" name="asset_name" maxlength="200" value="<?= e($asset['asset_name'] ?? '') ?>" required><input type="hidden" id="finance_item_name" name="finance_item_name" value="<?= e($asset['finance_item_name'] ?? $asset['asset_name'] ?? '') ?>"></div>
+        <div class="col-md-6"><label class="form-label" for="finance_ffe_number">6. FFE Number</label><input class="form-control" id="finance_ffe_number" name="finance_ffe_number" maxlength="150" value="<?= e($asset['finance_ffe_number'] ?? '') ?>"></div>
+        <div class="col-md-6"><label class="form-label" for="finance_code">7. Code</label><input class="form-control" id="finance_code" name="finance_code" maxlength="100" value="<?= e($asset['finance_code'] ?? '') ?>"></div>
+        <div class="col-md-6"><label class="form-label" for="status_id">8. Status <span class="text-danger">*</span></label><select class="form-select" id="status_id" name="status_id" required><option value="">Select status</option><?php foreach ($statuses as $status): ?><option value="<?= (int) $status['id'] ?>" <?= (int) $asset['status_id'] === (int) $status['id'] ? 'selected' : '' ?>><?= e($status['name']) ?></option><?php endforeach; ?></select><input type="hidden" id="finance_status" name="finance_status" value="<?= e($asset['finance_status'] ?? $asset['status_name'] ?? '') ?>"><div class="form-text">Assignment and lifecycle restrictions still apply.</div></div>
+        <div class="col-md-6"><label class="form-label" for="finance_supplier">9. Supplier</label><input class="form-control" id="finance_supplier" name="finance_supplier" maxlength="150" value="<?= e($asset['finance_supplier'] ?? $asset['supplier_name'] ?? '') ?>"></div>
+        <div class="col-md-6"><label class="form-label" for="finance_po_number">10. PO Number</label><input class="form-control" id="finance_po_number" name="finance_po_number" maxlength="100" value="<?= e($asset['finance_po_number'] ?? $asset['purchase_order_number'] ?? '') ?>"><input type="hidden" name="purchase_order_number" value="<?= e($asset['purchase_order_number'] ?? '') ?>"></div>
+        <div class="col-md-6"><label class="form-label" for="finance_price_text">11. Price</label><div class="input-group"><span class="input-group-text">PHP</span><input class="form-control" type="text" id="finance_price_text" name="finance_price_text" inputmode="decimal" value="<?= e($asset['finance_price_text'] ?? ($asset['finance_price'] ?? $asset['purchase_cost'] ?? '')) ?>" placeholder="Enter price or source text"></div><input type="hidden" id="finance_price" name="finance_price" value="<?= e($asset['finance_price'] ?? '') ?>"><input type="hidden" id="purchase_cost" name="purchase_cost" value="<?= e($asset['purchase_cost'] ?? '0.00') ?>"></div>
+        <div class="col-md-6"><label class="form-label" for="purchase_date">12. Date Purchase</label><input class="form-control" type="date" id="purchase_date" name="purchase_date" value="<?= e($asset['purchase_date'] ?? '') ?>"><input type="hidden" id="finance_date_purchase_text" name="finance_date_purchase_text" value="<?= e($asset['finance_date_purchase_text'] ?? '') ?>"></div>
+    </div></div>
+</div>
+<details class="card border-0 shadow-sm mb-4">
+    <summary class="card-header bg-white py-3 fw-semibold" style="cursor:pointer"><i class="fa-solid fa-sliders text-teal me-2"></i>Operational Details <span class="text-muted fw-normal small">(managed by AssetSys workflows)</span></summary>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6"><div class="form-label">Current Physical Location</div><p class="form-control-plaintext"><?= e($asset['location_name'] ?? 'Not set') ?></p></div>
+            <div class="col-md-6"><div class="form-label">Assigned Employee</div><p class="form-control-plaintext"><?= e(trim((string) ($asset['assigned_to_name'] ?? '')) ?: 'Unassigned') ?></p></div>
+            <div class="col-md-6"><div class="form-label">Operational Department</div><p class="form-control-plaintext"><?= e($asset['department_name'] ?? 'Not set') ?></p></div>
+            <div class="col-md-6"><div class="form-label">Condition</div><p class="form-control-plaintext"><?= e($asset['condition_name'] ?? 'Not set') ?></p></div>
+        </div>
+        <p class="form-text mb-0">Change physical location, department ownership, assignment, and condition through their dedicated AssetSys workflows so movement history and controls remain intact.</p>
+    </div>
+</details>
+<details class="card border-0 shadow-sm mb-4">
+    <summary class="card-header bg-white py-3 fw-semibold" style="cursor:pointer"><i class="fa-solid fa-file-lines text-teal me-2"></i>Additional Information <span class="text-muted fw-normal small">(optional)</span></summary>
+    <div class="card-body"><div class="row g-3">
+        <div class="col-md-4"><label class="form-label" for="asset_tag">Asset Tag</label><input class="form-control" id="asset_tag" name="asset_tag" maxlength="100" value="<?= e($asset['asset_tag'] ?? '') ?>"></div>
+        <div class="col-md-4"><label class="form-label" for="serial_number">Serial Number</label><input class="form-control" id="serial_number" name="serial_number" maxlength="150" value="<?= e($asset['serial_number'] ?? '') ?>"></div>
+        <div class="col-md-4"><label class="form-label" for="manufacturer">Manufacturer</label><input class="form-control" id="manufacturer" name="manufacturer" maxlength="150" value="<?= e($asset['manufacturer'] ?? '') ?>"></div>
+        <div class="col-md-4"><label class="form-label" for="model">Model</label><input class="form-control" id="model" name="model" maxlength="150" value="<?= e($asset['model'] ?? '') ?>"></div>
+        <div class="col-md-4"><label class="form-label" for="model_number">Model Number</label><input class="form-control" id="model_number" name="model_number" maxlength="150" value="<?= e($asset['model_number'] ?? '') ?>"></div>
+        <div class="col-md-4"><label class="form-label" for="invoice_number">Invoice Number</label><input class="form-control" id="invoice_number" name="invoice_number" maxlength="100" value="<?= e($asset['invoice_number'] ?? '') ?>"></div>
+        <div class="col-md-4"><label class="form-label" for="supplier_id">Linked Supplier Record</label><select class="form-select" id="supplier_id" name="supplier_id"><option value="">Not linked</option><?php foreach ($vendors as $vendor): ?><option value="<?= (int) $vendor['id'] ?>" <?= (int) ($asset['supplier_id'] ?? 0) === (int) $vendor['id'] ? 'selected' : '' ?>><?= e($vendor['name']) ?></option><?php endforeach; ?></select></div>
+        <div class="col-md-4"><label class="form-label" for="warranty_start">Warranty Start</label><input class="form-control" type="date" id="warranty_start" name="warranty_start" value="<?= e($asset['warranty_start'] ?? '') ?>"></div>
+        <div class="col-md-4"><label class="form-label" for="warranty_end">Warranty End</label><input class="form-control" type="date" id="warranty_end" name="warranty_end" value="<?= e($asset['warranty_end'] ?? '') ?>"></div>
+        <div class="col-md-4"><label class="form-label" for="useful_life_years">Useful Life (Years)</label><input class="form-control" type="number" id="useful_life_years" name="useful_life_years" min="0.01" step="0.01" value="<?= e($asset['useful_life_years'] ?? '') ?>"></div>
+        <div class="col-md-4"><label class="form-label" for="salvage_value">Salvage Value</label><input class="form-control" type="number" id="salvage_value" name="salvage_value" min="0" step="0.01" value="<?= e($asset['salvage_value'] ?? '0') ?>"></div>
+        <div class="col-md-4"><label class="form-label" for="description">Description</label><textarea class="form-control" id="description" name="description" rows="2"><?= e($asset['description'] ?? '') ?></textarea></div>
+        <input type="hidden" name="depreciation_method" value="<?= e($asset['depreciation_method'] ?? 'straight_line') ?>">
+    </div></div>
+</details>
+<div class="d-flex justify-content-end gap-2 mb-5"><a href="<?= e(base_url('/public/assets/view.php?id=' . (int) $asset['id'])) ?>" class="btn btn-outline-secondary">Cancel</a><button type="submit" class="btn btn-primary" id="saveAssetButton"><i class="fa-solid fa-floppy-disk me-1"></i> Save Changes</button></div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('assetEditForm');
+    const name = document.getElementById('asset_name');
+    const financeName = document.getElementById('finance_item_name');
+    const status = document.getElementById('status_id');
+    const financeStatus = document.getElementById('finance_status');
+    const priceText = document.getElementById('finance_price_text');
+    const price = document.getElementById('finance_price');
+    const purchaseCost = document.getElementById('purchase_cost');
+    const date = document.getElementById('purchase_date');
+    const dateText = document.getElementById('finance_date_purchase_text');
+    function sync() {
+        financeName.value = name.value;
+        financeStatus.value = status.selectedIndex > 0 ? status.options[status.selectedIndex].text.trim() : '';
+        const raw = priceText.value.trim().replace(/[₱,\s]/g, '').replace(/^PHP/i, '');
+        const numeric = raw !== '' && raw !== '-' && raw.toUpperCase() !== 'WARRANTY' && /^\d+(\.\d{1,2})?$/.test(raw);
+        price.value = numeric ? Number(raw).toFixed(2) : '';
+        purchaseCost.value = numeric ? Number(raw).toFixed(2) : '0.00';
+        if (date.value) dateText.value = date.value;
+    }
+    form.addEventListener('input', sync);
+    form.addEventListener('change', sync);
+    form.addEventListener('submit', sync);
+    sync();
+});
+</script>
 <?php require_once dirname(__DIR__) . '/includes/app_footer.php'; ?>
