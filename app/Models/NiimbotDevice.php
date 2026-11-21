@@ -68,9 +68,11 @@ class NiimbotDevice
 
             $insert->execute([
                 'device_id' => $deviceId,
-                'display_name' => $deviceId === 'property-custodian-b1'
-                    ? 'Property Custodian B1'
-                    : 'NIIMBOT Device',
+                'display_name' => match ($deviceId) {
+                    'property-custodian-b1' => 'Property Custodian B1',
+                    'it-laptop-b1' => 'IT Laptop B1',
+                    default => 'NIIMBOT Device',
+                },
                 'token_hash' => strtolower($legacyHash),
             ]);
 
