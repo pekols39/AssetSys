@@ -134,21 +134,53 @@ $escape = static fn(mixed $value): string =>
 
 $pageTitle = 'Scanned Asset Details';
 
-$fields = [
-    'Asset Code' => $asset['asset_code'] ?? null,
-    'Asset Tag' => $asset['finance_ffe_number'] ?? null,
-    'Asset Name' => $asset['asset_name'] ?? null,
-    'Category' => $asset['category_name'] ?? null,
-    'Serial Number' => $asset['serial_number'] ?? null,
-    'Manufacturer' => $asset['manufacturer'] ?? null,
-    'Model' => $asset['model'] ?? null,
-    'Department' => $asset['department_name'] ?? null,
-    'Location' => $asset['location_name'] ?? null,
-    'Assigned To' => $asset['assigned_to_name'] ?? null,
-    'Condition' => $asset['condition_name'] ?? null,
-    'Status' => $asset['status_name'] ?? null,
-    'Purchase Date' => $asset['purchase_date'] ?? null,
-    'Description' => $asset['description'] ?? null,
+$assignmentService = new \\App\\Services\\AssetAssignmentService();
+$activeAssignment = $assignmentService->findActiveByAssetId($assetId);
+
+$assignedEmployee = trim((string) ($asset['assigned_to_name'] ?? ''));
+
+if ($assignedEmployee === '' && $activeAssignment) {
+    $assignedEmployee = trim(
+        (string) ($activeAssignment['assigned_to_name'] ?? '')
+    );
+
+    if ($assignedEmployee === '') {
+        $assignedEmployee = trim(
+            (string) ($activeAssignment['first_name'] ?? '')
+            . ' '
+            . (string) ($activeAssignment['last_name'] ?? '')
+        );
+    }
+}
+
+$sections = [
+    'Asset Information' => [
+        'Location (Main)' => $asset['finance_main_location'] ?? null,
+        'Owner / Department' => $asset['finance_owner_department'] ?? null,
+        'Category' => $asset['category_name'] ?? null,
+        'Asset Code (AssetSys)' => $asset['asset_code'] ?? null,
+        'Item ID' => $asset['finance_item_id'] ?? null,
+        'Item Name' => $asset['finance_item_name'] ?? null,
+        'Asset Tag' => $asset['finance_ffe_number'] ?? null,
+        'Code' => $asset['finance_code'] ?? null,
+        'Status' => $asset['finance_status'] ?? null,
+        'Supplier' => $asset['finance_supplier'] ?? null,
+        'PO Number' => $asset['finance_po_number'] ?? null,
+        'Price' => $asset['finance_price_text'] ?? $asset['finance_price'] ?? null,
+        'Date Purchase' => $asset['finance_date_purchase_text'] ?? null,
+    ],
+    'Location & Assignment' => [
+        'Operational Status' => $asset['status_name'] ?? null,
+        'Department' => $asset['finance_owner_department'] ?? null,
+        'Location' => $asset['location_name'] ?? null,
+        'Assigned Employee' => $assignedEmployee !== ''
+            ? $assignedEmployee
+            : (
+                strtolower((string) ($asset['status_name'] ?? '')) === 'in use'
+                    ? 'No individual assignee'
+                    : 'Unassigned'
+            ),
+    ],
 ];
 
 ?>
@@ -209,6 +241,17 @@ $fields = [
             font-size: 14px;
             font-weight: 700;
             overflow-wrap: anywhere;
+        }
+
+        .section-title {
+            margin: 22px 0 14px;
+            color: #007472;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .section-title:first-child {
+            margin-top: 0;
         }
 
         .details {
@@ -283,14 +326,18 @@ $fields = [
                 <?= $escape($asset['asset_code'] ?? 'Asset') ?>
             </p>
 
-            <div class="details">
-                <?php foreach ($fields as $label => $value): ?>
-                    <div class="field<?= $label === 'Description' ? ' full' : '' ?>">
-                        <span class="label"><?= $escape($label) ?></span>
-                        <div class="value"><?= $escape($value) ?></div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
+            <?php foreach ($sections as $sectionTitle => $sectionFields): ?>
+                <h2 class="section-title"><?= $escape($sectionTitle) ?></h2>
+
+                <div class="details">
+                    <?php foreach ($sectionFields as $label => $value): ?>
+                        <div class="field">
+                            <span class="label"><?= $escape($label) ?></span>
+                            <div class="value"><?= $escape($value) ?></div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endforeach; ?>
 
             <p class="footer">
                 Asset information is available only to authorized users.
