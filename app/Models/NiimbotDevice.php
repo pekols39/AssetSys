@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\\Models;
+namespace App\Models;
 
-use App\\Core\\Database;
+use App\Core\Database;
 use PDO;
 
 class NiimbotDevice
@@ -18,9 +18,7 @@ class NiimbotDevice
 
     /**
      * Authenticate a printer station using its individual registry credentials.
-     *
-     * The legacy .env credential is accepted once and automatically enrolled
-     * so the existing Property Custodian agent keeps working after deployment.
+     * The legacy .env credential is enrolled automatically on first use.
      */
     public function authenticate(string $deviceId, string $token): bool
     {
@@ -29,7 +27,7 @@ class NiimbotDevice
         if (
             $deviceId === ''
             || strlen($deviceId) > 100
-            || !preg_match('/\\A[a-f0-9]{64}\\z/i', $token)
+            || !preg_match('/\A[a-f0-9]{64}\z/i', $token)
         ) {
             return false;
         }
@@ -48,7 +46,7 @@ class NiimbotDevice
             if (
                 $legacyDeviceId === ''
                 || !hash_equals($legacyDeviceId, $deviceId)
-                || !preg_match('/\\A[a-f0-9]{64}\\z/i', $legacyHash)
+                || !preg_match('/\A[a-f0-9]{64}\z/i', $legacyHash)
                 || !hash_equals(strtolower($legacyHash), hash('sha256', $token))
             ) {
                 return false;
