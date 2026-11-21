@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 
 use App\Models\NiimbotPrintJob;
+use App\Models\NiimbotDevice;
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
@@ -41,18 +42,6 @@ if (
     $respond(403, false, 'HTTPS is required.');
 }
 
-$configuredHash = NIIMBOT_AGENT_TOKEN_HASH;
-$configuredDeviceId = NIIMBOT_AGENT_DEVICE_ID;
-
-if (
-    !preg_match('/\A[a-f0-9]{64}\z/i', $configuredHash)
-    || $configuredDeviceId === ''
-    || strlen($configuredDeviceId) > 100
-) {
-    error_log('NIIMBOT agent credentials are not configured correctly.');
-    $respond(503, false, 'The print agent is not configured.');
-}
-
 $authorizationHeader = trim(
     (string) (
         $_SERVER['HTTP_AUTHORIZATION']
@@ -68,18 +57,18 @@ $deviceId = trim(
 if (
     !preg_match('/\ABearer\s+([a-f0-9]{64})\z/i', $authorizationHeader, $matches)
     || $deviceId === ''
-    || !hash_equals($configuredDeviceId, $deviceId)
+    || strlen($deviceId) > 100
 ) {
     $respond(401, false, 'Invalid device credentials.');
 }
 
-$providedHash = hash('sha256', $matches[1]);
-
-if (!hash_equals(strtolower($configuredHash), $providedHash)) {
-    $respond(401, false, 'Invalid device credentials.');
-}
-
 try {
+    $devices = new NiimbotDevice();
+
+    if (!$devices->authenticate($deviceId, $matches[1])) {
+        $respond(401, false, 'Invalid device credentials.');
+    }
+
     $rawBody = file_get_contents('php://input');
 
     if ($rawBody === false || strlen($rawBody) > 8192) {
@@ -112,7 +101,7 @@ try {
     if ($status === 'completed') {
         $updated = $jobs->complete(
             (int) $jobId,
-            $configuredDeviceId
+            $deviceId
         );
     } else {
         $errorMessage = $payload['error_message'] ?? '';
@@ -123,7 +112,7 @@ try {
 
         $updated = $jobs->fail(
             (int) $jobId,
-            $configuredDeviceId,
+            $deviceId,
             $errorMessage
         );
     }
