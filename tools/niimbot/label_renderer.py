@@ -125,6 +125,12 @@ def render_label(job, output_path):
         max_width, label_font, value_font, max_lines=4
     )
 
+    y = draw_field(
+        draw, x, y, "OWNER / DEPARTMENT",
+        job.get("finance_owner_department") or "-",
+        max_width, label_font, value_font, max_lines=2
+    )
+
     image.save(output_path, format="PNG", optimize=True)
     return image
 
