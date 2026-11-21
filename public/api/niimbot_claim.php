@@ -45,20 +45,7 @@ if (
     $respond(403, false, 'HTTPS is required.');
 }
 
-// Reject missing or incorrectly configured credentials.
-$configuredHash = NIIMBOT_AGENT_TOKEN_HASH;
-$configuredDeviceId = NIIMBOT_AGENT_DEVICE_ID;
-
-if (
-    !preg_match('/\A[a-f0-9]{64}\z/i', $configuredHash)
-    || $configuredDeviceId === ''
-    || strlen($configuredDeviceId) > 100
-) {
-    error_log('NIIMBOT agent credentials are not configured correctly.');
-    $respond(503, false, 'The print agent is not configured.');
-}
-
-// Read the dedicated device credentials.
+// Authenticate the requesting station against the device registry.
 $authorizationHeader = trim(
     (string) (
         $_SERVER['HTTP_AUTHORIZATION']
@@ -74,17 +61,17 @@ $deviceId = trim(
 if (
     !preg_match('/\ABearer\s+([a-f0-9]{64})\z/i', $authorizationHeader, $matches)
     || $deviceId === ''
-    || !hash_equals($configuredDeviceId, $deviceId)
+    || strlen($deviceId) > 100
 ) {
     $respond(401, false, 'Invalid device credentials.');
 }
 
-$providedToken = $matches[1];
-$providedHash = hash('sha256', $providedToken);
+try {
+    $devices = new \\App\\Models\\NiimbotDevice();
 
-if (!hash_equals(strtolower($configuredHash), $providedHash)) {
-    $respond(401, false, 'Invalid device credentials.');
-}
+    if (!$devices->authenticate($deviceId, $matches[1])) {
+        $respond(401, false, 'Invalid device credentials.');
+    }
 
 try {
     $jobs = new NiimbotPrintJob();
@@ -93,7 +80,7 @@ try {
     // Skip stale jobs rather than printing an inactive QR identity.
     // Limit each request to ten stale jobs to keep polling bounded.
     for ($checked = 0; $checked < 10; $checked++) {
-        $job = $jobs->claimNext($configuredDeviceId);
+        $job = $jobs->claimNext($deviceId);
 
         if ($job === false) {
             $respond(200, true, 'No pending print jobs.', [
@@ -122,7 +109,7 @@ try {
         ) {
             $jobs->fail(
                 $jobId,
-                $configuredDeviceId,
+                $deviceId,
                 'The QR identity is no longer active or does not match the queued asset.'
             );
 
