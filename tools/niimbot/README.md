@@ -36,6 +36,19 @@ It invokes `niimprint` with the B1 model, USB transport, configured COM port, de
 
 If Windows assigns a different COM port, update the port configuration in `public/assets/print-qr-label.php` and test the connection before printing production labels.
 
+## Production multi-device registry
+
+Production supports multiple independently authenticated NIIMBOT stations through the `niimbot_devices` table.
+
+- Every station has a unique `device_id` and its own random 64-character hexadecimal agent token.
+- Store only the token's SHA-256 hash in `niimbot_devices.token_hash`. Keep the raw token only in that station's ignored `tools/niimbot/agent-config.json`.
+- The existing Property Custodian station is automatically enrolled on its first successful authenticated poll after the registry migration, using its existing `.env` credentials. Do not change its existing agent configuration.
+- All enabled stations share the same pending queue. Each station claims the oldest available job; row locking prevents two stations from claiming the same job.
+- The `device_id` on a print job records which station actually claimed it.
+- Set `is_enabled = 0` to revoke a station without affecting the other devices.
+
+Run `database/migrations/2026_11_21_niimbot_devices.sql` before enabling a second production station. Register additional devices with an SQL INSERT containing the locally generated token hash. Never put raw agent tokens in SQL history, source control, chat, or logs.
+
 ## Testing
 
 1. Connect the printer and verify the assigned COM port in Windows Device Manager.
