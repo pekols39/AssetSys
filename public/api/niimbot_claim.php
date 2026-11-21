@@ -73,7 +73,6 @@ try {
         $respond(401, false, 'Invalid device credentials.');
     }
 
-try {
     $jobs = new NiimbotPrintJob();
     $qrCodes = new AssetQrCode();
 
