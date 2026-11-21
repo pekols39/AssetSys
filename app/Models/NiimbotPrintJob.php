@@ -180,16 +180,19 @@ class NiimbotPrintJob
 
             $result = $this->db->prepare(
                 'SELECT
-                    id,
-                    asset_id,
-                    asset_qr_code_id,
-                    asset_name,
-                    asset_code,
-                    asset_tag,
-                    finance_ffe_number,
-                    attempts
-                 FROM niimbot_print_jobs
-                 WHERE id = :id
+                    j.id,
+                    j.asset_id,
+                    j.asset_qr_code_id,
+                    j.asset_name,
+                    j.asset_code,
+                    j.asset_tag,
+                    j.finance_ffe_number,
+                    a.finance_owner_department,
+                    j.attempts
+                 FROM niimbot_print_jobs j
+                 LEFT JOIN assets a
+                    ON a.id = j.asset_id
+                 WHERE j.id = :id
                  LIMIT 1'
             );
 

@@ -153,8 +153,15 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
     }
 
     .asset-qr-label .label-tag {
-        margin: 0;
+        margin: 0 0 1mm;
         font-size: 6pt;
+        line-height: 1.1;
+        overflow-wrap: anywhere;
+    }
+
+    .asset-qr-label .label-owner {
+        margin: 0;
+        font-size: 5.5pt;
         line-height: 1.1;
         overflow-wrap: anywhere;
     }
@@ -230,6 +237,10 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
         #assetQrPrintLabel .label-tag {
             font-size: 6pt !important;
+        }
+
+        #assetQrPrintLabel .label-owner {
+            font-size: 5.5pt !important;
         }
 
         .no-print {
@@ -360,6 +371,10 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     Asset Tag: <?= e($asset['finance_ffe_number']) ?>
                 </p>
             <?php endif; ?>
+
+            <p class="label-owner">
+                Owner / Department: <?= e(trim((string) ($asset['finance_owner_department'] ?? '')) ?: '—') ?>
+            </p>
         </div>
     </section>
 <?php endif; ?>

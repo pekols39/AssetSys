@@ -139,6 +139,9 @@ try {
                 'finance_ffe_number' => $job['finance_ffe_number'] !== null
                     ? (string) $job['finance_ffe_number']
                     : null,
+                'finance_owner_department' => $job['finance_owner_department'] !== null
+                    ? (string) $job['finance_owner_department']
+                    : null,
                 'attempts' => (int) $job['attempts'],
                 'scan_url' => $scanUrl,
                 'qr_image_mime' => 'image/png',
