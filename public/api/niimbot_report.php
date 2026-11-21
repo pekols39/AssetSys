@@ -68,7 +68,6 @@ try {
         $respond(401, false, 'Invalid device credentials.');
     }
 
-try {
     $rawBody = file_get_contents('php://input');
 
     if ($rawBody === false || strlen($rawBody) > 8192) {
@@ -112,7 +111,7 @@ try {
 
         $updated = $jobs->fail(
             (int) $jobId,
-            $configuredDeviceId,
+            $deviceId,
             $errorMessage
         );
     }
