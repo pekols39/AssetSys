@@ -69,7 +69,7 @@ class AssetQrScanLog
                 logs.asset_id,
                 logs.scanned_by,
                 logs.scanned_at,
-                assets.asset_tag,
+                assets.finance_ffe_number AS asset_tag,
                 assets.asset_name,
                 users.first_name,
                 users.last_name,
@@ -115,7 +115,7 @@ class AssetQrScanLog
                 logs.asset_id,
                 logs.scanned_by,
                 logs.scanned_at,
-                assets.asset_tag,
+                assets.finance_ffe_number AS asset_tag,
                 assets.asset_name,
                 users.first_name,
                 users.last_name,
@@ -189,7 +189,7 @@ class AssetQrScanLog
         $assetTag = trim((string) ($filters['asset_tag'] ?? ''));
 
         if ($assetTag !== '') {
-            $conditions[] = 'assets.asset_tag LIKE :asset_tag';
+            $conditions[] = 'assets.finance_ffe_number LIKE :asset_tag';
             $params[':asset_tag'] = '%' . $assetTag . '%';
         }
 
