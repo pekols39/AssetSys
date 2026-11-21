@@ -134,7 +134,7 @@ $escape = static fn(mixed $value): string =>
 
 $pageTitle = 'Scanned Asset Details';
 
-$assignmentService = new \\App\\Services\\AssetAssignmentService();
+$assignmentService = new \App\Services\AssetAssignmentService();
 $activeAssignment = $assignmentService->findActiveByAssetId($assetId);
 
 $assignedEmployee = trim((string) ($asset['assigned_to_name'] ?? ''));
