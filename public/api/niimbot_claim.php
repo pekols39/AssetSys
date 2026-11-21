@@ -6,6 +6,7 @@ require_once dirname(__DIR__, 2) . '/app/bootstrap.php';
 
 use App\Models\AssetQrCode;
 use App\Models\NiimbotPrintJob;
+use App\Models\NiimbotDevice;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Writer\PngWriter;
 
@@ -67,7 +68,7 @@ if (
 }
 
 try {
-    $devices = new \\App\\Models\\NiimbotDevice();
+    $devices = new NiimbotDevice();
 
     if (!$devices->authenticate($deviceId, $matches[1])) {
         $respond(401, false, 'Invalid device credentials.');
