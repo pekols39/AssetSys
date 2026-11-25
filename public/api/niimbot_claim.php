@@ -34,7 +34,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     $respond(405, false, 'Method not allowed.');
 }
 
-// Production agent communication must use HTTPS.
 if (
     APP_ENV === 'production'
     && (
@@ -46,7 +45,6 @@ if (
     $respond(403, false, 'HTTPS is required.');
 }
 
-// Authenticate the requesting station against the device registry.
 $authorizationHeader = trim(
     (string) (
         $_SERVER['HTTP_AUTHORIZATION']
@@ -54,15 +52,11 @@ $authorizationHeader = trim(
         ?? ''
     )
 );
-
-$deviceId = trim(
-    (string) ($_SERVER['HTTP_X_NIIMBOT_DEVICE_ID'] ?? '')
-);
+$deviceId = trim((string) ($_SERVER['HTTP_X_NIIMBOT_DEVICE_ID'] ?? ''));
 
 if (
     !preg_match('/\ABearer\s+([a-f0-9]{64})\z/i', $authorizationHeader, $matches)
-    || $deviceId === ''
-    || strlen($deviceId) > 100
+    || !in_array($deviceId, ['property-custodian-b1', 'it-laptop-b1'], true)
 ) {
     $respond(401, false, 'Invalid device credentials.');
 }
@@ -76,27 +70,15 @@ try {
 
     $jobs = new NiimbotPrintJob();
     $qrCodes = new AssetQrCode();
+    $claimedJobs = $jobs->claimBatch($deviceId, 5);
+    $printableJobs = [];
 
-    // Skip stale jobs rather than printing an inactive QR identity.
-    // Limit each request to ten stale jobs to keep polling bounded.
-    for ($checked = 0; $checked < 10; $checked++) {
-        $job = $jobs->claimNext($deviceId);
-
-        if ($job === false) {
-            $respond(200, true, 'No pending print jobs.', [
-                'job' => null,
-            ]);
-        }
-
+    foreach ($claimedJobs as $job) {
         $jobId = (int) ($job['id'] ?? 0);
         $assetId = (int) ($job['asset_id'] ?? 0);
         $qrCodeId = (int) ($job['asset_qr_code_id'] ?? 0);
 
-        $qrRecord = $qrCodes->findActiveByIdForAsset(
-            $qrCodeId,
-            $assetId
-        );
-
+        $qrRecord = $qrCodes->findActiveByIdForAsset($qrCodeId, $assetId);
         $qrToken = is_array($qrRecord)
             ? (string) ($qrRecord['qr_token'] ?? '')
             : '';
@@ -112,14 +94,10 @@ try {
                 $deviceId,
                 'The QR identity is no longer active or does not match the queued asset.'
             );
-
             continue;
         }
 
-        $scanUrl = base_url(
-            '/assets/scan.php?token=' . rawurlencode($qrToken)
-        );
-
+        $scanUrl = base_url('/assets/scan.php?token=' . rawurlencode($qrToken));
         $qrPng = (new Builder(
             writer: new PngWriter(),
             data: $scanUrl,
@@ -127,32 +105,32 @@ try {
             margin: 10
         ))->build()->getString();
 
-        $respond(200, true, 'Print job claimed.', [
-            'job' => [
-                'id' => $jobId,
-                'asset_id' => $assetId,
-                'asset_name' => (string) $job['asset_name'],
-                'asset_code' => (string) $job['asset_code'],
-                'asset_tag' => $job['asset_tag'] !== null
-                    ? (string) $job['asset_tag']
-                    : null,
-                'finance_ffe_number' => $job['finance_ffe_number'] !== null
-                    ? (string) $job['finance_ffe_number']
-                    : null,
-                'finance_owner_department' => $job['finance_owner_department'] !== null
-                    ? (string) $job['finance_owner_department']
-                    : null,
-                'attempts' => (int) $job['attempts'],
-                'scan_url' => $scanUrl,
-                'qr_image_mime' => 'image/png',
-                'qr_image_base64' => base64_encode($qrPng),
-            ],
-        ]);
+        $printableJobs[] = [
+            'id' => $jobId,
+            'asset_id' => $assetId,
+            'asset_name' => (string) $job['asset_name'],
+            'asset_code' => (string) $job['asset_code'],
+            'asset_tag' => $job['asset_tag'] !== null
+                ? (string) $job['asset_tag']
+                : null,
+            'finance_ffe_number' => $job['finance_ffe_number'] !== null
+                ? (string) $job['finance_ffe_number']
+                : null,
+            'finance_owner_department' => $job['finance_owner_department'] !== null
+                ? (string) $job['finance_owner_department']
+                : null,
+            'attempts' => (int) $job['attempts'],
+            'scan_url' => $scanUrl,
+            'qr_image_mime' => 'image/png',
+            'qr_image_base64' => base64_encode($qrPng),
+        ];
     }
 
-    $respond(200, true, 'No printable jobs found in this polling cycle.', [
-        'job' => null,
-    ]);
+    $respond(200, true, $printableJobs
+        ? 'Print batch claimed.'
+        : 'No pending print jobs for this station.', [
+            'jobs' => $printableJobs,
+        ]);
 
 } catch (Throwable $e) {
     error_log(
@@ -162,5 +140,5 @@ try {
         . $e->getMessage()
     );
 
-    $respond(500, false, 'Unable to claim a print job.');
+    $respond(500, false, 'Unable to claim print jobs.');
 }
