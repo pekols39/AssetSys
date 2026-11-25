@@ -18,20 +18,26 @@ class NiimbotPrintJob
     }
 
     /**
-     * Add an authorized asset label request to the print queue.
+     * Add an authorized asset label request to the station-specific queue.
      */
     public function create(
         int $assetId,
         int $qrCodeId,
         int $requestedBy,
+        string $targetDeviceId,
         string $assetName,
         string $assetCode,
         ?string $assetTag,
         ?string $financeFfeNumber
     ): int {
-        if ($assetId <= 0 || $qrCodeId <= 0 || $requestedBy <= 0) {
+        if (
+            $assetId <= 0
+            || $qrCodeId <= 0
+            || $requestedBy <= 0
+            || !in_array($targetDeviceId, ['property-custodian-b1', 'it-laptop-b1'], true)
+        ) {
             throw new \InvalidArgumentException(
-                'Valid asset, QR code, and requester IDs are required.'
+                'Valid asset, QR code, requester, and printer station are required.'
             );
         }
 
@@ -40,6 +46,7 @@ class NiimbotPrintJob
                 asset_id,
                 asset_qr_code_id,
                 requested_by,
+                target_device_id,
                 asset_name,
                 asset_code,
                 asset_tag,
@@ -49,6 +56,7 @@ class NiimbotPrintJob
                 :asset_id,
                 :qr_code_id,
                 :requested_by,
+                :target_device_id,
                 :asset_name,
                 :asset_code,
                 :asset_tag,
@@ -61,6 +69,7 @@ class NiimbotPrintJob
             'asset_id' => $assetId,
             'qr_code_id' => $qrCodeId,
             'requested_by' => $requestedBy,
+            'target_device_id' => $targetDeviceId,
             'asset_name' => $assetName,
             'asset_code' => $assetCode,
             'asset_tag' => $assetTag,
@@ -102,20 +111,20 @@ class NiimbotPrintJob
     }
 
     /**
-     * Requeue expired jobs and claim the oldest pending job.
-     *
-     * The caller must authenticate the local device before calling this.
+     * Atomically claim up to five jobs assigned to this authenticated device.
+     * Each job retains its own status and is reported independently.
      */
-    public function claimNext(string $deviceId): array|false
+    public function claimBatch(string $deviceId, int $limit = 5): array
     {
-        if ($deviceId === '' || strlen($deviceId) > 100) {
-            throw new \InvalidArgumentException('Invalid device ID.');
+        if (!in_array($deviceId, ['property-custodian-b1', 'it-laptop-b1'], true)) {
+            throw new \InvalidArgumentException('Invalid printer device ID.');
         }
 
+        $limit = max(1, min(5, $limit));
         $this->db->beginTransaction();
 
         try {
-            // Recover jobs whose agent stopped responding.
+            // Recover expired jobs, preserving their intended station.
             $recover = $this->db->prepare(
                 'UPDATE niimbot_print_jobs
                  SET status = \'pending\',
@@ -128,7 +137,6 @@ class NiimbotPrintJob
             );
             $recover->execute();
 
-            // Expired jobs that exhausted their attempts are failed.
             $fail = $this->db->prepare(
                 'UPDATE niimbot_print_jobs
                  SET status = \'failed\',
@@ -140,21 +148,32 @@ class NiimbotPrintJob
             );
             $fail->execute();
 
-            $select = $this->db->query(
+            $select = $this->db->prepare(
                 'SELECT id
                  FROM niimbot_print_jobs
                  WHERE status = \'pending\'
                    AND attempts < 3
+                   AND target_device_id = :device_id
                  ORDER BY created_at ASC, id ASC
-                 LIMIT 1
+                 LIMIT ' . $limit . '
                  FOR UPDATE'
             );
+            $select->execute(['device_id' => $deviceId]);
+            $rows = $select->fetchAll(PDO::FETCH_COLUMN);
 
-            $job = $select->fetch(PDO::FETCH_ASSOC);
-
-            if (!$job) {
+            if (!$rows) {
                 $this->db->commit();
-                return false;
+                return [];
+            }
+
+            $ids = array_map('intval', $rows);
+            $idPlaceholders = [];
+            $params = ['device_id' => $deviceId];
+
+            foreach ($ids as $index => $id) {
+                $key = 'id_' . $index;
+                $idPlaceholders[] = ':' . $key;
+                $params[$key] = $id;
             }
 
             $update = $this->db->prepare(
@@ -162,20 +181,26 @@ class NiimbotPrintJob
                  SET status = \'processing\',
                      device_id = :device_id,
                      claimed_at = NOW(),
-                     lease_expires_at = DATE_ADD(NOW(), INTERVAL 2 MINUTE),
+                     lease_expires_at = DATE_ADD(NOW(), INTERVAL 5 MINUTE),
                      attempts = attempts + 1,
                      error_message = NULL
-                 WHERE id = :id
-                   AND status = \'pending\''
+                 WHERE status = \'pending\'
+                   AND target_device_id = :device_id
+                   AND id IN (' . implode(', ', $idPlaceholders) . ')'
             );
+            $update->execute($params);
 
-            $update->execute([
-                'device_id' => $deviceId,
-                'id' => (int) $job['id'],
-            ]);
+            if ($update->rowCount() !== count($ids)) {
+                throw new RuntimeException('Unable to claim the complete print batch.');
+            }
 
-            if ($update->rowCount() !== 1) {
-                throw new RuntimeException('Unable to claim print job.');
+            $fetchParams = [];
+            $fetchPlaceholders = [];
+
+            foreach ($ids as $index => $id) {
+                $key = 'fetch_id_' . $index;
+                $fetchPlaceholders[] = ':' . $key;
+                $fetchParams[$key] = $id;
             }
 
             $result = $this->db->prepare(
@@ -192,16 +217,18 @@ class NiimbotPrintJob
                  FROM niimbot_print_jobs j
                  LEFT JOIN assets a
                     ON a.id = j.asset_id
-                 WHERE j.id = :id
-                 LIMIT 1'
+                 WHERE j.id IN (' . implode(', ', $fetchPlaceholders) . ')
+                   AND j.device_id = :device_id
+                   AND j.status = \'processing\'
+                 ORDER BY j.created_at ASC, j.id ASC'
             );
-
-            $result->execute(['id' => (int) $job['id']]);
-            $claimedJob = $result->fetch(PDO::FETCH_ASSOC);
+            $fetchParams['device_id'] = $deviceId;
+            $result->execute($fetchParams);
+            $claimedJobs = $result->fetchAll(PDO::FETCH_ASSOC);
 
             $this->db->commit();
 
-            return $claimedJob;
+            return $claimedJobs;
         } catch (\Throwable $e) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
@@ -211,9 +238,6 @@ class NiimbotPrintJob
         }
     }
 
-    /**
-     * Complete a job claimed by the specified device.
-     */
     public function complete(int $jobId, string $deviceId): bool
     {
         $stmt = $this->db->prepare(
@@ -235,9 +259,6 @@ class NiimbotPrintJob
         return $stmt->rowCount() === 1;
     }
 
-    /**
-     * Mark a job as failed by the device that claimed it.
-     */
     public function fail(
         int $jobId,
         string $deviceId,
