@@ -2,7 +2,7 @@
 
 ## Purpose
 
-AssetSys uses a local Python `niimprint` driver to send QR inventory labels directly to a NIIMBOT B1 printer over USB. PHP invokes the Python executable and passes the generated label image to the driver.
+AssetSys queues QR inventory label requests in MySQL. A local Python agent claims jobs assigned to its authenticated station, renders the label, and sends it directly to a NIIMBOT B1 printer over USB.
 
 ## Requirements
 
@@ -38,7 +38,7 @@ The current local agent expects the Python executable at:
 
 It invokes `niimprint` with the B1 model, USB transport, configured COM port, density setting, and generated PNG image.
 
-If Windows assigns a different COM port, update the port configuration in `public/assets/print-qr-label.php` and test the connection before printing production labels.
+If Windows assigns a different COM port, update `PRINTER_PORT` in `tools/niimbot/agent.py` on that station and test the connection before printing production labels.
 
 ## Production multi-device registry
 
