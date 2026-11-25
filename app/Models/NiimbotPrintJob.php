@@ -168,7 +168,10 @@ class NiimbotPrintJob
 
             $ids = array_map('intval', $rows);
             $idPlaceholders = [];
-            $params = ['device_id' => $deviceId];
+            $params = [
+                'device_id' => $deviceId,
+                'target_device_id' => $deviceId,
+            ];
 
             foreach ($ids as $index => $id) {
                 $key = 'id_' . $index;
@@ -185,7 +188,7 @@ class NiimbotPrintJob
                      attempts = attempts + 1,
                      error_message = NULL
                  WHERE status = \'pending\'
-                   AND target_device_id = :device_id
+                   AND target_device_id = :target_device_id
                    AND id IN (' . implode(', ', $idPlaceholders) . ')'
             );
             $update->execute($params);
