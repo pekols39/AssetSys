@@ -334,7 +334,7 @@ def main():
                     return 0
 
             except KeyboardInterrupt:
-                print("\\nAgent stopped.", flush=True)
+                print("\nAgent stopped.", flush=True)
                 return 0
             except Exception as error:
                 print(f"Agent error: {error}", flush=True)
