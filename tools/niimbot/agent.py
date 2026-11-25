@@ -135,6 +135,11 @@ def claim_batch(config):
     return jobs
 
 
+def renew_leases(config):
+    result = api_request(config, "/api/niimbot_heartbeat.php", {})
+    print(f"Lease heartbeat: {result.get('message', 'renewed')}", flush=True)
+
+
 def report_job(config, job_id, status, error_message=""):
     payload = {
         "job_id": int(job_id),
@@ -144,11 +149,28 @@ def report_job(config, job_id, status, error_message=""):
     if status == "failed":
         payload["error_message"] = str(error_message)[:1000]
 
-    result = api_request(config, "/api/niimbot_report.php", payload)
-    print(
-        f"Job {job_id}: {result.get('message', 'Status reported.')}",
-        flush=True,
-    )
+    last_error = None
+    for attempt in range(1, 4):
+        try:
+            result = api_request(config, "/api/niimbot_report.php", payload)
+            print(
+                f"Job {job_id}: {result.get('message', 'Status reported.')}",
+                flush=True,
+            )
+            return
+        except Exception as error:
+            last_error = error
+            if status != "completed" or attempt == 3:
+                raise
+            wait_seconds = attempt * 2
+            print(
+                f"Job {job_id}: completion report attempt {attempt} failed; "
+                f"retrying in {wait_seconds}s: {error}",
+                flush=True,
+            )
+            time.sleep(wait_seconds)
+
+    raise RuntimeError(f"Unable to report job status: {last_error}")
 
 
 def close_printer():
@@ -226,6 +248,10 @@ def process_job(config, job, index, total):
     print(f"Batch progress: {index}/{total} (job {job_id}).", flush=True)
 
     try:
+        # Renew all jobs claimed by this station before each physical print.
+        # This keeps later items in a slow batch from expiring while earlier
+        # labels are being printed.
+        renew_leases(config)
         print_job(job)
     except Exception as error:
         message = str(error)[:1000]
