@@ -32,6 +32,8 @@ The current local agent imports the driver directly and keeps one USB serial con
 
 The agent claims up to five jobs at a time. Jobs are still printed sequentially and reported individually, so one failed label does not mark the rest of the batch as failed.
 
+Each claim receives a 15-minute lease. Before printing every item, the agent calls the authenticated heartbeat endpoint to extend all active leases owned by that station. This prevents later jobs in a slow batch from expiring while earlier labels are printing. Completion reports are retried up to three times; the server treats repeated completion reports for the same station/job as successful, avoiding unnecessary reprints when the first response was lost.
+
 The current local agent expects the Python executable at:
 
 `tools/niimbot/.venv311/Scripts/python.exe`
