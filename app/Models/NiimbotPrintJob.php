@@ -266,12 +266,12 @@ class NiimbotPrintJob
         $stmt = $this->db->prepare(
             'UPDATE niimbot_print_jobs
              SET status = \'completed\',
-                 completed_at = NOW(),
+                 completed_at = COALESCE(completed_at, NOW()),
                  lease_expires_at = NULL,
                  error_message = NULL
              WHERE id = :id
-               AND status = \'processing\'
-               AND device_id = :device_id'
+               AND device_id = :device_id
+               AND status IN (\'processing\', \'completed\')'
         );
 
         $stmt->execute([
@@ -279,7 +279,25 @@ class NiimbotPrintJob
             'device_id' => $deviceId,
         ]);
 
-        return $stmt->rowCount() === 1;
+        if ($stmt->rowCount() === 1) {
+            return true;
+        }
+
+        // MySQL may report zero changed rows for an already-completed job.
+        $check = $this->db->prepare(
+            'SELECT 1
+             FROM niimbot_print_jobs
+             WHERE id = :id
+               AND device_id = :device_id
+               AND status = \'completed\'
+             LIMIT 1'
+        );
+        $check->execute([
+            'id' => $jobId,
+            'device_id' => $deviceId,
+        ]);
+
+        return (bool) $check->fetchColumn();
     }
 
     public function fail(
