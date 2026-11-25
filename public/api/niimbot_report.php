@@ -49,15 +49,11 @@ $authorizationHeader = trim(
         ?? ''
     )
 );
-
-$deviceId = trim(
-    (string) ($_SERVER['HTTP_X_NIIMBOT_DEVICE_ID'] ?? '')
-);
+$deviceId = trim((string) ($_SERVER['HTTP_X_NIIMBOT_DEVICE_ID'] ?? ''));
 
 if (
     !preg_match('/\ABearer\s+([a-f0-9]{64})\z/i', $authorizationHeader, $matches)
-    || $deviceId === ''
-    || strlen($deviceId) > 100
+    || !in_array($deviceId, ['property-custodian-b1', 'it-laptop-b1'], true)
 ) {
     $respond(401, false, 'Invalid device credentials.');
 }
@@ -81,11 +77,7 @@ try {
         $respond(400, false, 'A valid JSON request body is required.');
     }
 
-    $jobId = filter_var(
-        $payload['job_id'] ?? null,
-        FILTER_VALIDATE_INT
-    );
-
+    $jobId = filter_var($payload['job_id'] ?? null, FILTER_VALIDATE_INT);
     $status = $payload['status'] ?? null;
 
     if ($jobId === false || $jobId === null || $jobId <= 0) {
@@ -99,10 +91,7 @@ try {
     $jobs = new NiimbotPrintJob();
 
     if ($status === 'completed') {
-        $updated = $jobs->complete(
-            (int) $jobId,
-            $deviceId
-        );
+        $updated = $jobs->complete((int) $jobId, $deviceId);
     } else {
         $errorMessage = $payload['error_message'] ?? '';
 
@@ -110,11 +99,7 @@ try {
             $respond(422, false, 'The error message must be text.');
         }
 
-        $updated = $jobs->fail(
-            (int) $jobId,
-            $deviceId,
-            $errorMessage
-        );
+        $updated = $jobs->fail((int) $jobId, $deviceId, $errorMessage);
     }
 
     if (!$updated) {
