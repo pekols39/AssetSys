@@ -247,7 +247,7 @@ class NiimbotPrintJob
     public function renewActiveLeases(string $deviceId): int
     {
         if (!in_array($deviceId, ['property-custodian-b1', 'it-laptop-b1'], true)) {
-            throw new \\InvalidArgumentException('Invalid printer device ID.');
+            throw new \InvalidArgumentException('Invalid printer device ID.');
         }
 
         $stmt = $this->db->prepare(
