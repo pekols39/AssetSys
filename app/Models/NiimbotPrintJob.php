@@ -184,7 +184,7 @@ class NiimbotPrintJob
                  SET status = \'processing\',
                      device_id = :device_id,
                      claimed_at = NOW(),
-                     lease_expires_at = DATE_ADD(NOW(), INTERVAL 5 MINUTE),
+                     lease_expires_at = DATE_ADD(NOW(), INTERVAL 15 MINUTE),
                      attempts = attempts + 1,
                      error_message = NULL
                  WHERE status = \'pending\'
@@ -239,6 +239,26 @@ class NiimbotPrintJob
 
             throw $e;
         }
+    }
+
+    /**
+     * Extend all active leases held by this authenticated printer station.
+     */
+    public function renewActiveLeases(string $deviceId): int
+    {
+        if (!in_array($deviceId, ['property-custodian-b1', 'it-laptop-b1'], true)) {
+            throw new \\InvalidArgumentException('Invalid printer device ID.');
+        }
+
+        $stmt = $this->db->prepare(
+            'UPDATE niimbot_print_jobs
+             SET lease_expires_at = DATE_ADD(NOW(), INTERVAL 15 MINUTE)
+             WHERE status = \'processing\'
+               AND device_id = :device_id'
+        );
+        $stmt->execute(['device_id' => $deviceId]);
+
+        return $stmt->rowCount();
     }
 
     public function complete(int $jobId, string $deviceId): bool
