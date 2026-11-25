@@ -40,6 +40,17 @@ if ($userId <= 0) {
     $showSwal('error', 'Session expired', 'Please sign in again before printing QR labels.');
 }
 
+// Determine the destination from the authenticated account, never from POST data.
+$targetDeviceId = match ((string) ($currentUser['role_name'] ?? '')) {
+    'Property Custodian' => 'property-custodian-b1',
+    'Asset Manager' => 'it-laptop-b1',
+    default => null,
+};
+
+if ($targetDeviceId === null) {
+    $showSwal('error', 'Printer not assigned', 'Your account is not assigned to a NIIMBOT print station.');
+}
+
 $rawFilters = is_array($_POST['filters'] ?? null) ? $_POST['filters'] : [];
 $filterKeys = [
     'search', 'category_id', 'status_id', 'condition_id', 'location_id',
@@ -110,6 +121,7 @@ foreach ($assetIds as $assetId) {
             $assetId,
             (int) $qr['id'],
             $userId,
+            $targetDeviceId,
             trim((string) ($asset['asset_name'] ?? 'Unnamed Asset')),
             trim((string) ($asset['asset_code'] ?? '')),
             isset($asset['asset_tag']) ? trim((string) $asset['asset_tag']) : null,
