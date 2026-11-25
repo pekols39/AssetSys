@@ -36,7 +36,7 @@ The current local agent expects the Python executable at:
 
 `tools/niimbot/.venv311/Scripts/python.exe`
 
-It invokes `niimprint` with the B1 model, USB transport, configured COM port, density setting, and generated PNG image.
+The local agent reads the generated PNG and passes it to the patched B1 V2 `PrinterClient` directly.
 
 If Windows assigns a different COM port, update `PRINTER_PORT` in `tools/niimbot/agent.py` on that station and test the connection before printing production labels.
 
