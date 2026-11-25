@@ -28,7 +28,11 @@ Review the upstream repository's license and instructions before installing or r
 
 ## AssetSys configuration
 
-The current print endpoint expects the Python executable at:
+The current local agent imports the driver directly and keeps one USB serial connection open while processing each batch. It reuses the tested B1 V2 `PrinterClient.print_image()` implementation for each label rather than starting a new Python process and reopening COM3 for every job. If a print fails, the agent closes the serial connection and reconnects before the next job.
+
+The agent claims up to five jobs at a time. Jobs are still printed sequentially and reported individually, so one failed label does not mark the rest of the batch as failed.
+
+The current local agent expects the Python executable at:
 
 `tools/niimbot/.venv311/Scripts/python.exe`
 
@@ -43,7 +47,9 @@ Production supports multiple independently authenticated NIIMBOT stations throug
 - Every station has a unique `device_id` and its own random 64-character hexadecimal agent token.
 - Store only the token's SHA-256 hash in `niimbot_devices.token_hash`. Keep the raw token only in that station's ignored `tools/niimbot/agent-config.json`.
 - The existing Property Custodian station is automatically enrolled on its first successful authenticated poll after the registry migration, using its existing `.env` credentials. Do not change its existing agent configuration.
-- All enabled stations share the same pending queue. Each station claims the oldest available job; row locking prevents two stations from claiming the same job.
+- Print requests are assigned automatically from the authenticated requester's role: Property Custodian accounts route to `property-custodian-b1`; Asset Manager accounts route to `it-laptop-b1`.
+- Agents can claim up to five jobs per API request, but each label remains independently tracked and reported as completed or failed.
+- A station can claim only jobs whose `target_device_id` matches its authenticated device ID. Row locking prevents duplicate claims.
 - The `device_id` on a print job records which station actually claimed it.
 - Set `is_enabled = 0` to revoke a station without affecting the other devices.
 
@@ -69,3 +75,16 @@ A successful command alone does not guarantee a readable label. Verify the physi
 ## Security
 
 QR tokens are identifiers, not authorization grants. AssetSys must authenticate the user and check their asset access permissions before displaying asset details. Do not put credentials or other secrets in QR codes.
+
+
+## Automatic printer assignment and batch printing
+
+Run `database/migrations/2026_11_26_niimbot_batch_print_routing.sql` after deploying the matching application code. It adds `target_device_id` and backfills existing queued jobs based on the requester's current role.
+
+The assignment is server-side and cannot be overridden by browser input:
+- Property Custodian → Property Custodian B1.
+- Asset Manager → IT Laptop B1.
+
+Update `agent.py` in both local agent installations after pulling the feature branch. The Property Custodian uses a standalone copy under their Windows profile, so update that copy separately; updating the IT laptop repository does not update the standalone agent. Restart both scheduled tasks after installing the updated agent.
+
+The new agent requires the existing local `niimprintx` checkout at tested revision `be39f68` with `patches/b1-v2-printing.patch` applied. The persistent connection path calls the patched `PrinterClient` directly. Do not remove or replace that patch when updating the local driver.
