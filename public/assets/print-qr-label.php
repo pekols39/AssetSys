@@ -79,10 +79,24 @@ try {
     }
 
     $requestedBy = (int) ($currentUser['user_id'] ?? 0);
+    $roleName = (string) ($currentUser['role_name'] ?? '');
 
     if ($requestedBy <= 0) {
         http_response_code(401);
         exit('Unable to identify the requesting user.');
+    }
+
+    // Assign jobs from the authenticated account's operational role.
+    // Never accept a target printer from a browser form or query string.
+    $targetDeviceId = match ($roleName) {
+        'Property Custodian' => 'property-custodian-b1',
+        'Asset Manager' => 'it-laptop-b1',
+        default => null,
+    };
+
+    if ($targetDeviceId === null) {
+        http_response_code(403);
+        exit('Your account is not assigned to a NIIMBOT print station.');
     }
 
     $jobModel = new NiimbotPrintJob();
@@ -91,6 +105,7 @@ try {
         $assetId,
         (int) $qrRecord['id'],
         $requestedBy,
+        $targetDeviceId,
         trim((string) ($asset['asset_name'] ?? 'Unnamed Asset')),
         trim((string) ($asset['asset_code'] ?? '')),
         isset($asset['asset_tag'])
