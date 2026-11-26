@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import builtins
 import json
+import logging
+from logging.handlers import RotatingFileHandler
 import re
 import sys
 import tempfile
@@ -42,6 +45,92 @@ PRINTER_DENSITY = 4
 # The patched B1 V2 print_image() sequence is reused for each label.
 printer_transport = None
 printer_client = None
+logger = None
+instance_lock_file = None
+
+
+def setup_logging():
+    global logger
+
+    log_dir = BASE_DIR / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / "niimbot-agent.log"
+
+    logger = logging.getLogger("assetsys.niimbot")
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()
+
+    handler = RotatingFileHandler(
+        log_path,
+        maxBytes=5 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8",
+    )
+    handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(message)s"
+    ))
+    logger.addHandler(handler)
+
+
+def print(*args, **kwargs):
+    message = kwargs.get("sep", " ").join(str(arg) for arg in args)
+    target = kwargs.get("file")
+    level = logging.ERROR if target is sys.stderr else logging.INFO
+
+    if logger is not None:
+        logger.log(level, message.rstrip())
+
+    stream = target if target is not None else sys.stdout
+    if stream is not None:
+        builtins.print(*args, **kwargs)
+
+
+def acquire_instance_lock():
+    global instance_lock_file
+
+    lock_path = BASE_DIR / "logs" / "agent.lock"
+    instance_lock_file = lock_path.open("a+b")
+
+    try:
+        instance_lock_file.seek(0, 2)
+        if instance_lock_file.tell() == 0:
+            instance_lock_file.write(b"0")
+            instance_lock_file.flush()
+        instance_lock_file.seek(0)
+
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(instance_lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(instance_lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+        return True
+    except (OSError, BlockingIOError):
+        instance_lock_file.close()
+        instance_lock_file = None
+        return False
+
+
+def release_instance_lock():
+    global instance_lock_file
+
+    if instance_lock_file is None:
+        return
+
+    try:
+        instance_lock_file.seek(0)
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(instance_lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(instance_lock_file.fileno(), fcntl.LOCK_UN)
+    except OSError:
+        pass
+    finally:
+        instance_lock_file.close()
+        instance_lock_file = None
 
 
 def load_config():
@@ -322,10 +411,16 @@ def main():
 
     args = parser.parse_args()
 
+    setup_logging()
+
     try:
         config = load_config()
     except Exception as error:
         print(f"Configuration error: {error}", file=sys.stderr)
+        return 1
+
+    if not acquire_instance_lock():
+        print("Another NIIMBOT agent instance is already running for this station. Exiting to prevent duplicate claims.", flush=True)
         return 1
 
     print("AssetSys NIIMBOT Agent", flush=True)
@@ -371,6 +466,7 @@ def main():
                 time.sleep(POLL_INTERVAL)
     finally:
         close_printer()
+        release_instance_lock()
 
 
 if __name__ == "__main__":
