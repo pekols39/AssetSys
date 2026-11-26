@@ -57,7 +57,8 @@ Production supports multiple independently authenticated NIIMBOT stations throug
 - Every station has a unique `device_id` and its own random 64-character hexadecimal agent token.
 - Store only the token's SHA-256 hash in `niimbot_devices.token_hash`. Keep the raw token only in that station's ignored `tools/niimbot/agent-config.json`.
 - The existing Property Custodian station is automatically enrolled on its first successful authenticated poll after the registry migration, using its existing `.env` credentials. Do not change its existing agent configuration.
-- Print requests are assigned automatically from the authenticated requester's role: Property Custodian accounts route to `property-custodian-b1`; Asset Manager accounts route to `it-laptop-b1`.
+- QR printing is restricted to Property Custodian accounts; their requests route to `property-custodian-b1`.
+- Asset Manager accounts are view-only for QR labels and cannot queue single or bulk print jobs.
 - Agents can claim up to five jobs per API request, but each label remains independently tracked and reported as completed or failed.
 - A station can claim only jobs whose `target_device_id` matches its authenticated device ID. Row locking prevents duplicate claims.
 - The `device_id` on a print job records which station actually claimed it.
@@ -94,8 +95,8 @@ Run `database/migrations/2026_11_26_niimbot_batch_print_routing.sql` after deplo
 
 The assignment is server-side and cannot be overridden by browser input:
 - Property Custodian → Property Custodian B1.
-- Asset Manager → IT Laptop B1.
+- Asset Manager → view-only; no QR print station is assigned.
 
-Update `agent.py` in both local agent installations after pulling the feature branch. The Property Custodian uses a standalone copy under their Windows profile, so update that copy separately; updating the IT laptop repository does not update the standalone agent. Restart both scheduled tasks after installing the updated agent.
+Update `agent.py` on the Property Custodian station after pulling the feature branch. The Property Custodian uses a standalone copy under their Windows profile, so update that copy separately. Restart its scheduled task after installing the updated agent. The Asset Manager workstation does not need a NIIMBOT agent for QR printing.
 
 The new agent requires the existing local `niimprintx` checkout at tested revision `be39f68` with `patches/b1-v2-printing.patch` applied. The persistent connection path calls the patched `PrinterClient` directly. Do not remove or replace that patch when updating the local driver.
