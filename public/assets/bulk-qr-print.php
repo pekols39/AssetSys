@@ -27,8 +27,12 @@ AuthMiddleware::handle();
 $authorization = new AuthorizationService();
 $currentUser = $authorization->currentUser();
 
-if ($currentUser === null || !$authorization->canAccessAssetOperations()) {
-    $showSwal('error', 'Access denied', 'You do not have permission to queue asset QR labels.');
+if (
+    $currentUser === null
+    || !$authorization->isPropertyCustodian()
+    || !$authorization->canAccessAssetOperations()
+) {
+    $showSwal('error', 'Access denied', 'Only Property Custodian accounts may print asset QR labels.');
 }
 
 if (!Csrf::validate($_POST[CSRF_TOKEN_NAME] ?? null)) {
@@ -43,7 +47,6 @@ if ($userId <= 0) {
 // Determine the destination from the authenticated account, never from POST data.
 $targetDeviceId = match ((string) ($currentUser['role_name'] ?? '')) {
     'Property Custodian' => 'property-custodian-b1',
-    'Asset Manager' => 'it-laptop-b1',
     default => null,
 };
 
