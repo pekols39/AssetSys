@@ -2,7 +2,6 @@ from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 import base64
 import os
-import textwrap
 
 
 WIDTH = 384
@@ -59,7 +58,7 @@ def wrap_text(draw, value, font, max_width):
 
 
 def draw_field(draw, x, y, label, value, max_width, label_font, value_font,
-               max_lines=2):
+               max_lines=2, value_line_height=16, field_gap=4):
     draw.text((x, y), label, fill=FOREGROUND, font=label_font)
     y += 15
 
@@ -68,9 +67,9 @@ def draw_field(draw, x, y, label, value, max_width, label_font, value_font,
 
     for line in lines:
         draw.text((x, y), line, fill=FOREGROUND, font=value_font)
-        y += 15
+        y += value_line_height
 
-    return y + 4
+    return y + field_gap
 
 
 def render_label(job, output_path):
@@ -99,36 +98,39 @@ def render_label(job, output_path):
     x = 203
     max_width = 172
 
-    title_font = load_font(17, bold=True)
-    label_font = load_font(11, bold=True)
-    value_font = load_font(13)
-
-    asset_name = str(job.get("asset_name") or "Unnamed Asset")
-    title_lines = wrap_text(draw, asset_name, title_font, max_width)[:2]
+    # Slightly larger type and consistent vertical spacing make all four
+    # identity fields readable while using the full height of the label.
+    label_font = load_font(12, bold=True)
+    value_font = load_font(14)
+    asset_name_font = load_font(15, bold=True)
 
     y = 8
-    for line in title_lines:
-        draw.text((x, y), line, fill=FOREGROUND, font=title_font)
-        y += 20
-
-    y += 3
+    y = draw_field(
+        draw, x, y, "ASSET NAME",
+        job.get("asset_name") or "-",
+        max_width, label_font, asset_name_font, max_lines=2,
+        value_line_height=17, field_gap=4
+    )
 
     y = draw_field(
         draw, x, y, "ASSET CODE",
-        job.get("asset_code"), max_width,
-        label_font, value_font, max_lines=2
+        job.get("asset_code") or "-",
+        max_width, label_font, value_font, max_lines=2,
+        value_line_height=16, field_gap=4
     )
 
     y = draw_field(
         draw, x, y, "ASSET TAG",
         job.get("finance_ffe_number") or "-",
-        max_width, label_font, value_font, max_lines=4
+        max_width, label_font, value_font, max_lines=2,
+        value_line_height=16, field_gap=4
     )
 
-    y = draw_field(
+    draw_field(
         draw, x, y, "OWNER / DEPARTMENT",
         job.get("finance_owner_department") or "-",
-        max_width, label_font, value_font, max_lines=2
+        max_width, label_font, value_font, max_lines=2,
+        value_line_height=16, field_gap=0
     )
 
     image.save(output_path, format="PNG", optimize=True)
