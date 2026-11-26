@@ -58,18 +58,19 @@ def wrap_text(draw, value, font, max_width):
 
 
 def draw_field(draw, x, y, label, value, max_width, label_font, value_font,
-               max_lines=2, value_line_height=16, field_gap=4):
+               max_lines=2, line_height=17, field_height=55):
     draw.text((x, y), label, fill=FOREGROUND, font=label_font)
-    y += 15
 
-    lines = wrap_text(draw, value, value_font, max_width)
-    lines = lines[:max_lines]
+    lines = wrap_text(draw, value, value_font, max_width)[:max_lines]
+    value_y = y + 17
 
     for line in lines:
-        draw.text((x, y), line, fill=FOREGROUND, font=value_font)
-        y += value_line_height
+        draw.text((x, value_y), line, fill=FOREGROUND, font=value_font)
+        value_y += line_height
 
-    return y + field_gap
+    # Fixed-height rows distribute the four fields evenly down the label,
+    # leaving room for a second line without crowding the next field.
+    return y + field_height
 
 
 def render_label(job, output_path):
@@ -98,8 +99,6 @@ def render_label(job, output_path):
     x = 203
     max_width = 172
 
-    # Slightly larger type and consistent vertical spacing make all four
-    # identity fields readable while using the full height of the label.
     label_font = load_font(12, bold=True)
     value_font = load_font(14)
     asset_name_font = load_font(15, bold=True)
@@ -108,29 +107,25 @@ def render_label(job, output_path):
     y = draw_field(
         draw, x, y, "ASSET NAME",
         job.get("asset_name") or "-",
-        max_width, label_font, asset_name_font, max_lines=2,
-        value_line_height=17, field_gap=4
+        max_width, label_font, asset_name_font,
     )
 
     y = draw_field(
         draw, x, y, "ASSET CODE",
         job.get("asset_code") or "-",
-        max_width, label_font, value_font, max_lines=2,
-        value_line_height=16, field_gap=4
+        max_width, label_font, value_font,
     )
 
     y = draw_field(
         draw, x, y, "ASSET TAG",
         job.get("finance_ffe_number") or "-",
-        max_width, label_font, value_font, max_lines=2,
-        value_line_height=16, field_gap=4
+        max_width, label_font, value_font,
     )
 
     draw_field(
         draw, x, y, "OWNER / DEPARTMENT",
         job.get("finance_owner_department") or "-",
-        max_width, label_font, value_font, max_lines=2,
-        value_line_height=16, field_gap=0
+        max_width, label_font, value_font,
     )
 
     image.save(output_path, format="PNG", optimize=True)
