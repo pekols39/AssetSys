@@ -277,7 +277,10 @@ class NiimbotPrintJob
         }
 
         $placeholders = [];
-        $params = ['device_id' => $deviceId];
+        $params = [
+            'device_id' => $deviceId,
+            'target_device_id' => $deviceId,
+        ];
 
         foreach ($ids as $index => $id) {
             $key = 'release_id_' . $index;
@@ -294,7 +297,7 @@ class NiimbotPrintJob
                  error_message = NULL
              WHERE status = \'processing\'
                AND device_id = :device_id
-               AND target_device_id = :device_id
+               AND target_device_id = :target_device_id
                AND id IN (' . implode(', ', $placeholders) . ')'
         );
         $stmt->execute($params);
