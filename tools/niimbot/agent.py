@@ -420,10 +420,6 @@ def main():
         print(f"Configuration error: {error}", file=sys.stderr)
         return 1
 
-    if not acquire_instance_lock():
-        print("Another NIIMBOT agent instance is already running for this station. Exiting to prevent duplicate claims.", flush=True)
-        return 1
-
     print("AssetSys NIIMBOT Agent", flush=True)
     print(f"Device ID: {config['device_id']}", flush=True)
     print(f"API: {config['api_base_url']}", flush=True)
@@ -434,6 +430,10 @@ def main():
     if args.check_config:
         print("Configuration check passed. No job was claimed or printed.")
         return 0
+
+    if not acquire_instance_lock():
+        print("Another NIIMBOT agent instance is already running for this station. Exiting to prevent duplicate claims.", flush=True)
+        return 1
 
     print("Starting queue polling.", flush=True)
 
