@@ -22,7 +22,7 @@ The third-party `niimprintx` repository and Python virtual environment are local
 4. Install the driver's requirements and install the project in editable mode.
 5. Apply `patches/b1-v2-printing.patch` from inside the driver repository.
 
-The patch adapts the print sequence for the tested B1 V2 setup. It sends a B1 wake-up packet, uses the required start-print payload and dimensions, sends the image rows, ends the page, and waits two seconds. It intentionally does not call the upstream `END_PRINT` handshake.
+The patch adapts the print sequence for the B1 V2 setup. It sends a B1 wake-up packet, uses the B1-specific start-print payload and dimensions, sends the image rows, and ends the page. After a two-second processing allowance, it requires a positive `END_PRINT` acknowledgement, polling at 100 ms intervals for up to 30 seconds. A missing, unsupported, or negative acknowledgement raises an error so the agent does not report the job as completed; the physical outcome must then be checked manually. This is a fail-closed completion check, not proof that the label is scannable.
 
 Review the upstream repository's license and instructions before installing or redistributing its source.
 
@@ -77,7 +77,8 @@ A successful command alone does not guarantee a readable label. Verify the physi
 
 ## Troubleshooting
 
-- **Blank label:** Verify that the B1-specific patch is applied and that the print sequence ends with `END_PAGE_PRINT` followed by the two-second wait.
+- **Print completion timeout or unsupported `END_PRINT`:** The agent marks the job failed for manual review rather than treating the command as completed. Check the physical label before requesting another print. Do not automatically retry an uncertain job.
+- **Blank label:** Verify that the B1-specific patch is applied, that the image rows are sent, and that the printer accepts `END_PAGE_PRINT` and the subsequent `END_PRINT` acknowledgement.
 - **Connection failure:** Verify the USB connection and COM port.
 - **Python executable missing:** Recreate the Python 3.11 virtual environment and reinstall the driver requirements.
 - **QR does not scan:** Check print quality, label dimensions, and QR contrast.
