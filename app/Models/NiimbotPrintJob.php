@@ -257,6 +257,51 @@ class NiimbotPrintJob
         return $stmt->rowCount();
     }
 
+    /**
+     * Return jobs that have not started printing to the pending queue.
+     * Only IDs in the current batch and still owned by this station are released.
+     */
+    public function releaseUnstarted(array $jobIds, string $deviceId): int
+    {
+        if (!in_array($deviceId, ['property-custodian-b1', 'it-laptop-b1'], true)) {
+            throw new \\InvalidArgumentException('Invalid printer device ID.');
+        }
+
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $jobIds),
+            static fn (int $id): bool => $id > 0
+        )));
+
+        if ($ids === []) {
+            return 0;
+        }
+
+        $placeholders = [];
+        $params = ['device_id' => $deviceId];
+
+        foreach ($ids as $index => $id) {
+            $key = 'release_id_' . $index;
+            $placeholders[] = ':' . $key;
+            $params[$key] = $id;
+        }
+
+        $stmt = $this->db->prepare(
+            'UPDATE niimbot_print_jobs
+             SET status = \'pending\',
+                 device_id = NULL,
+                 claimed_at = NULL,
+                 lease_expires_at = NULL,
+                 attempts = GREATEST(attempts - 1, 0),
+                 error_message = NULL
+             WHERE status = \'processing\'
+               AND device_id = :device_id
+               AND id IN (' . implode(', ', $placeholders) . ')'
+        );
+        $stmt->execute($params);
+
+        return $stmt->rowCount();
+    }
+
     public function complete(int $jobId, string $deviceId): bool
     {
         $stmt = $this->db->prepare(
