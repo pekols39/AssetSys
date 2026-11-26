@@ -327,25 +327,34 @@ def print_job(job):
         raise RuntimeError("Claimed job has an invalid ID.")
 
     print(f"Job {job_id}: preparing label.", flush=True)
+    render_started = time.perf_counter()
 
     with tempfile.TemporaryDirectory(prefix="niimbot-") as temp_dir:
         label_path = Path(temp_dir) / "asset-label.png"
         render_label(job, str(label_path))
+        render_seconds = time.perf_counter() - render_started
 
         if not label_path.is_file() or label_path.stat().st_size == 0:
             raise RuntimeError("Generated label image is missing or empty.")
 
         try:
             printer = get_printer()
+            print_started = time.perf_counter()
             with Image.open(label_path) as image:
                 printer.print_image(image, density=PRINTER_DENSITY)
+            print_seconds = time.perf_counter() - print_started
         except Exception:
             # Release a possibly stale serial handle. The next label will
             # establish a fresh connection rather than reuse a broken port.
             close_printer()
             raise
 
-    print(f"Job {job_id}: printer command completed successfully.", flush=True)
+    print(
+        f"Job {job_id}: printer command completed successfully. "
+        f"Render: {render_seconds:.2f}s; USB print: {print_seconds:.2f}s; "
+        f"total: {render_seconds + print_seconds:.2f}s.",
+        flush=True,
+    )
 
 
 def process_job(config, job, index, total):
@@ -405,6 +414,7 @@ def process_batch(config, jobs):
         return 0
 
     print(f"Claimed {total} print job(s). Starting batch.", flush=True)
+    batch_started = time.perf_counter()
     succeeded = 0
     failed = 0
 
@@ -426,7 +436,8 @@ def process_batch(config, jobs):
 
     print(
         f"Batch stopped: {succeeded} completed, {failed} failed; "
-        f"{max(0, total - succeeded - failed)} not attempted.",
+        f"{max(0, total - succeeded - failed)} not attempted; "
+        f"elapsed: {time.perf_counter() - batch_started:.2f}s.",
         flush=True,
     )
     return succeeded
