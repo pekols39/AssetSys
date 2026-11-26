@@ -344,7 +344,11 @@ def process_job(config, job, index, total):
         renew_leases(config)
         print_job(job)
     except Exception as error:
-        message = str(error)[:1000]
+        message = (
+            "Printer operation failed; physical print outcome may be unknown. "
+            "Verify the label before requesting another print. Details: "
+            + str(error)
+        )[:1000]
         print(f"Job {job_id}: FAILED - {message}", flush=True)
 
         try:
