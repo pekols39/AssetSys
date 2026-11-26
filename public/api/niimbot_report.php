@@ -80,7 +80,7 @@ try {
     $jobId = filter_var($payload['job_id'] ?? null, FILTER_VALIDATE_INT);
     $status = $payload['status'] ?? null;
 
-    if ($jobId === false || $jobId === null || $jobId <= 0) {
+    if ($status !== 'release_unstarted' && ($jobId === false || $jobId === null || $jobId <= 0)) {
         $respond(422, false, 'A valid job ID is required.');
     }
 
