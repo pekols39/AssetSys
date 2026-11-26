@@ -84,7 +84,7 @@ try {
         $respond(422, false, 'A valid job ID is required.');
     }
 
-    if (!is_string($status) || !in_array($status, ['completed', 'failed'], true)) {
+    if (!is_string($status) || !in_array($status, ['completed', 'failed', 'release_unstarted'], true)) {
         $respond(422, false, 'A valid job status is required.');
     }
 
@@ -92,6 +92,18 @@ try {
 
     if ($status === 'completed') {
         $updated = $jobs->complete((int) $jobId, $deviceId);
+    } elseif ($status === 'release_unstarted') {
+        $jobIds = $payload['job_ids'] ?? null;
+        if (!is_array($jobIds) || count($jobIds) > 5) {
+            $respond(422, false, 'A list of up to five job IDs is required.');
+        }
+        foreach ($jobIds as $id) {
+            if (filter_var($id, FILTER_VALIDATE_INT) === false || (int) $id <= 0) {
+                $respond(422, false, 'Every released job ID must be a positive integer.');
+            }
+        }
+        $released = $jobs->releaseUnstarted($jobIds, $deviceId);
+        $updated = true;
     } else {
         $errorMessage = $payload['error_message'] ?? '';
 
@@ -115,7 +127,9 @@ try {
         true,
         $status === 'completed'
             ? 'Print job completion recorded.'
-            : 'Print job failure recorded.'
+            : ($status === 'release_unstarted'
+                ? 'Unstarted batch jobs returned to the pending queue: ' . $released . '.'
+                : 'Print job failure recorded.')
     );
 
 } catch (Throwable $e) {
