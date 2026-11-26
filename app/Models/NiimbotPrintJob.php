@@ -264,7 +264,7 @@ class NiimbotPrintJob
     public function releaseUnstarted(array $jobIds, string $deviceId): int
     {
         if (!in_array($deviceId, ['property-custodian-b1', 'it-laptop-b1'], true)) {
-            throw new \\InvalidArgumentException('Invalid printer device ID.');
+            throw new \InvalidArgumentException('Invalid printer device ID.');
         }
 
         $ids = array_values(array_unique(array_filter(
@@ -295,6 +295,7 @@ class NiimbotPrintJob
                  error_message = NULL
              WHERE status = \'processing\'
                AND device_id = :device_id
+               AND target_device_id = :device_id
                AND id IN (' . implode(', ', $placeholders) . ')'
         );
         $stmt->execute($params);
