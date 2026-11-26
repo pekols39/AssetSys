@@ -38,6 +38,8 @@ The agent writes timestamped logs to `tools/niimbot/logs/niimbot-agent.log`. Log
 
 If a processing lease expires, the server marks that job failed with an explicit "physical print outcome is unknown" message. It does not automatically requeue expired physical print jobs, because the label may already have printed before the connection was lost. Verify the printer output before manually requesting another label.
 
+For GoDaddy/cPanel, an optional cron job can reconcile expired leases even while a station is offline. The CLI-only script is `tools/niimbot/reconcile-expired-jobs.php`. Test it first with `php tools/niimbot/reconcile-expired-jobs.php --dry-run`; configure the cPanel cron to run `php /absolute/path/to/AssetSys/tools/niimbot/reconcile-expired-jobs.php --apply` every five minutes. Use the actual PHP CLI executable and absolute project path shown by the hosting account. This task only marks expired jobs failed for manual review; it never triggers a physical reprint.
+
 The current local agent expects the Python executable at:
 
 `tools/niimbot/.venv311/Scripts/python.exe`
