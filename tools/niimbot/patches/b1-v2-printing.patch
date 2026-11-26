@@ -1,7 +1,7 @@
 diff --git a/niimprint/printer.py b/niimprint/printer.py
 --- a/niimprint/printer.py
 +++ b/niimprint/printer.py
-@@ -100,20 +100,44 @@ class PrinterClient:
+@@ -100,20 +100,54 @@ class PrinterClient:
          self._transport = transport
          self._packetbuf = bytearray()
 
@@ -49,8 +49,18 @@ diff --git a/niimprint/printer.py b/niimprint/printer.py
 -        while not self.end_print():
 -            time.sleep(0.1)
 +
-+        # B1 V2 protocol: allow the printer time to finish.
++        # Allow the B1 V2 firmware to finish its page processing, then
++        # require an explicit END_PRINT acknowledgement before returning.
 +        time.sleep(2.0)
++        deadline = time.monotonic() + 30.0
++        while True:
++            if self.end_print():
++                break
++            if time.monotonic() >= deadline:
++                raise TimeoutError(
++                    "Printer did not acknowledge END_PRINT within 30 seconds"
++                )
++            time.sleep(0.1)
 
      def _encode_image(self, image: Image):
          img = ImageOps.invert(image.convert("L")).convert("1")
