@@ -34,6 +34,10 @@ The agent claims up to five jobs at a time. Jobs are still printed sequentially 
 
 Each claim receives a 15-minute lease. Before printing every item, the agent calls the authenticated heartbeat endpoint to extend all active leases owned by that station. This prevents later jobs in a slow batch from expiring while earlier labels are printing. Completion reports are retried up to three times; the server treats repeated completion reports for the same station/job as successful, avoiding unnecessary reprints when the first response was lost.
 
+The agent writes timestamped logs to `tools/niimbot/logs/niimbot-agent.log`. Log rotation is enabled at 5 MB with five backups, so scheduled-task output is retained even when the agent runs through `pythonw.exe`. A station-local process lock prevents a second agent instance from claiming jobs while the scheduled instance is already running.
+
+If a processing lease expires, the server marks that job failed with an explicit "physical print outcome is unknown" message. It does not automatically requeue expired physical print jobs, because the label may already have printed before the connection was lost. Verify the printer output before manually requesting another label.
+
 The current local agent expects the Python executable at:
 
 `tools/niimbot/.venv311/Scripts/python.exe`
