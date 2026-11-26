@@ -112,7 +112,8 @@ class NiimbotPrintJob
 
     /**
      * Atomically claim up to five jobs assigned to this authenticated device.
-     * Each job retains its own status and is reported independently.
+     * Expired jobs are failed for operator review, never automatically requeued:
+     * the physical printer may have printed before the agent lost contact.
      */
     public function claimBatch(string $deviceId, int $limit = 5): array
     {
@@ -124,29 +125,24 @@ class NiimbotPrintJob
         $this->db->beginTransaction();
 
         try {
-            // Recover expired jobs, preserving their intended station.
+            // Only reconcile expired jobs belonging to this station.
+            // Never auto-requeue an expired physical print: its outcome is unknown
+            // and automatic retry could create a duplicate label.
             $recover = $this->db->prepare(
                 'UPDATE niimbot_print_jobs
-                 SET status = \'pending\',
-                     device_id = NULL,
-                     claimed_at = NULL,
-                     lease_expires_at = NULL
-                 WHERE status = \'processing\'
-                   AND lease_expires_at < NOW()
-                   AND attempts < 3'
-            );
-            $recover->execute();
-
-            $fail = $this->db->prepare(
-                'UPDATE niimbot_print_jobs
                  SET status = \'failed\',
-                     error_message = \'Print job exceeded the retry limit.\',
+                     error_message = \'Printer lease expired; physical print outcome is unknown. Verify the label before manually requesting another print.\',
                      lease_expires_at = NULL
                  WHERE status = \'processing\'
+                   AND lease_expires_at IS NOT NULL
                    AND lease_expires_at < NOW()
-                   AND attempts >= 3'
+                   AND target_device_id = :target_device_id
+                   AND device_id = :device_id'
             );
-            $fail->execute();
+            $recover->execute([
+                'target_device_id' => $deviceId,
+                'device_id' => $deviceId,
+            ]);
 
             $select = $this->db->prepare(
                 'SELECT id
