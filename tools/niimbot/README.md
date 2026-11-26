@@ -30,7 +30,7 @@ Review the upstream repository's license and instructions before installing or r
 
 The current local agent imports the driver directly and keeps one USB serial connection open while processing each batch. It reuses the tested B1 V2 `PrinterClient.print_image()` implementation for each label rather than starting a new Python process and reopening COM3 for every job. If a print fails, the agent closes the serial connection and reconnects before the next job.
 
-The agent claims up to five jobs at a time. Jobs are still printed sequentially and reported individually, so one failed label does not mark the rest of the batch as failed.
+The agent claims up to five jobs at a time. Jobs are printed sequentially and reported individually. If a job fails or its completion cannot be confirmed, the agent stops the batch and returns only the later, unstarted jobs to `pending`; it does not retry the uncertain job. Released jobs have their claim attempt counter decremented because no print was attempted. If the release API call fails, the remaining jobs retain their leases and will require manual review after expiry.
 
 Each claim receives a 15-minute lease. Before printing every item, the agent calls the authenticated heartbeat endpoint to extend all active leases owned by that station. This prevents later jobs in a slow batch from expiring while earlier labels are printing. Completion reports are retried up to three times; the server treats repeated completion reports for the same station/job as successful, avoiding unnecessary reprints when the first response was lost.
 
@@ -39,6 +39,8 @@ The agent writes timestamped logs to `tools/niimbot/logs/niimbot-agent.log`. Log
 If a processing lease expires, the server marks that job failed with an explicit "physical print outcome is unknown" message. It does not automatically requeue expired physical print jobs, because the label may already have printed before the connection was lost. Verify the printer output before manually requesting another label.
 
 For GoDaddy/cPanel, an optional cron job can reconcile expired leases even while a station is offline. The CLI-only script is `tools/niimbot/reconcile-expired-jobs.php`. Test it first with `php tools/niimbot/reconcile-expired-jobs.php --dry-run`; configure the cPanel cron to run `php /absolute/path/to/AssetSys/tools/niimbot/reconcile-expired-jobs.php --apply` every five minutes. Use the actual PHP CLI executable and absolute project path shown by the hosting account. This task only marks expired jobs failed for manual review; it never triggers a physical reprint.
+
+The agent logs per-label image-rendering time, USB print-command time, total label time, and batch elapsed time. Use these measurements to establish a baseline before changing print density or image transfer behavior. A successful printer command is not proof that the physical label is fully printed or scannable.
 
 The current local agent expects the Python executable at:
 
