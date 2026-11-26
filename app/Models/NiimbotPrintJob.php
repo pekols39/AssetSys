@@ -291,7 +291,6 @@ class NiimbotPrintJob
                  device_id = NULL,
                  claimed_at = NULL,
                  lease_expires_at = NULL,
-                 attempts = GREATEST(attempts - 1, 0),
                  error_message = NULL
              WHERE status = \'processing\'
                AND device_id = :device_id
