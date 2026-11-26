@@ -34,7 +34,7 @@ class NiimbotPrintJob
             $assetId <= 0
             || $qrCodeId <= 0
             || $requestedBy <= 0
-            || !in_array($targetDeviceId, ['property-custodian-b1', 'it-laptop-b1'], true)
+            || !in_array($targetDeviceId, ['property-custodian-b1'], true)
         ) {
             throw new \InvalidArgumentException(
                 'Valid asset, QR code, requester, and printer station are required.'
