@@ -64,3 +64,13 @@ diff --git a/niimprint/printer.py b/niimprint/printer.py
 
      def _encode_image(self, image: Image):
          img = ImageOps.invert(image.convert("L")).convert("1")
+
+@@ -174,6 +208,8 @@ class PrinterClient:
+                 self._log_buffer("recv", packet.to_bytes())
+                 packets.append(packet)
+                 del self._packetbuf[:pkt_len]
++            else:
++                break
+ 
+     def _send(self, packet):
+         self._transport.write(packet.to_bytes())
