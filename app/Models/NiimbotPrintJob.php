@@ -117,7 +117,7 @@ class NiimbotPrintJob
      */
     public function claimBatch(string $deviceId, int $limit = 5): array
     {
-        if (!in_array($deviceId, ['property-custodian-b1', 'it-laptop-b1'], true)) {
+        if (!in_array($deviceId, ['property-custodian-b1'], true)) {
             throw new \InvalidArgumentException('Invalid printer device ID.');
         }
 
@@ -242,7 +242,7 @@ class NiimbotPrintJob
      */
     public function renewActiveLeases(string $deviceId): int
     {
-        if (!in_array($deviceId, ['property-custodian-b1', 'it-laptop-b1'], true)) {
+        if (!in_array($deviceId, ['property-custodian-b1'], true)) {
             throw new \InvalidArgumentException('Invalid printer device ID.');
         }
 
@@ -263,7 +263,7 @@ class NiimbotPrintJob
      */
     public function releaseUnstarted(array $jobIds, string $deviceId): int
     {
-        if (!in_array($deviceId, ['property-custodian-b1', 'it-laptop-b1'], true)) {
+        if (!in_array($deviceId, ['property-custodian-b1'], true)) {
             throw new \InvalidArgumentException('Invalid printer device ID.');
         }
 
