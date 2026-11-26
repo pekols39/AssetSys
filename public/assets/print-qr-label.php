@@ -27,9 +27,12 @@ if ($currentUser === null) {
     exit('Authentication required.');
 }
 
-if (!$authorization->canAccessAssetOperations()) {
+if (
+    !$authorization->isPropertyCustodian()
+    || !$authorization->canAccessAssetOperations()
+) {
     http_response_code(403);
-    exit('You do not have permission to print asset QR labels.');
+    exit('Only Property Custodian accounts may print asset QR labels.');
 }
 
 if (!Csrf::validate($_POST[CSRF_TOKEN_NAME] ?? null)) {
@@ -86,13 +89,11 @@ try {
         exit('Unable to identify the requesting user.');
     }
 
-    // Assign jobs from the authenticated account's operational role.
+    // QR printing is restricted to Property Custodian accounts.
     // Never accept a target printer from a browser form or query string.
-    $targetDeviceId = match ($roleName) {
-        'Property Custodian' => 'property-custodian-b1',
-        'Asset Manager' => 'it-laptop-b1',
-        default => null,
-    };
+    $targetDeviceId = $roleName === 'Property Custodian'
+        ? 'property-custodian-b1'
+        : null;
 
     if ($targetDeviceId === null) {
         http_response_code(403);
