@@ -291,6 +291,7 @@ class NiimbotPrintJob
         $stmt = $this->db->prepare(
             'UPDATE niimbot_print_jobs
              SET status = \'pending\',
+                 attempts = GREATEST(attempts - 1, 0),
                  device_id = NULL,
                  claimed_at = NULL,
                  lease_expires_at = NULL,
