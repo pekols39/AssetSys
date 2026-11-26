@@ -25,8 +25,7 @@ class NiimbotDevice
         $deviceId = trim($deviceId);
 
         if (
-            $deviceId === ''
-            || strlen($deviceId) > 100
+            $deviceId !== 'property-custodian-b1'
             || !preg_match('/\A[a-f0-9]{64}\z/i', $token)
         ) {
             return false;
@@ -68,11 +67,7 @@ class NiimbotDevice
 
             $insert->execute([
                 'device_id' => $deviceId,
-                'display_name' => match ($deviceId) {
-                    'property-custodian-b1' => 'Property Custodian B1',
-                    'it-laptop-b1' => 'IT Laptop B1',
-                    default => 'NIIMBOT Device',
-                },
+                'display_name' => 'Property Custodian B1',
                 'token_hash' => strtolower($legacyHash),
             ]);
 
