@@ -52,19 +52,19 @@ If Windows assigns a different COM port, update `PRINTER_PORT` in `tools/niimbot
 
 ## Production multi-device registry
 
-Production supports multiple independently authenticated NIIMBOT stations through the `niimbot_devices` table.
+The `niimbot_devices` registry authenticates the single authorized QR printing station.
 
-- Every station has a unique `device_id` and its own random 64-character hexadecimal agent token.
+- The authorized station is `property-custodian-b1` and has its own random 64-character hexadecimal agent token.
 - Store only the token's SHA-256 hash in `niimbot_devices.token_hash`. Keep the raw token only in that station's ignored `tools/niimbot/agent-config.json`.
 - The existing Property Custodian station is automatically enrolled on its first successful authenticated poll after the registry migration, using its existing `.env` credentials. Do not change its existing agent configuration.
 - QR printing is restricted to Property Custodian accounts; their requests route to `property-custodian-b1`.
 - Asset Manager accounts are view-only for QR labels and cannot queue single or bulk print jobs.
-- Agents can claim up to five jobs per API request, but each label remains independently tracked and reported as completed or failed.
-- A station can claim only jobs whose `target_device_id` matches its authenticated device ID. Row locking prevents duplicate claims.
+- The Property Custodian agent can claim up to five jobs per API request, but each label remains independently tracked and reported as completed or failed.
+- The API, model, and agent accept only `property-custodian-b1`; it can claim only jobs whose `target_device_id` matches its authenticated device ID. Row locking prevents duplicate claims.
 - The `device_id` on a print job records which station actually claimed it.
-- Set `is_enabled = 0` to revoke a station without affecting the other devices.
+- Set `is_enabled = 0` to revoke the Property Custodian station.
 
-Run `database/migrations/2026_11_21_niimbot_devices.sql` before enabling a second production station. Register additional devices with an SQL INSERT containing the locally generated token hash. Never put raw agent tokens in SQL history, source control, chat, or logs.
+Run `database/migrations/2026_11_21_niimbot_devices.sql` to create the device registry. Do not register an Asset Manager or IT Laptop printer for QR printing. Never put raw agent tokens in SQL history, source control, chat, or logs.
 
 ## Testing
 
