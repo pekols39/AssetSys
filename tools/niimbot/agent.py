@@ -263,6 +263,30 @@ def report_job(config, job_id, status, error_message=""):
     raise RuntimeError(f"Unable to report job status: {last_error}")
 
 
+def release_unstarted_jobs(config, jobs):
+    job_ids = [
+        job.get("id") for job in jobs
+        if isinstance(job, dict)
+        and isinstance(job.get("id"), int)
+        and job.get("id") > 0
+    ]
+    if not job_ids:
+        return
+    try:
+        result = api_request(
+            config,
+            "/api/niimbot_report.php",
+            {"status": "release_unstarted", "job_ids": job_ids},
+        )
+        print(result.get("message", "Unstarted jobs released."), flush=True)
+    except Exception as error:
+        print(
+            "WARNING: unable to release unstarted jobs; they remain claimed "
+            f"until lease expiry and must be reviewed: {error}",
+            flush=True,
+        )
+
+
 def close_printer():
     global printer_transport, printer_client
 
@@ -387,12 +411,22 @@ def process_batch(config, jobs):
     for index, job in enumerate(jobs, start=1):
         if process_job(config, job, index, total):
             succeeded += 1
-        else:
-            failed += 1
+            continue
+
+        failed += 1
+        unstarted = jobs[index:]
+        if unstarted:
+            print(
+                f"Stopping batch after job {index}/{total}; "
+                f"releasing {len(unstarted)} unstarted job(s).",
+                flush=True,
+            )
+            release_unstarted_jobs(config, unstarted)
+        break
 
     print(
-        f"Batch finished: {succeeded} completed, {failed} failed "
-        f"out of {total}.",
+        f"Batch stopped: {succeeded} completed, {failed} failed; "
+        f"{max(0, total - succeeded - failed)} not attempted.",
         flush=True,
     )
     return succeeded
