@@ -23,6 +23,15 @@ def load_font(size, bold=False):
     return ImageFont.load_default()
 
 
+def fit_font(draw, value, max_width, start_size=14, min_size=8):
+    text = str(value or "-")
+    for size in range(start_size, min_size - 1, -1):
+        font = load_font(size)
+        if draw.textbbox((0, 0), text, font=font)[2] <= max_width:
+            return font
+    return load_font(min_size)
+
+
 def wrap_text(draw, value, font, max_width):
     words = str(value or "-").split()
     if not words:
@@ -68,9 +77,29 @@ def draw_field(draw, x, y, label, value, max_width, label_font, value_font,
         draw.text((x, value_y), line, fill=FOREGROUND, font=value_font)
         value_y += line_height
 
-    # Fixed-height rows distribute the four fields evenly down the label,
-    # leaving room for a second line without crowding the next field.
     return y + field_height
+
+
+def prepare_qr_image(qr_source, size):
+    qr = qr_source.convert("RGB")
+
+    # Remove only the excess white margin around the QR artwork, then restore
+    # a small quiet zone so the code fills the left panel but remains scannable.
+    grayscale = qr.convert("L")
+    artwork = grayscale.point(lambda pixel: 255 if pixel < 245 else 0)
+    bounds = artwork.getbbox()
+
+    if bounds:
+        qr = qr.crop(bounds)
+
+    quiet_zone = 6
+    square_size = max(qr.width, qr.height) + quiet_zone * 2
+    square = Image.new("RGB", (square_size, square_size), "white")
+    square_x = (square_size - qr.width) // 2
+    square_y = (square_size - qr.height) // 2
+    square.paste(qr, (square_x, square_y))
+
+    return square.resize((size, size), Image.Resampling.NEAREST)
 
 
 def render_label(job, output_path):
@@ -84,13 +113,12 @@ def render_label(job, output_path):
     qr_bytes = base64.b64decode(qr_base64, validate=True)
 
     with Image.open(BytesIO(qr_bytes)) as qr_source:
-        qr = qr_source.convert("RGB")
+        qr_size = 178
+        qr = prepare_qr_image(qr_source, qr_size)
 
-    qr_size = 176
-    qr.thumbnail((qr_size, qr_size), Image.Resampling.LANCZOS)
-
-    qr_x = 8 + (qr_size - qr.width) // 2
-    qr_y = 32 + (qr_size - qr.height) // 2
+    # Center the enlarged QR within the existing left-side frame.
+    qr_x = 7
+    qr_y = 31
     image.paste(qr, (qr_x, qr_y))
 
     draw.rectangle((5, 29, 187, 211), outline=FOREGROUND, width=1)
@@ -116,10 +144,12 @@ def render_label(job, output_path):
         max_width, label_font, value_font,
     )
 
+    asset_tag = job.get("finance_ffe_number") or "-"
+    asset_tag_font = fit_font(draw, asset_tag, max_width, start_size=14, min_size=8)
     y = draw_field(
         draw, x, y, "ASSET TAG",
-        job.get("finance_ffe_number") or "-",
-        max_width, label_font, value_font,
+        asset_tag,
+        max_width, label_font, asset_tag_font, max_lines=1,
     )
 
     draw_field(
