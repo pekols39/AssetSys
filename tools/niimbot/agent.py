@@ -160,7 +160,7 @@ def load_config():
     if not re.fullmatch(r"[a-fA-F0-9]{64}", token):
         raise RuntimeError("Agent token is missing or invalid.")
 
-    if device_id not in {"property-custodian-b1", "it-laptop-b1"}:
+    if device_id not in {"property-custodian-b1"}:
         raise RuntimeError("Device ID is missing or not registered for batch printing.")
 
     return {
