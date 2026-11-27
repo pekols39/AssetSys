@@ -304,10 +304,12 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     No assets have been registered yet.
                 </p>
 
+                <?php if ($authorization->canManageAssets()): ?>
                 <a href="<?= e(base_url('/public/assets/create.php')) ?>" class="btn btn-primary">
                     <i class="fa-solid fa-plus me-1"></i>
                     Add First Asset
                 </a>
+                <?php endif; ?>
 
             </div>
 
