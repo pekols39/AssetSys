@@ -156,6 +156,15 @@ class AuthorizationService
             || $this->isPropertyCustodian();
     }
 
+    /**
+     * Only the Property Custodian may create or modify Asset Register data.
+     * Asset Managers retain read access and their separate approval workflows.
+     */
+    public function canManageAssets(): bool
+    {
+        return $this->isPropertyCustodian();
+    }
+
 
     /**
      * Check whether the operational user may access a department.

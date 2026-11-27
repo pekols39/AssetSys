@@ -55,9 +55,9 @@ class AssetService
             );
         }
 
-        if (!$authorization->canAccessAssetOperations()) {
+        if (!$authorization->canManageAssets()) {
             throw new RuntimeException(
-                'You do not have permission to create assets.'
+                'Only the Property Custodian may create assets.'
             );
         }
 
@@ -737,9 +737,9 @@ class AssetService
         }
 
 
-        if (!$authorization->canAccessAssetOperations()) {
+        if (!$authorization->canManageAssets()) {
             throw new RuntimeException(
-                'You do not have permission to edit assets.'
+                'Only the Property Custodian may edit assets.'
             );
         }
     }

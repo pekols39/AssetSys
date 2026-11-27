@@ -27,7 +27,7 @@ if ($currentUser === null) {
     exit('Authentication required.');
 }
 
-if (!$authorization->canAccessAssetOperations()) {
+if (!$authorization->isPropertyCustodian()) {
     http_response_code(403);
     exit('You do not have permission to print asset QR labels.');
 }
