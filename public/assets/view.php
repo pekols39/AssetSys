@@ -1540,11 +1540,13 @@ function displayDate(
                     </small>
                 </div>
 
+                <?php if ($authorization->canManageAssets()): ?>
                 <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
                     data-bs-target="#photoUploadModal">
                     <i class="fa-solid fa-camera me-1"></i>
                     Upload Photo
                 </button>
+                <?php endif; ?>
             </div>
 
             <div class="card-body">
