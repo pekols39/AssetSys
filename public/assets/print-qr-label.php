@@ -27,9 +27,12 @@ if ($currentUser === null) {
     exit('Authentication required.');
 }
 
-if (!$authorization->isPropertyCustodian()) {
+if (
+    !$authorization->isPropertyCustodian()
+    || !$authorization->canAccessAssetOperations()
+) {
     http_response_code(403);
-    exit('You do not have permission to print asset QR labels.');
+    exit('Only Property Custodian accounts may print asset QR labels.');
 }
 
 if (!Csrf::validate($_POST[CSRF_TOKEN_NAME] ?? null)) {
@@ -79,10 +82,22 @@ try {
     }
 
     $requestedBy = (int) ($currentUser['user_id'] ?? 0);
+    $roleName = (string) ($currentUser['role_name'] ?? '');
 
     if ($requestedBy <= 0) {
         http_response_code(401);
         exit('Unable to identify the requesting user.');
+    }
+
+    // QR printing is restricted to Property Custodian accounts.
+    // Never accept a target printer from a browser form or query string.
+    $targetDeviceId = $roleName === 'Property Custodian'
+        ? 'property-custodian-b1'
+        : null;
+
+    if ($targetDeviceId === null) {
+        http_response_code(403);
+        exit('Your account is not assigned to a NIIMBOT print station.');
     }
 
     $jobModel = new NiimbotPrintJob();
@@ -91,6 +106,7 @@ try {
         $assetId,
         (int) $qrRecord['id'],
         $requestedBy,
+        $targetDeviceId,
         trim((string) ($asset['asset_name'] ?? 'Unnamed Asset')),
         trim((string) ($asset['asset_code'] ?? '')),
         isset($asset['asset_tag'])

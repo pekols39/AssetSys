@@ -27,8 +27,12 @@ AuthMiddleware::handle();
 $authorization = new AuthorizationService();
 $currentUser = $authorization->currentUser();
 
-if ($currentUser === null || !$authorization->isPropertyCustodian()) {
-    $showSwal('error', 'Access denied', 'You do not have permission to queue asset QR labels.');
+if (
+    $currentUser === null
+    || !$authorization->isPropertyCustodian()
+    || !$authorization->canAccessAssetOperations()
+) {
+    $showSwal('error', 'Access denied', 'Only Property Custodian accounts may print asset QR labels.');
 }
 
 if (!Csrf::validate($_POST[CSRF_TOKEN_NAME] ?? null)) {
@@ -38,6 +42,16 @@ if (!Csrf::validate($_POST[CSRF_TOKEN_NAME] ?? null)) {
 $userId = (int) ($currentUser['id'] ?? $currentUser['user_id'] ?? 0);
 if ($userId <= 0) {
     $showSwal('error', 'Session expired', 'Please sign in again before printing QR labels.');
+}
+
+// Determine the destination from the authenticated account, never from POST data.
+$targetDeviceId = match ((string) ($currentUser['role_name'] ?? '')) {
+    'Property Custodian' => 'property-custodian-b1',
+    default => null,
+};
+
+if ($targetDeviceId === null) {
+    $showSwal('error', 'Printer not assigned', 'Your account is not assigned to a NIIMBOT print station.');
 }
 
 $rawFilters = is_array($_POST['filters'] ?? null) ? $_POST['filters'] : [];
@@ -110,6 +124,7 @@ foreach ($assetIds as $assetId) {
             $assetId,
             (int) $qr['id'],
             $userId,
+            $targetDeviceId,
             trim((string) ($asset['asset_name'] ?? 'Unnamed Asset')),
             trim((string) ($asset['asset_code'] ?? '')),
             isset($asset['asset_tag']) ? trim((string) $asset['asset_tag']) : null,

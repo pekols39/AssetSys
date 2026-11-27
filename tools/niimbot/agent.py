@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import argparse
+import builtins
 import json
+import logging
 import os
+from logging.handlers import RotatingFileHandler
 import re
-import subprocess
 import sys
 import tempfile
 import time
 import urllib.error
 import urllib.request
-from urllib.parse import urlparse
 from pathlib import Path
+from urllib.parse import urlparse
+
+from PIL import Image
 
 from label_renderer import render_label
 
@@ -21,14 +25,113 @@ PROJECT_ROOT = BASE_DIR.parent.parent
 CONFIG_FILE = BASE_DIR / "agent-config.json"
 DRIVER_DIR = BASE_DIR / "niimprintx"
 
-POLL_INTERVAL = 5
-REQUEST_TIMEOUT = 30
-PRINT_TIMEOUT = 120
+if str(DRIVER_DIR) not in sys.path:
+    sys.path.insert(0, str(DRIVER_DIR))
 
-PRINTER_MODEL = "b1"
-PRINTER_CONNECTION = "usb"
+try:
+    from niimprint import PrinterClient, SerialTransport
+except ImportError as error:
+    raise RuntimeError(
+        "The local niimprint driver is not installed. Follow tools/niimbot/README.md."
+    ) from error
+
+
+POLL_INTERVAL = 3
+REQUEST_TIMEOUT = 30
+BATCH_SIZE = 5
 PRINTER_PORT = "COM3"
-PRINTER_DENSITY = "4"
+PRINTER_DENSITY = 4
+
+# Keep one serial transport/client alive for the entire agent session.
+# The patched B1 V2 print_image() sequence is reused for each label.
+printer_transport = None
+printer_client = None
+logger = None
+instance_lock_file = None
+
+
+def setup_logging():
+    global logger
+
+    log_dir = BASE_DIR / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_dir / "niimbot-agent.log"
+
+    logger = logging.getLogger("assetsys.niimbot")
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()
+
+    handler = RotatingFileHandler(
+        log_path,
+        maxBytes=5 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8",
+    )
+    handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(message)s"
+    ))
+    logger.addHandler(handler)
+
+
+def print(*args, **kwargs):
+    message = kwargs.get("sep", " ").join(str(arg) for arg in args)
+    target = kwargs.get("file")
+    level = logging.ERROR if target is sys.stderr else logging.INFO
+
+    if logger is not None:
+        logger.log(level, message.rstrip())
+
+    stream = target if target is not None else sys.stdout
+    if stream is not None:
+        builtins.print(*args, **kwargs)
+
+
+def acquire_instance_lock():
+    global instance_lock_file
+
+    lock_path = BASE_DIR / "logs" / "agent.lock"
+    instance_lock_file = lock_path.open("a+b")
+
+    try:
+        instance_lock_file.seek(0, 2)
+        if instance_lock_file.tell() == 0:
+            instance_lock_file.write(b"0")
+            instance_lock_file.flush()
+        instance_lock_file.seek(0)
+
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(instance_lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(instance_lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+        return True
+    except (OSError, BlockingIOError):
+        instance_lock_file.close()
+        instance_lock_file = None
+        return False
+
+
+def release_instance_lock():
+    global instance_lock_file
+
+    if instance_lock_file is None:
+        return
+
+    try:
+        instance_lock_file.seek(0)
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(instance_lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(instance_lock_file.fileno(), fcntl.LOCK_UN)
+    except OSError:
+        pass
+    finally:
+        instance_lock_file.close()
+        instance_lock_file = None
 
 
 def load_config():
@@ -43,7 +146,6 @@ def load_config():
     device_id = str(config.get("device_id", ""))
 
     parsed_url = urlparse(api_base_url)
-
     is_https = parsed_url.scheme == "https"
     is_local_http = (
         parsed_url.scheme == "http"
@@ -58,8 +160,8 @@ def load_config():
     if not re.fullmatch(r"[a-fA-F0-9]{64}", token):
         raise RuntimeError("Agent token is missing or invalid.")
 
-    if not device_id or len(device_id) > 100:
-        raise RuntimeError("Device ID is missing or invalid.")
+    if device_id not in {"property-custodian-b1"}:
+        raise RuntimeError("Device ID is missing or not registered for batch printing.")
 
     return {
         "api_base_url": api_base_url,
@@ -70,7 +172,6 @@ def load_config():
 
 def api_request(config, endpoint, payload):
     url = config["api_base_url"] + endpoint
-
     body = json.dumps(payload).encode("utf-8")
 
     request = urllib.request.Request(
@@ -86,17 +187,10 @@ def api_request(config, endpoint, payload):
     )
 
     try:
-        with urllib.request.urlopen(
-            request,
-            timeout=REQUEST_TIMEOUT,
-        ) as response:
+        with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:
             response_body = response.read()
-
     except urllib.error.HTTPError as error:
-        raise RuntimeError(
-            f"API returned HTTP {error.code}."
-        ) from None
-
+        raise RuntimeError(f"API returned HTTP {error.code}.") from None
     except urllib.error.URLError as error:
         raise RuntimeError(
             f"Unable to connect to the AssetSys API: {error.reason}"
@@ -117,19 +211,23 @@ def api_request(config, endpoint, payload):
     return result
 
 
-def claim_job(config):
-    result = api_request(
-        config,
-        "/api/niimbot_claim.php",
-        {},
-    )
-
+def claim_batch(config):
+    result = api_request(config, "/api/niimbot_claim.php", {})
     data = result.get("data")
 
     if not isinstance(data, dict):
-        raise RuntimeError("Claim response is missing job data.")
+        raise RuntimeError("Claim response is missing batch data.")
 
-    return data.get("job")
+    jobs = data.get("jobs", [])
+    if not isinstance(jobs, list):
+        raise RuntimeError("Claim response contains an invalid job batch.")
+
+    return jobs
+
+
+def renew_leases(config):
+    result = api_request(config, "/api/niimbot_heartbeat.php", {})
+    print(f"Lease heartbeat: {result.get('message', 'renewed')}", flush=True)
 
 
 def report_job(config, job_id, status, error_message=""):
@@ -141,16 +239,85 @@ def report_job(config, job_id, status, error_message=""):
     if status == "failed":
         payload["error_message"] = str(error_message)[:1000]
 
-    result = api_request(
-        config,
-        "/api/niimbot_report.php",
-        payload,
+    last_error = None
+    for attempt in range(1, 4):
+        try:
+            result = api_request(config, "/api/niimbot_report.php", payload)
+            print(
+                f"Job {job_id}: {result.get('message', 'Status reported.')}",
+                flush=True,
+            )
+            return
+        except Exception as error:
+            last_error = error
+            if status != "completed" or attempt == 3:
+                raise
+            wait_seconds = attempt * 2
+            print(
+                f"Job {job_id}: completion report attempt {attempt} failed; "
+                f"retrying in {wait_seconds}s: {error}",
+                flush=True,
+            )
+            time.sleep(wait_seconds)
+
+    raise RuntimeError(f"Unable to report job status: {last_error}")
+
+
+def release_unstarted_jobs(config, jobs):
+    job_ids = [
+        job.get("id") for job in jobs
+        if isinstance(job, dict)
+        and isinstance(job.get("id"), int)
+        and job.get("id") > 0
+    ]
+    if not job_ids:
+        return
+    try:
+        result = api_request(
+            config,
+            "/api/niimbot_report.php",
+            {"status": "release_unstarted", "job_ids": job_ids},
+        )
+        print(result.get("message", "Unstarted jobs released."), flush=True)
+    except Exception as error:
+        print(
+            "WARNING: unable to release unstarted jobs; they remain claimed "
+            f"until lease expiry and must be reviewed: {error}",
+            flush=True,
+        )
+
+
+def close_printer():
+    global printer_transport, printer_client
+
+    if printer_transport is not None:
+        try:
+            serial_port = getattr(printer_transport, "_serial", None)
+            if serial_port is not None and serial_port.is_open:
+                serial_port.close()
+        except Exception:
+            pass
+
+    printer_transport = None
+    printer_client = None
+
+
+def get_printer():
+    global printer_transport, printer_client
+
+    serial_port = (
+        getattr(printer_transport, "_serial", None)
+        if printer_transport is not None
+        else None
     )
 
-    print(
-        f"Job {job_id}: {result.get('message', 'Status reported.')}",
-        flush=True,
-    )
+    if printer_client is not None and serial_port is not None and serial_port.is_open:
+        return printer_client
+
+    close_printer()
+    printer_transport = SerialTransport(port=PRINTER_PORT)
+    printer_client = PrinterClient(printer_transport)
+    return printer_client
 
 
 def print_job(job):
@@ -160,81 +327,61 @@ def print_job(job):
         raise RuntimeError("Claimed job has an invalid ID.")
 
     print(f"Job {job_id}: preparing label.", flush=True)
+    render_started = time.perf_counter()
 
     with tempfile.TemporaryDirectory(prefix="niimbot-") as temp_dir:
         label_path = Path(temp_dir) / "asset-label.png"
-
         render_label(job, str(label_path))
+        render_seconds = time.perf_counter() - render_started
 
-        if not label_path.is_file():
-            raise RuntimeError("Label image was not generated.")
+        if not label_path.is_file() or label_path.stat().st_size == 0:
+            raise RuntimeError("Generated label image is missing or empty.")
 
-        if label_path.stat().st_size == 0:
-            raise RuntimeError("Generated label image is empty.")
-
-        env = os.environ.copy()
-
-        existing_pythonpath = env.get("PYTHONPATH", "")
-        env["PYTHONPATH"] = (
-            str(DRIVER_DIR)
-            + (os.pathsep + existing_pythonpath if existing_pythonpath else "")
-        )
-
-        command = [
-            sys.executable,
-            "-m",
-            "niimprint",
-            "--model", PRINTER_MODEL,
-            "--conn", PRINTER_CONNECTION,
-            "--addr", PRINTER_PORT,
-            "--density", PRINTER_DENSITY,
-            "--image", str(label_path),
-        ]
-
-        print(
-            f"Job {job_id}: sending label to NIIMBOT B1 on {PRINTER_PORT}.",
-            flush=True,
-        )
-
-        result = subprocess.run(
-            command,
-            cwd=str(PROJECT_ROOT),
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=PRINT_TIMEOUT,
-            check=False,
-        )
-
-        if result.returncode != 0:
-            details = (result.stderr or result.stdout or "").strip()
-            details = details[-700:]
-
-            raise RuntimeError(
-                f"Printer command failed with exit code "
-                f"{result.returncode}. {details}"
-            )
+        try:
+            printer = get_printer()
+            print_started = time.perf_counter()
+            with Image.open(label_path) as image:
+                printer.print_image(image, density=PRINTER_DENSITY)
+            print_seconds = time.perf_counter() - print_started
+        except Exception:
+            # Release a possibly stale serial handle. The next label will
+            # establish a fresh connection rather than reuse a broken port.
+            close_printer()
+            raise
 
     print(
-        f"Job {job_id}: printer command completed successfully.",
+        f"Job {job_id}: printer command completed successfully. "
+        f"Render: {render_seconds:.2f}s; USB print: {print_seconds:.2f}s; "
+        f"total: {render_seconds + print_seconds:.2f}s.",
         flush=True,
     )
 
 
-def process_job(config, job):
+def process_job(config, job, index, total):
     if not isinstance(job, dict):
-        raise RuntimeError("The claimed job is invalid.")
+        print(f"Batch item {index}/{total}: invalid job payload; skipped.", flush=True)
+        return False
 
     job_id = job.get("id")
 
     if not isinstance(job_id, int) or job_id <= 0:
-        raise RuntimeError("The claimed job has an invalid ID.")
+        print(f"Batch item {index}/{total}: invalid job ID; skipped.", flush=True)
+        return False
+
+    print(f"Batch progress: {index}/{total} (job {job_id}).", flush=True)
 
     try:
+        # Renew all jobs claimed by this station before each physical print.
+        # This keeps later items in a slow batch from expiring while earlier
+        # labels are being printed.
+        renew_leases(config)
         print_job(job)
-
     except Exception as error:
-        message = str(error)[:1000]
+        message = (
+            "Printer operation failed; physical print outcome may be unknown. "
+            "Verify the label before requesting another print. Details: "
+            + str(error)
+        )[:1000]
         print(f"Job {job_id}: FAILED - {message}", flush=True)
 
         try:
@@ -251,8 +398,7 @@ def process_job(config, job):
         report_job(config, job_id, "completed")
     except Exception as error:
         print(
-            f"Job {job_id}: printing command completed, "
-            f"but status reporting failed: {error}",
+            f"Job {job_id}: printed, but status reporting failed: {error}",
             flush=True,
         )
         return False
@@ -260,9 +406,46 @@ def process_job(config, job):
     return True
 
 
+def process_batch(config, jobs):
+    total = len(jobs)
+
+    if total == 0:
+        print("No pending print jobs for this station.", flush=True)
+        return 0
+
+    print(f"Claimed {total} print job(s). Starting batch.", flush=True)
+    batch_started = time.perf_counter()
+    succeeded = 0
+    failed = 0
+
+    for index, job in enumerate(jobs, start=1):
+        if process_job(config, job, index, total):
+            succeeded += 1
+            continue
+
+        failed += 1
+        unstarted = jobs[index:]
+        if unstarted:
+            print(
+                f"Stopping batch after job {index}/{total}; "
+                f"releasing {len(unstarted)} unstarted job(s).",
+                flush=True,
+            )
+            release_unstarted_jobs(config, unstarted)
+        break
+
+    print(
+        f"Batch stopped: {succeeded} completed, {failed} failed; "
+        f"{max(0, total - succeeded - failed)} not attempted; "
+        f"elapsed: {time.perf_counter() - batch_started:.2f}s.",
+        flush=True,
+    )
+    return succeeded
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="AssetSys local NIIMBOT print queue agent."
+        description="AssetSys local NIIMBOT B1 batch print queue agent."
     )
 
     parser.add_argument(
@@ -270,14 +453,15 @@ def main():
         action="store_true",
         help="Validate local settings without contacting the API or printer.",
     )
-
     parser.add_argument(
         "--once",
         action="store_true",
-        help="Check for one job and exit.",
+        help="Claim and process one batch, then exit.",
     )
 
     args = parser.parse_args()
+
+    setup_logging()
 
     try:
         config = load_config()
@@ -289,41 +473,50 @@ def main():
     print(f"Device ID: {config['device_id']}", flush=True)
     print(f"API: {config['api_base_url']}", flush=True)
     print(f"Printer: NIIMBOT B1 / {PRINTER_PORT}", flush=True)
+    print(f"Batch size: up to {BATCH_SIZE} labels", flush=True)
+    print("Printer connection: persistent USB session", flush=True)
 
     if args.check_config:
         print("Configuration check passed. No job was claimed or printed.")
         return 0
 
+    if not acquire_instance_lock():
+        print("Another NIIMBOT agent instance is already running for this station. Exiting to prevent duplicate claims.", flush=True)
+        return 1
+
     print("Starting queue polling.", flush=True)
 
-    while True:
-        try:
-            job = claim_job(config)
+    try:
+        while True:
+            try:
+                jobs = claim_batch(config)
 
-            if job is None:
+                if not jobs:
+                    if args.once:
+                        print("No pending print jobs.")
+                        return 0
+
+                    time.sleep(POLL_INTERVAL)
+                    continue
+
+                process_batch(config, jobs)
+
                 if args.once:
-                    print("No pending print jobs.")
                     return 0
 
-                time.sleep(POLL_INTERVAL)
-                continue
-
-            process_job(config, job)
-
-            if args.once:
+            except KeyboardInterrupt:
+                print("\nAgent stopped.", flush=True)
                 return 0
+            except Exception as error:
+                print(f"Agent error: {error}", flush=True)
 
-        except KeyboardInterrupt:
-            print("\nAgent stopped.", flush=True)
-            return 0
+                if args.once:
+                    return 1
 
-        except Exception as error:
-            print(f"Agent error: {error}", flush=True)
-
-            if args.once:
-                return 1
-
-            time.sleep(POLL_INTERVAL)
+                time.sleep(POLL_INTERVAL)
+    finally:
+        close_printer()
+        release_instance_lock()
 
 
 if __name__ == "__main__":
