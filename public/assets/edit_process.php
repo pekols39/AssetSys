@@ -85,7 +85,7 @@ try {
         exit;
     }
 
-    if (!$authorization->canAccessAssetOperations()) {
+    if (!$authorization->canManageAssets()) {
         http_response_code(403);
 
         echo json_encode([
