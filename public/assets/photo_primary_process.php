@@ -83,7 +83,7 @@ try {
 
     $authorization = new AuthorizationService();
 
-    if (!$authorization->canAccessAsset($assetId)) {
+    if (!$authorization->canManageAssets() || !$authorization->canAccessAsset($assetId)) {
         http_response_code(403);
 
         echo json_encode([
