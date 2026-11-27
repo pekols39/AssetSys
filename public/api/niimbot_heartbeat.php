@@ -44,7 +44,7 @@ $authorizationHeader = trim((string) (
 $deviceId = trim((string) ($_SERVER['HTTP_X_NIIMBOT_DEVICE_ID'] ?? ''));
 
 if (
-    !preg_match('/\\ABearer\\s+([a-f0-9]{64})\\z/i', $authorizationHeader, $matches)
+    !preg_match('/\ABearer\s+([a-f0-9]{64})\z/i', $authorizationHeader, $matches)
     || !in_array($deviceId, ['property-custodian-b1'], true)
 ) {
     $respond(401, false, 'Invalid device credentials.');
