@@ -276,6 +276,7 @@ function displayDate(
 
         <div class="d-flex gap-2 flex-wrap">
 
+            <?php if ($authorization->canManageAssets()): ?>
             <a href="<?= e(
                 base_url(
                     '/public/assets/qr.php?asset_id='
@@ -286,6 +287,8 @@ function displayDate(
                 QR Identity
             </a>
 
+            <?php endif; ?>
+
             <a href="<?= e(
                 base_url(
                     '/public/assets/edit.php?id='
@@ -295,6 +298,7 @@ function displayDate(
                 <i class="fa-solid fa-pen-to-square me-1"></i>
                 Edit Asset
             </a>
+            <?php endif; ?>
 
             <a href="<?= e(base_url('/public/assets/')) ?>" class="btn btn-outline-secondary">
                 <i class="fa-solid fa-arrow-left me-1"></i>
@@ -1590,6 +1594,7 @@ function displayDate(
 
                                         <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
 
+                                            <?php if ($authorization->canManageAssets()): ?>
                                             <?php if ((int) $photo['is_primary'] !== 1): ?>
 
                                                 <button type="button" class="btn btn-sm set-primary-photo-button"
@@ -1612,6 +1617,7 @@ function displayDate(
                                                 <i class="fa-solid fa-trash me-1"></i>
                                                 Delete
                                             </button>
+                                            <?php endif; ?>
 
                                         </div>
 
@@ -1634,11 +1640,13 @@ function displayDate(
                     Asset Documents
                 </h5>
 
+                <?php if ($authorization->canManageAssets()): ?>
                 <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
                     data-bs-target="#documentUploadModal">
                     <i class="fa-solid fa-upload me-1"></i>
                     Upload Document
                 </button>
+                <?php endif; ?>
             </div>
 
             <div class="card-body">
@@ -1747,11 +1755,13 @@ function displayDate(
                                                     Download
                                                 </a>
 
+                                                <?php if ($authorization->canManageAssets()): ?>
                                                 <button type="button" class="btn btn-sm delete-document-button"
                                                     data-document-id="<?= (int) $document['id'] ?>">
                                                     <i class="fa-solid fa-trash me-1"></i>
                                                     Delete
                                                 </button>
+                                                <?php endif; ?>
 
                                             </div>
                                         </td>
@@ -2183,6 +2193,7 @@ function displayDate(
             </div>
         </div>
 
+        <?php if ($authorization->canManageAssets()): ?>
         <div class="modal fade" id="documentUploadModal" tabindex="-1" aria-labelledby="documentUploadModalLabel"
             aria-hidden="true">
             <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -2337,6 +2348,8 @@ function displayDate(
                 </div>
             </div>
         </div>
+
+        <?php endif; ?>
 
         <!-- Add Repair Modal -->
         <div class="modal fade" id="repairModal" tabindex="-1" aria-labelledby="repairModalLabel" aria-hidden="true">
