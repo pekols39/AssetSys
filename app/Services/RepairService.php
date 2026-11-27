@@ -358,7 +358,7 @@ class RepairService
             );
         }
 
-        if (!$this->authorization->canAccessAssetOperations()) {
+        if (!$this->authorization->canManageAssets()) {
             throw new RuntimeException(
                 'You do not have permission to manage repair records.'
             );
