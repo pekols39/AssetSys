@@ -501,7 +501,7 @@ class MaintenanceService
             );
         }
 
-        if (!$this->authorization->canManageAssets()) {
+        if (!$this->authorization->canAccessAssetOperations()) {
             throw new RuntimeException(
                 'You do not have permission to manage maintenance records.'
             );
