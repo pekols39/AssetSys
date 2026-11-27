@@ -23,7 +23,7 @@ try {
     }
 
     $authorization = new AuthorizationService();
-    if (!$authorization->canAccessAssetOperations()) {
+    if (!$authorization->canManageAssets()) {
         http_response_code(403);
         exit('You do not have permission to import inventory.');
     }
