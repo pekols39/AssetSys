@@ -52,7 +52,7 @@ class AssetAssignmentService
             throw new RuntimeException('Invalid assigning user.');
         }
 
-        if (!$this->authorization->canAccessAssetOperations()) {
+        if (!$this->authorization->canManageAssets()) {
             throw new RuntimeException(
                 'You do not have permission to assign assets.'
             );
@@ -207,7 +207,7 @@ class AssetAssignmentService
             throw new RuntimeException('Invalid returning user.');
         }
 
-        if (!$this->authorization->canAccessAssetOperations()) {
+        if (!$this->authorization->canManageAssets()) {
             throw new RuntimeException(
                 'You do not have permission to return assets.'
             );
