@@ -28,9 +28,11 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
         <p class="text-muted mb-0">Access previous workbooks, review imported records, and resume batches that need attention.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
+        <?php if ($authorization->canManageAssets()): ?>
         <a href="<?= e(base_url('/public/assets/import.php')) ?>" class="btn btn-primary">
             <i class="fa-solid fa-file-import me-1"></i> Upload Asset Excel
         </a>
+        <?php endif; ?>
         <a href="<?= e(base_url('/public/assets/index.php')) ?>" class="btn btn-outline-secondary">
             <i class="fa-solid fa-arrow-left me-1"></i> Back to Assets
         </a>
