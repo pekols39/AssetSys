@@ -26,7 +26,7 @@ try {
 
     $authorization = new AuthorizationService();
 
-    if (!$authorization->canManageAssets()) {
+    if (!$authorization->canAccessAssetOperations()) {
         http_response_code(403);
         echo json_encode([
             'success' => false,
