@@ -53,7 +53,7 @@ class AssetQrCodeService
 
         if (
             !$this->authorizationService
-                ->canAccessAssetOperations()
+                ->canManageAssets()
         ) {
             throw new RuntimeException(
                 'You are not authorized to create asset QR codes.'

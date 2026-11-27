@@ -124,6 +124,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
             Import History
         </a>
 
+        <?php if ($authorization->canManageAssets()): ?>
         <a href="<?= e(base_url('/public/assets/import.php')) ?>" class="btn btn-outline-primary">
             <i class="fa-solid fa-file-import me-1"></i>
             Import Asset Excel
@@ -133,6 +134,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
             <i class="fa-solid fa-plus me-1"></i>
             Add Asset
         </a>
+        <?php endif; ?>
 
     </div>
 
@@ -302,15 +304,18 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     No assets have been registered yet.
                 </p>
 
+                <?php if ($authorization->canManageAssets()): ?>
                 <a href="<?= e(base_url('/public/assets/create.php')) ?>" class="btn btn-primary">
                     <i class="fa-solid fa-plus me-1"></i>
                     Add First Asset
                 </a>
+                <?php endif; ?>
 
             </div>
 
         <?php else: ?>
 
+            <?php if ($authorization->canManageAssets()): ?>
             <form id="bulkQrForm" data-total-filtered="<?= (int) $totalAssets ?>" method="POST" action="<?= e(base_url('/public/assets/bulk-qr-generate.php')) ?>" class="border rounded p-3 mb-3">
                 <?= Csrf::field() ?>
                 <input type="hidden" name="selection_mode" id="bulkSelectionMode" value="selected">
@@ -335,6 +340,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                     </div>
                 </div>
             </form>
+            <?php endif; ?>
 
             <div class="table-responsive" id="assetsTableScroll">
 
@@ -342,7 +348,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
 
                     <thead>
                         <tr>
-                            <th class="text-center"><input type="checkbox" class="form-check-input" id="selectAllFilteredAssets" aria-label="Select all filtered assets across all pages" title="Select all filtered assets across all pages"></th>
+                            <?php if ($authorization->canManageAssets()): ?><th class="text-center"><input type="checkbox" class="form-check-input" id="selectAllFilteredAssets" aria-label="Select all filtered assets across all pages" title="Select all filtered assets across all pages"></th><?php endif; ?>
                             <th>Asset Code</th>
                             <th>QR Status</th>
                             <th>Location (Main)</th>
@@ -371,7 +377,7 @@ require_once dirname(__DIR__) . '/includes/app_header.php';
                             };
                             ?>
                             <tr>
-                                <td class="text-center"><input type="checkbox" class="form-check-input asset-row-select" value="<?= (int) $asset['id'] ?>" aria-label="Select asset <?= e($asset['asset_code'] ?? '') ?>"></td>
+                                <?php if ($authorization->canManageAssets()): ?><td class="text-center"><input type="checkbox" class="form-check-input asset-row-select" value="<?= (int) $asset['id'] ?>" aria-label="Select asset <?= e($asset['asset_code'] ?? '') ?>"></td><?php endif; ?>
                                 <td><span class="asset-code"><?= e($financeValue($asset['asset_code'] ?? null)) ?></span></td>
                                 <td>
                                     <?php if ((int) ($asset['qr_is_active'] ?? 0) === 1): ?>

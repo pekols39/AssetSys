@@ -65,9 +65,11 @@ $previewHeaders = [
         <a href="<?= e(base_url('/public/assets/import_history.php')) ?>" class="btn btn-outline-secondary">
             <i class="fa-solid fa-clock-rotate-left me-1"></i> Import History
         </a>
+        <?php if ($authorization->canManageAssets()): ?>
         <a href="<?= e(base_url('/public/assets/import.php')) ?>" class="btn btn-outline-primary">
             <i class="fa-solid fa-upload me-1"></i> Upload Another Workbook
         </a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -129,6 +131,7 @@ $previewHeaders = [
             </div>
         </div>
     </div>
+    <?php if ($authorization->canManageAssets()): ?>
     <form method="post" action="<?= e(base_url('/public/assets/import_execute.php')) ?>"
           data-swal-confirm="true" data-swal-title="Import staged assets?" data-swal-text="The staged records will be created in AssetSys. Missing categories and statuses will be added automatically. Existing assets will not be updated." data-swal-confirm-text="Yes, Import"
           class="mb-4">
@@ -138,12 +141,13 @@ $previewHeaders = [
             <i class="fa-solid fa-database me-1"></i> Import Staged Records into AssetSys
         </button>
     </form>
+    <?php endif; ?>
 <?php elseif ($batch['batch_status'] === 'completed'): ?>
     <div class="alert alert-success">
         Import processing completed. <?= number_format((int) $batch['imported_rows']) ?> asset(s) created;
         <?= number_format((int) $batch['failed_rows']) ?> row(s) require review.
     </div>
-    <?php if ($failedCount > 0): ?>
+    <?php if ($failedCount > 0 && $authorization->canManageAssets()): ?>
         <form method="post" action="<?= e(base_url('/public/assets/import_execute.php')) ?>"
               data-swal-confirm="true" data-swal-title="Retry failed rows?" data-swal-text="Only failed rows will be retried. The <?= number_format((int) $batch['imported_rows']) ?> assets already created will not be imported again." data-swal-confirm-text="Yes, Retry"
               class="mb-4">
