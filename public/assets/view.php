@@ -287,8 +287,6 @@ function displayDate(
                 QR Identity
             </a>
 
-            <?php endif; ?>
-
             <a href="<?= e(
                 base_url(
                     '/public/assets/edit.php?id='
