@@ -217,7 +217,7 @@ class AssetFileService
 
         $assetId = (int) $photo['asset_id'];
 
-        if (!$this->authorization->canManageAssets() || !$this->authorization->canAccessAsset($assetId)) {
+        if (!$this->authorization->canManageAssets() || !$this->authorization->canManageAssets() || !$this->authorization->canAccessAsset($assetId)) {
             throw new RuntimeException('Access denied.');
         }
 
@@ -302,7 +302,7 @@ class AssetFileService
 
         $assetId = (int) $document['asset_id'];
 
-        if (!$this->authorization->canAccessAsset($assetId)) {
+        if (!$this->authorization->canManageAssets() || !$this->authorization->canAccessAsset($assetId)) {
             throw new RuntimeException('Access denied.');
         }
 
@@ -371,7 +371,7 @@ class AssetFileService
             );
         }
 
-        if (!$this->authorization->canAccessAsset($assetId)) {
+        if (!$this->authorization->canManageAssets() || !$this->authorization->canAccessAsset($assetId)) {
             throw new RuntimeException(
                 'Access denied.'
             );
