@@ -27,7 +27,7 @@ AuthMiddleware::handle();
 $authorization = new AuthorizationService();
 $currentUser = $authorization->currentUser();
 
-if ($currentUser === null || !$authorization->canAccessAssetOperations()) {
+if ($currentUser === null || !$authorization->canManageAssets()) {
     $showSwal('error', 'Access denied', 'You do not have permission to generate asset QR identities.');
 }
 
